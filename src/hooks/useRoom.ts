@@ -73,8 +73,24 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       ? new Peer(hostId, { debug: 1 })
       : new Peer({ debug: 1 });
     peerRef.current = peer;
+    let reconnectAttempts = 0;
+    const connectGuest = () => {
+      if (peer.destroyed || reconnectAttempts >= 5) return;
+      const connection = peer.connect(hostId, { reliable: true });
+      bindConnection(connection);
+      connection.on("open", () => { reconnectAttempts = 0; });
+      connection.on("close", () => {
+        reconnectAttempts += 1;
+        setConnecting(true);
+        window.setTimeout(connectGuest, Math.min(1000 * 2 ** reconnectAttempts, 8000));
+      });
+    };
     peer.on("open", () => {
-      if (role === "guest") bindConnection(peer.connect(hostId, { reliable: true }));
+      if (role === "guest") connectGuest();
+    });
+    peer.on("disconnected", () => {
+      setConnecting(true);
+      if (!peer.destroyed) peer.reconnect();
     });
     peer.on("connection", bindConnection);
     peer.on("error", (peerError) => {
