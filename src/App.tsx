@@ -32,7 +32,8 @@ import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomMessage } from "./hooks/useRoom";
-import { connectOpenRouter, finishOpenRouter } from "./lib/openrouterAuth";
+import { finishOpenRouter } from "./lib/openrouterAuth";
+import { bundledOpenRouterKey } from "./lib/runtimeConfig";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -289,7 +290,7 @@ function Translator() {
     [messages, setMessages] = useState<(RoomMessage & { demo?: boolean; mine: boolean })[]>([]),
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
-    [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || ""),
+    [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || bundledOpenRouterKey),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("Hazır"),
     [copied, setCopied] = useState(false),
@@ -318,10 +319,6 @@ function Translator() {
     }
   }, [connectRoom, navigate, roomId]);
   const add = async (text: string) => {
-    if (!key) {
-      setNotice("Gerçek çeviri için önce OpenRouter hesabınızı bağlayın.");
-      return;
-    }
     setBusy(true);
     setNotice("Çevriliyor…");
     try {
@@ -395,7 +392,7 @@ function Translator() {
         <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı {role && <b>• {role === "host" ? "Oda sahibi" : "Katılımcı"}</b>}</span><h2>{roomConnection.connected ? "Bağlantı kuruldu, konuşabilirsiniz" : active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{roomConnection.connected ? "Söyledikleriniz çevrilerek iki ekranda da anında görünecek." : active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
         {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
       </section>
-      <div className={`ai-connect ${key ? "ready" : ""}`}><div><KeyRound /><span><b>{key ? "Gerçek AI çevirisi hazır" : "Çeviri bağlantısı gerekiyor"}</b><small>{key ? "OpenRouter bağlı — demo modu kapalı" : "Ücretsiz girişle OpenRouter hesabınızı güvenli biçimde bağlayın."}</small></span></div>{!key && <button className="primary" onClick={() => void connectOpenRouter(location.pathname + location.search)}>OpenRouter'ı bağla<ArrowRight /></button>}</div>
+      <div className="ai-connect ready"><div><KeyRound /><span><b>Gerçek AI çevirisi hazır</b><small>OpenRouter otomatik bağlı — hiçbir ayar gerekmiyor.</small></span></div></div>
       <div className="languagebar">
         <label>
           Konuştuğunuz dil
