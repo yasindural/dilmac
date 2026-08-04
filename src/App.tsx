@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
 import {
   Menu,
@@ -30,6 +30,7 @@ import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
+import { useRoom, type RoomMessage } from "./hooks/useRoom";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -281,36 +282,43 @@ function LivePreview() {
 function Translator() {
   const [source, setSource] = useState("tr-TR"),
     [target, setTarget] = useState("İngilizce"),
-    [messages, setMessages] = useState<
-      { source: string; translated: string; demo: boolean }[]
-    >([]),
+    [messages, setMessages] = useState<(RoomMessage & { demo?: boolean; mine: boolean })[]>([]),
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
     [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || ""),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("Hazır"),
-    [copied, setCopied] = useState(false);
+    [copied, setCopied] = useState(false),
+    [role, setRole] = useState<"host" | "guest" | null>(null),
+    [draft, setDraft] = useState("");
+  const receiveMessage = useCallback((message: RoomMessage) => {
+    setMessages((current) => [...current, { ...message, mine: false }]);
+    setNotice("Karşı taraftan yeni çeviri geldi.");
+  }, []);
+  const roomConnection = useRoom(receiveMessage);
+  const connectRoom = roomConnection.join;
   useEffect(() => {
     const incoming = new URLSearchParams(location.search).get("room")?.toUpperCase();
     if (incoming && /^[A-Z0-9]{6}$/.test(incoming)) {
       setRoom(incoming);
       setActive(incoming);
-      setNotice(`Davet bağlantısıyla ${incoming} odasına katıldınız.`);
+      setRole("guest");
+      connectRoom(incoming, "guest");
+      setNotice(`${incoming} odasına bağlanılıyor…`);
     }
-  }, []);
+  }, [connectRoom]);
   const add = async (text: string) => {
     setBusy(true);
     setNotice("Çevriliyor…");
     try {
       const r = await translate(text, target, key || undefined);
-      setMessages((v) => [
-        ...v,
-        { source: text, translated: r.text, demo: r.demo },
-      ]);
+      const message: RoomMessage = { id: crypto.randomUUID(), source: text, translated: r.text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target, sentAt: Date.now() };
+      setMessages((v) => [...v, { ...message, demo: r.demo, mine: true }]);
+      const delivered = roomConnection.send(message);
       setNotice(
         r.demo
           ? "Demo çeviri — gerçek çeviri için API anahtarı ekleyin"
-          : "Çeviri tamamlandı",
+          : delivered ? "Çeviri tamamlandı ve karşı tarafa gönderildi." : "Çeviri tamamlandı. Karşı taraf bağlanınca iletilecek.",
       );
     } catch (e) {
       setNotice((e as Error).message);
@@ -323,7 +331,9 @@ function Translator() {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     setRoom(code);
     setActive(code);
-    setNotice("Oda oluşturuldu. Davet bağlantısını paylaşın.");
+    setRole("host");
+    connectRoom(code, "host");
+    setNotice("Oda hazır. Davet bağlantısını paylaşın ve karşı tarafı bekleyin.");
   };
   const inviteLink = active
     ? `${location.origin}${import.meta.env.BASE_URL}uygulama?room=${active}`
@@ -347,12 +357,19 @@ function Translator() {
       return;
     }
     setActive(room.toUpperCase());
-    setNotice(
-      "Odaya katılma isteği hazır. Gerçek eş bağlantısı için iki cihazda aynı kodu açın.",
-    );
+    setRole("guest");
+    connectRoom(room.toUpperCase(), "guest");
+    setNotice("Odaya bağlanılıyor…");
   };
   const speak = (t: string) =>
     speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+  const submitDraft = (event: React.FormEvent) => {
+    event.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+    setDraft("");
+    void add(text);
+  };
   return (
     <section className="workspace">
       <div className="workspace-head">
@@ -361,13 +378,13 @@ function Translator() {
           <p>Oda oluşturun veya 6 karakterli kodla katılın.</p>
         </div>
         <div className="connection">
-          <i className={active ? "on" : ""} />
-          {active ? `Oda ${active}` : "Bağlantı bekleniyor"}
+          <i className={roomConnection.connected ? "on" : roomConnection.connecting ? "waiting" : ""} />
+          {roomConnection.connected ? "İkiniz de odadasınız" : roomConnection.connecting ? "Karşı taraf bekleniyor" : active ? `Oda ${active}` : "Bağlantı bekleniyor"}
         </div>
       </div>
       <div className="quick-guide"><Sparkles /><span><b>1.</b> Oda oluştur</span><i/><span><b>2.</b> Bağlantıyı gönder</span><i/><span><b>3.</b> Konuşmaya başla</span></div>
       <section className="room-card" aria-label="Görüşme odası">
-        <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı</span><h2>{active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
+        <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı {role && <b>• {role === "host" ? "Oda sahibi" : "Katılımcı"}</b>}</span><h2>{roomConnection.connected ? "Bağlantı kuruldu, konuşabilirsiniz" : active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{roomConnection.connected ? "Söyledikleriniz çevrilerek iki ekranda da anında görünecek." : active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
         {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
       <div className="roombar">
         <label>
@@ -418,9 +435,9 @@ function Translator() {
           <div className={`wave ${speech.listening ? "active" : ""}`}>
             ▂▅▃▇▄▆▂▅▇▃▆▄▂
           </div>
-          {messages.length ? (
-            messages.map((m, i) => (
-              <article key={i}>
+          {messages.some((m) => m.mine) ? (
+            messages.filter((m) => m.mine).map((m) => (
+              <article key={m.id}>
                 <p>{m.source}</p>
                 <strong>{m.translated}</strong>
                 {m.demo && <small>Demo</small>}
@@ -437,6 +454,10 @@ function Translator() {
               Mikrofona dokunun ve konuşmaya başlayın.
             </div>
           )}
+          <form className="message-composer" onSubmit={submitDraft}>
+            <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Yazın veya mikrofonla konuşun…" aria-label="Çevrilecek mesaj" />
+            <button className="primary" disabled={busy || !draft.trim()} type="submit"><ArrowRight /><span>Çevir ve gönder</span></button>
+          </form>
           <button
             className={`mic ${speech.listening ? "live" : ""}`}
             onClick={speech.toggle}
@@ -449,20 +470,17 @@ function Translator() {
           </button>
         </div>
         <div className="speaker remote">
-          <h2>Karşı taraf</h2>
-          <div className="empty">
-            <Users />
-            <p>İkinci kişi davet bağlantısıyla katıldığında burada görünür.</p>
-          </div>
+          <h2>Karşı taraf</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
+          {messages.some((m) => !m.mine) ? messages.filter((m) => !m.mine).map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda çevirisi burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}
         </div>
       </div>
       <div
-        className={`notice ${speech.error ? "error" : ""}`}
+        className={`notice ${speech.error || roomConnection.error ? "error" : ""}`}
         role="status"
         aria-live="polite"
       >
-        {speech.error ? <AlertCircle /> : <CheckCircle2 />}
-        {speech.error || notice}
+        {speech.error || roomConnection.error ? <AlertCircle /> : <CheckCircle2 />}
+        {speech.error || roomConnection.error || notice}
       </div>
       <details className="settings">
         <summary>Gerçek AI çevirisi ayarı</summary>
