@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   Menu,
@@ -26,6 +26,8 @@ import {
   Link2,
   Sparkles,
   KeyRound,
+  RotateCcw,
+  ChevronDown,
 } from "lucide-react";
 import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
@@ -34,6 +36,7 @@ import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { bundledOpenRouterKey } from "./lib/runtimeConfig";
+import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -43,6 +46,15 @@ const langs = [
   ["it-IT", "İtalyanca"],
   ["ar-SA", "Arapça"],
 ];
+function useSmartScroll(changeCount: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const nearBottom = useRef(true);
+  const [hasNew, setHasNew] = useState(false);
+  const onScroll = () => { const node = ref.current; if (!node) return; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight <= 140; if (nearBottom.current) setHasNew(false); };
+  const scrollToLatest = () => { const node = ref.current; if (!node) return; node.scrollTo({ top: node.scrollHeight, behavior: "smooth" }); nearBottom.current = true; setHasNew(false); };
+  useEffect(() => { const node = ref.current; if (!node) return; if (nearBottom.current) requestAnimationFrame(() => node.scrollTo({ top: node.scrollHeight, behavior: "smooth" })); else setHasNew(true); }, [changeCount]);
+  return { ref, onScroll, hasNew, scrollToLatest };
+}
 function Brand() {
   return (
     <Link className="brand" to="/" aria-label="Dilmaç ana sayfa">
@@ -287,20 +299,28 @@ function Translator() {
   const { roomId } = useParams();
   const [source, setSource] = useState("tr-TR"),
     [target, setTarget] = useState("İngilizce"),
-    [messages, setMessages] = useState<(RoomMessage & { demo?: boolean; mine: boolean })[]>([]),
+    [localMessages, setLocalMessages] = useState<QueueItem[]>([]),
+    [remoteMessages, setRemoteMessages] = useState<RoomMessage[]>([]),
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
     [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || bundledOpenRouterKey),
-    [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("Hazır"),
     [copied, setCopied] = useState(false),
     [role, setRole] = useState<"host" | "guest" | null>(null),
     [draft, setDraft] = useState("");
+  const keyRef = useRef(key);
+  keyRef.current = key;
+  const sendRef = useRef<(message: RoomMessage) => boolean>(() => false);
+  const queueRef = useRef<MessageQueue | null>(null);
+  if (!queueRef.current) queueRef.current = new MessageQueue((text, language) => translate(text, language, keyRef.current), (message) => sendRef.current(message));
   const receiveMessage = useCallback((message: RoomMessage) => {
-    setMessages((current) => [...current, { ...message, mine: false }]);
+    setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
     setNotice("Karşı taraftan yeni çeviri geldi.");
   }, []);
-  const roomConnection = useRoom(receiveMessage);
+  const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
+  const roomConnection = useRoom(receiveMessage, markDelivered);
+  sendRef.current = roomConnection.send;
+  useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
   const connectRoom = roomConnection.join;
   useEffect(() => {
     const legacyRoom = new URLSearchParams(location.search).get("room")?.toUpperCase();
@@ -318,26 +338,11 @@ function Translator() {
       setNotice(`${incoming} odasına bağlanılıyor…`);
     }
   }, [connectRoom, navigate, roomId]);
-  const add = async (text: string) => {
-    setBusy(true);
-    setNotice("Çevriliyor…");
-    try {
-      const r = await translate(text, target, key || undefined);
-      const message: RoomMessage = { id: crypto.randomUUID(), source: text, translated: r.text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target, sentAt: Date.now() };
-      setMessages((v) => [...v, { ...message, demo: r.demo, mine: true }]);
-      const delivered = roomConnection.send(message);
-      setNotice(
-        r.demo
-          ? "Demo çeviri — gerçek çeviri için API anahtarı ekleyin"
-          : delivered ? "Çeviri tamamlandı ve karşı tarafa gönderildi." : "Çeviri tamamlandı. Karşı taraf bağlanınca iletilecek.",
-      );
-    } catch (e) {
-      setNotice((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const speech = useSpeech(source, add);
+  const enqueue = useCallback((text: string) => {
+    queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
+    setNotice("Mesaj sıraya alındı.");
+  }, [source, target]);
+  const speech = useSpeech(source, enqueue);
   const createRoom = () => {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     navigate(`/oda/${code}?role=host`);
@@ -371,9 +376,12 @@ function Translator() {
     event.preventDefault();
     const text = draft.trim();
     if (!text) return;
+    enqueue(text);
     setDraft("");
-    void add(text);
   };
+  const pendingCount = localMessages.filter((message) => message.status === "queued" || message.status === "translating").length;
+  const localScroll = useSmartScroll(localMessages.length);
+  const remoteScroll = useSmartScroll(remoteMessages.length);
   if (!roomId) return <section className="room-lobby"><div className="lobby-hero"><div className="lobby-icon"><Languages /></div><h1>Konuşma odanızı açın.</h1><p>Yeni bir oda oluşturun veya size gönderilen kodla doğrudan görüşmeye katılın.</p></div><div className="lobby-actions"><article><span>Yeni görüşme</span><h2>Bir oda oluşturun</h2><p>Size özel bağlantıyı paylaşın; ikinci kişi tek dokunuşla katılsın.</p><button className="primary" onClick={createRoom}>Oda oluştur<ArrowRight /></button></article><article><span>Davete katıl</span><h2>Oda kodunu girin</h2><p>Bağlantının sonundaki 6 karakterli kodu kullanabilirsiniz.</p><label>Oda kodu<input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" /></label><button className="ghost" onClick={join}>Odaya katıl<ArrowRight /></button></article></div><div className="lobby-note"><ShieldCheck /> Görüşmeler doğrudan iki tarayıcı arasında kurulur.</div></section>;
   return (
     <section className="workspace">
@@ -418,22 +426,24 @@ function Translator() {
       </div>
       <div className="conversation">
         <div className="speaker">
-          <h2>Sen</h2>
+          <h2>Sen</h2>{pendingCount > 0 && <span className="queue-count">{pendingCount} bekliyor</span>}
           <div className={`wave ${speech.listening ? "active" : ""}`}>
             ▂▅▃▇▄▆▂▅▇▃▆▄▂
           </div>
-          {messages.some((m) => m.mine) ? (
-            messages.filter((m) => m.mine).map((m) => (
-              <article key={m.id}>
+          <div className="message-feed" ref={localScroll.ref} onScroll={localScroll.onScroll}>
+          {localMessages.length ? (
+            localMessages.map((m) => (
+              <article key={m.id} className={`message-${m.status}`}>
                 <p>{m.source}</p>
-                <strong>{m.translated}</strong>
-                {m.demo && <small>Demo</small>}
-                <button
+                {m.translated && <strong>{m.translated}</strong>}
+                <small className="message-status">{m.status === "queued" ? "Sırada" : m.status === "translating" ? "Çevriliyor…" : m.status === "sent" ? "Gönderildi" : m.status === "delivered" ? "Teslim edildi" : "Gönderilemedi"}</small>
+                {m.status === "failed" && <button className="retry" onClick={() => queueRef.current?.retry(m.id)}><RotateCcw />Tekrar dene</button>}
+                {m.translated && <button
                   onClick={() => speak(m.translated)}
                   aria-label="Çeviriyi dinle"
                 >
                   <Volume2 />
-                </button>
+                </button>}
               </article>
             ))
           ) : (
@@ -441,14 +451,15 @@ function Translator() {
               Mikrofona dokunun ve konuşmaya başlayın.
             </div>
           )}
+          </div>
+          {localScroll.hasNew && <button className="new-messages" onClick={localScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
           <form className="message-composer" onSubmit={submitDraft}>
             <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Yazın veya mikrofonla konuşun…" aria-label="Çevrilecek mesaj" />
-            <button className="primary" aria-label="Çevir ve gönder" disabled={busy || !draft.trim()} type="submit"><ArrowRight /><span>Çevir ve gönder</span></button>
+            <button className="primary" aria-label="Çevir ve gönder" disabled={!draft.trim()} type="submit"><ArrowRight /><span>Kuyruğa ekle</span></button>
           </form>
           <button
             className={`mic ${speech.listening ? "live" : ""}`}
             onClick={speech.toggle}
-            disabled={busy}
           >
             {speech.listening ? <MicOff /> : <Mic />}
             <span>
@@ -458,7 +469,8 @@ function Translator() {
         </div>
         <div className="speaker remote">
           <h2>Karşı taraf</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
-          {messages.some((m) => !m.mine) ? messages.filter((m) => !m.mine).map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda çevirisi burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}
+          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda çevirisi burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
+          {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
         </div>
       </div>
       <div

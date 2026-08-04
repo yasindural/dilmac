@@ -11,16 +11,20 @@ export type RoomMessage = {
 };
 
 type Role = "host" | "guest";
+type Envelope = { kind: "message"; message: RoomMessage } | { kind: "ack"; id: string };
 
-export function useRoom(onMessage: (message: RoomMessage) => void) {
+export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?: (id: string) => void) {
   const peerRef = useRef<Peer | null>(null);
   const connectionRef = useRef<DataConnection | null>(null);
   const onMessageRef = useRef(onMessage);
+  const onDeliveredRef = useRef(onDelivered);
+  const outboundRef = useRef<RoomMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
+  useEffect(() => { onDeliveredRef.current = onDelivered; }, [onDelivered]);
 
   const close = useCallback(() => {
     connectionRef.current?.close();
@@ -39,8 +43,20 @@ export function useRoom(onMessage: (message: RoomMessage) => void) {
       setConnected(true);
       setConnecting(false);
       setError("");
+      for (const message of outboundRef.current) connection.send({ kind: "message", message } satisfies Envelope);
     });
-    connection.on("data", (data) => onMessageRef.current(data as RoomMessage));
+    connection.on("data", (data) => {
+      const envelope = data as Envelope;
+      if (envelope.kind === "ack") {
+        outboundRef.current = outboundRef.current.filter((message) => message.id !== envelope.id);
+        onDeliveredRef.current?.(envelope.id);
+        return;
+      }
+      if (envelope.kind === "message") {
+        onMessageRef.current(envelope.message);
+        connection.send({ kind: "ack", id: envelope.message.id } satisfies Envelope);
+      }
+    });
     connection.on("close", () => setConnected(false));
     connection.on("error", () => {
       setError("Karşı tarafla bağlantı kesildi. Bağlantıyı yeniden açın.");
@@ -71,8 +87,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void) {
   }, [bindConnection, close]);
 
   const send = useCallback((message: RoomMessage) => {
+    if (!outboundRef.current.some((candidate) => candidate.id === message.id)) outboundRef.current.push(message);
     if (!connectionRef.current?.open) return false;
-    connectionRef.current.send(message);
+    connectionRef.current.send({ kind: "message", message } satisfies Envelope);
     return true;
   }, []);
 
