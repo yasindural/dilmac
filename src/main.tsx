@@ -1,2 +1,2 @@
-import React from 'react';import ReactDOM from 'react-dom/client';import {BrowserRouter} from 'react-router-dom';import {App} from './App';import './styles.css';
+import React from 'react';import ReactDOM from 'react-dom/client';import {BrowserRouter} from 'react-router-dom';import {App} from './App';import './styles.css';if(!localStorage.getItem('dilmac-palette-v2')){localStorage.setItem('dilmac-theme','light');localStorage.setItem('dilmac-palette-v2','1')}
 ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><BrowserRouter basename="/dilmac"><App/></BrowserRouter></React.StrictMode>);
