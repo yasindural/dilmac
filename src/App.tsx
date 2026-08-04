@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import {
   Menu,
   X,
@@ -25,12 +25,14 @@ import {
   Share2,
   Link2,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomMessage } from "./hooks/useRoom";
+import { connectOpenRouter, finishOpenRouter } from "./lib/openrouterAuth";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -280,6 +282,8 @@ function LivePreview() {
   );
 }
 function Translator() {
+  const navigate = useNavigate();
+  const { roomId } = useParams();
   const [source, setSource] = useState("tr-TR"),
     [target, setTarget] = useState("İngilizce"),
     [messages, setMessages] = useState<(RoomMessage & { demo?: boolean; mine: boolean })[]>([]),
@@ -298,16 +302,26 @@ function Translator() {
   const roomConnection = useRoom(receiveMessage);
   const connectRoom = roomConnection.join;
   useEffect(() => {
-    const incoming = new URLSearchParams(location.search).get("room")?.toUpperCase();
+    const legacyRoom = new URLSearchParams(location.search).get("room")?.toUpperCase();
+    if (!roomId && legacyRoom && /^[A-Z0-9]{6}$/.test(legacyRoom)) {
+      navigate(`/oda/${legacyRoom}`, { replace: true });
+      return;
+    }
+    const incoming = roomId?.toUpperCase();
     if (incoming && /^[A-Z0-9]{6}$/.test(incoming)) {
       setRoom(incoming);
       setActive(incoming);
-      setRole("guest");
-      connectRoom(incoming, "guest");
+      const incomingRole = new URLSearchParams(location.search).get("role") === "host" ? "host" : "guest";
+      setRole(incomingRole);
+      connectRoom(incoming, incomingRole);
       setNotice(`${incoming} odasına bağlanılıyor…`);
     }
-  }, [connectRoom]);
+  }, [connectRoom, navigate, roomId]);
   const add = async (text: string) => {
+    if (!key) {
+      setNotice("Gerçek çeviri için önce OpenRouter hesabınızı bağlayın.");
+      return;
+    }
     setBusy(true);
     setNotice("Çevriliyor…");
     try {
@@ -329,14 +343,10 @@ function Translator() {
   const speech = useSpeech(source, add);
   const createRoom = () => {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    setRoom(code);
-    setActive(code);
-    setRole("host");
-    connectRoom(code, "host");
-    setNotice("Oda hazır. Davet bağlantısını paylaşın ve karşı tarafı bekleyin.");
+    navigate(`/oda/${code}?role=host`);
   };
   const inviteLink = active
-    ? `${location.origin}${import.meta.env.BASE_URL}uygulama?room=${active}`
+    ? `${location.origin}${import.meta.env.BASE_URL}oda/${active}`
     : "";
   const copyInvite = async () => {
     if (!inviteLink) return;
@@ -356,10 +366,7 @@ function Translator() {
       setNotice("Oda kodu 6 harf veya rakam olmalı.");
       return;
     }
-    setActive(room.toUpperCase());
-    setRole("guest");
-    connectRoom(room.toUpperCase(), "guest");
-    setNotice("Odaya bağlanılıyor…");
+    navigate(`/oda/${room.toUpperCase()}`);
   };
   const speak = (t: string) =>
     speechSynthesis.speak(new SpeechSynthesisUtterance(t));
@@ -370,12 +377,13 @@ function Translator() {
     setDraft("");
     void add(text);
   };
+  if (!roomId) return <section className="room-lobby"><div className="lobby-hero"><div className="lobby-icon"><Languages /></div><h1>Konuşma odanızı açın.</h1><p>Yeni bir oda oluşturun veya size gönderilen kodla doğrudan görüşmeye katılın.</p></div><div className="lobby-actions"><article><span>Yeni görüşme</span><h2>Bir oda oluşturun</h2><p>Size özel bağlantıyı paylaşın; ikinci kişi tek dokunuşla katılsın.</p><button className="primary" onClick={createRoom}>Oda oluştur<ArrowRight /></button></article><article><span>Davete katıl</span><h2>Oda kodunu girin</h2><p>Bağlantının sonundaki 6 karakterli kodu kullanabilirsiniz.</p><label>Oda kodu<input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" /></label><button className="ghost" onClick={join}>Odaya katıl<ArrowRight /></button></article></div><div className="lobby-note"><ShieldCheck /> Görüşmeler doğrudan iki tarayıcı arasında kurulur.</div></section>;
   return (
     <section className="workspace">
       <div className="workspace-head">
         <div>
           <h1 className="live-title"><span aria-hidden="true"><Languages /></span>Canlı <em>çeviri</em></h1>
-          <p>Oda oluşturun veya 6 karakterli kodla katılın.</p>
+          <p>Konuşun veya yazın; çeviri karşı tarafa anında ulaşsın.</p>
         </div>
         <div className="connection">
           <i className={roomConnection.connected ? "on" : roomConnection.connecting ? "waiting" : ""} />
@@ -386,26 +394,8 @@ function Translator() {
       <section className="room-card" aria-label="Görüşme odası">
         <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı {role && <b>• {role === "host" ? "Oda sahibi" : "Katılımcı"}</b>}</span><h2>{roomConnection.connected ? "Bağlantı kuruldu, konuşabilirsiniz" : active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{roomConnection.connected ? "Söyledikleriniz çevrilerek iki ekranda da anında görünecek." : active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
         {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
-      <div className="roombar">
-        <label>
-          Oda kodu
-          <input
-            value={room}
-            maxLength={6}
-            onChange={(e) =>
-              setRoom(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))
-            }
-            placeholder="A1B2C3"
-          />
-        </label>
-        <button className="primary" onClick={join}>
-          Odaya katıl
-        </button>
-        <button className="ghost" onClick={createRoom}>
-          Oda oluştur
-        </button>
-      </div>
       </section>
+      <div className={`ai-connect ${key ? "ready" : ""}`}><div><KeyRound /><span><b>{key ? "Gerçek AI çevirisi hazır" : "Çeviri bağlantısı gerekiyor"}</b><small>{key ? "OpenRouter bağlı — demo modu kapalı" : "Ücretsiz girişle OpenRouter hesabınızı güvenli biçimde bağlayın."}</small></span></div>{!key && <button className="primary" onClick={() => void connectOpenRouter(location.pathname + location.search)}>OpenRouter'ı bağla<ArrowRight /></button>}</div>
       <div className="languagebar">
         <label>
           Konuştuğunuz dil
@@ -456,7 +446,7 @@ function Translator() {
           )}
           <form className="message-composer" onSubmit={submitDraft}>
             <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Yazın veya mikrofonla konuşun…" aria-label="Çevrilecek mesaj" />
-            <button className="primary" disabled={busy || !draft.trim()} type="submit"><ArrowRight /><span>Çevir ve gönder</span></button>
+            <button className="primary" aria-label="Çevir ve gönder" disabled={busy || !draft.trim()} type="submit"><ArrowRight /><span>Çevir ve gönder</span></button>
           </form>
           <button
             className={`mic ${speech.listening ? "live" : ""}`}
@@ -628,6 +618,16 @@ function NotFound() {
     </section>
   );
 }
+function OpenRouterCallback() {
+  const navigate = useNavigate();
+  const [message, setMessage] = useState("OpenRouter bağlantısı tamamlanıyor…");
+  useEffect(() => {
+    const code = new URLSearchParams(location.search).get("code");
+    if (!code) { setMessage("OpenRouter doğrulama kodu bulunamadı."); return; }
+    finishOpenRouter(code).then((returnTo) => navigate(returnTo, { replace: true })).catch((error: Error) => setMessage(error.message));
+  }, [navigate]);
+  return <section className="oauth-callback"><div className="lobby-icon"><KeyRound /></div><h1>{message}</h1><p>Bu sayfayı kapatmayın.</p></section>;
+}
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [dark, setDark] = useState(
@@ -643,6 +643,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/uygulama" element={<Translator />} />
+        <Route path="/oda/:roomId" element={<Translator />} />
+        <Route path="/openrouter-callback" element={<OpenRouterCallback />} />
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
         <Route path="/ozellikler" element={<Info data={pages.features} />} />
