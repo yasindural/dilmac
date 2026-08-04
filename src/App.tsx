@@ -28,6 +28,10 @@ import {
   KeyRound,
   RotateCcw,
   ChevronDown,
+  Headphones,
+  PhoneCall,
+  PhoneOff,
+  VolumeX,
 } from "lucide-react";
 import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
@@ -37,6 +41,7 @@ import { useRoom, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { bundledOpenRouterKey } from "./lib/runtimeConfig";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
+import HomeExpansion from "./components/HomeExpansion";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -264,6 +269,7 @@ function Home() {
           <article><GraduationCap /><b>Eğitimde</b><p>Dersleri ve konuşmaları kendi dilinizde takip etmeyi kolaylaştırın.</p></article>
         </div>
       </section>
+      <HomeExpansion />
       <section className="home-cta">
         <div><h2>Birbirinizi anlamaya hazırsınız.</h2><p>Odanızı oluşturun, bağlantıyı paylaşın ve konuşmaya başlayın.</p></div>
         <Link className="primary large" to="/uygulama">Canlı çeviriyi aç<ArrowRight /></Link>
@@ -307,7 +313,10 @@ function Translator() {
     [notice, setNotice] = useState("Hazır"),
     [copied, setCopied] = useState(false),
     [role, setRole] = useState<"host" | "guest" | null>(null),
-    [draft, setDraft] = useState("");
+    [draft, setDraft] = useState(""),
+    [remoteMuted, setRemoteMuted] = useState(false),
+    [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const keyRef = useRef(key);
   keyRef.current = key;
   const sendRef = useRef<(message: RoomMessage) => boolean>(() => false);
@@ -320,6 +329,32 @@ function Translator() {
   const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
   const roomConnection = useRoom(receiveMessage, markDelivered);
   sendRef.current = roomConnection.send;
+  useEffect(() => {
+    const audio = remoteAudioRef.current;
+    if (!audio) return;
+    const stream = roomConnection.remoteStream;
+    audio.srcObject = stream;
+    setPlaybackBlocked(false);
+    if (stream) {
+      void audio.play().catch(() => setPlaybackBlocked(true));
+    } else {
+      audio.pause();
+    }
+    return () => {
+      if (audio.srcObject === stream) {
+        audio.pause();
+        audio.srcObject = null;
+      }
+    };
+  }, [roomConnection.remoteStream]);
+  useEffect(() => {
+    if (remoteAudioRef.current) remoteAudioRef.current.muted = remoteMuted;
+  }, [remoteMuted]);
+  useEffect(() => {
+    if (roomConnection.voiceConnected) {
+      setNotice("Orijinal ses bağlantısı kuruldu. Artık birbirinizi duyabilirsiniz.");
+    }
+  }, [roomConnection.voiceConnected]);
   useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
   const connectRoom = roomConnection.join;
   useEffect(() => {
@@ -379,6 +414,55 @@ function Translator() {
     enqueue(text);
     setDraft("");
   };
+  const toggleVoice = async () => {
+    if (roomConnection.voiceEnabled) {
+      roomConnection.disableVoice();
+      setNotice("Orijinal ses kapatıldı.");
+      return;
+    }
+    const enabled = await roomConnection.enableVoice();
+    if (enabled) setNotice("Mikrofonunuz açık. Karşı tarafın ses bağlantısı bekleniyor.");
+  };
+  const toggleConversation = async () => {
+    if (speech.listening) {
+      speech.toggle();
+      return;
+    }
+    if (!roomConnection.voiceEnabled) {
+      const enabled = await roomConnection.enableVoice();
+      if (!enabled) return;
+    }
+    speech.toggle();
+  };
+  const toggleRemotePlayback = async () => {
+    const audio = remoteAudioRef.current;
+    if (!audio || !roomConnection.voiceConnected) return;
+    if (playbackBlocked || remoteMuted) {
+      audio.muted = false;
+      setRemoteMuted(false);
+      try {
+        await audio.play();
+        setPlaybackBlocked(false);
+      } catch {
+        setPlaybackBlocked(true);
+      }
+      return;
+    }
+    audio.muted = true;
+    setRemoteMuted(true);
+  };
+  const voiceStatus = roomConnection.voiceError
+    ? roomConnection.voiceError
+    : roomConnection.voiceConnected
+      ? "Orijinal ses canlı"
+      : roomConnection.voiceEnabled && roomConnection.remoteVoiceReady
+        ? "Ses bağlantısı kuruluyor…"
+        : roomConnection.voiceEnabled
+          ? "Mikrofonunuz açık, karşı taraf bekleniyor"
+          : roomConnection.remoteVoiceReady
+            ? "Karşı taraf hazır, mikrofonunuzu açın"
+            : "Orijinal ses bağlantısını açın";
+  const statusError = speech.error || roomConnection.error || roomConnection.voiceError;
   const pendingCount = localMessages.filter((message) => message.status === "queued" || message.status === "translating").length;
   const localScroll = useSmartScroll(localMessages.length);
   const remoteScroll = useSmartScroll(remoteMessages.length);
@@ -401,6 +485,25 @@ function Translator() {
         {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
       </section>
       <div className="ai-connect ready"><div><KeyRound /><span><b>Gerçek AI çevirisi hazır</b><small>OpenRouter otomatik bağlı — hiçbir ayar gerekmiyor.</small></span></div></div>
+      <section className={`voice-dock ${roomConnection.voiceConnected ? "connected" : ""} ${roomConnection.voiceError ? "has-error" : ""}`} aria-label="Orijinal ses bağlantısı">
+        <audio ref={remoteAudioRef} autoPlay playsInline aria-hidden="true" />
+        <div className="voice-dock-icon" aria-hidden="true"><Headphones /></div>
+        <div className="voice-dock-copy">
+          <small>CANLI ORİJİNAL SES</small>
+          <strong>{voiceStatus}</strong>
+          <span>İki taraf da bir kez açar. Yankıyı önlemek için kulaklık önerilir.</span>
+        </div>
+        <div className="voice-dock-actions">
+          <button className="ghost voice-output" type="button" onClick={toggleRemotePlayback} disabled={!roomConnection.voiceConnected}>
+            {remoteMuted ? <VolumeX /> : <Volume2 />}
+            {playbackBlocked ? "Sesi oynat" : remoteMuted ? "Sesi aç" : roomConnection.voiceConnected ? "Sesi kapat" : "Ses bekleniyor"}
+          </button>
+          <button className={roomConnection.voiceEnabled ? "ghost voice-stop" : "primary"} type="button" onClick={toggleVoice} disabled={roomConnection.voiceConnecting && !roomConnection.voiceEnabled}>
+            {roomConnection.voiceEnabled ? <PhoneOff /> : <PhoneCall />}
+            {roomConnection.voiceEnabled ? "Mikrofonu kapat" : roomConnection.voiceConnecting ? "Mikrofon açılıyor…" : "Orijinal sesi aç"}
+          </button>
+        </div>
+      </section>
       <div className="languagebar">
         <label>
           Konuştuğunuz dil
@@ -459,7 +562,7 @@ function Translator() {
           </form>
           <button
             className={`mic ${speech.listening ? "live" : ""}`}
-            onClick={speech.toggle}
+            onClick={toggleConversation}
           >
             {speech.listening ? <MicOff /> : <Mic />}
             <span>
@@ -474,12 +577,12 @@ function Translator() {
         </div>
       </div>
       <div
-        className={`notice ${speech.error || roomConnection.error ? "error" : ""}`}
+        className={`notice ${statusError ? "error" : ""}`}
         role="status"
         aria-live="polite"
       >
-        {speech.error || roomConnection.error ? <AlertCircle /> : <CheckCircle2 />}
-        {speech.error || roomConnection.error || notice}
+        {statusError ? <AlertCircle /> : <CheckCircle2 />}
+        {statusError || notice}
       </div>
       <details className="settings">
         <summary>Gerçek AI çevirisi ayarı</summary>
@@ -532,8 +635,8 @@ const pages: {
         "Altı karakterli oda kodunu veya davet bağlantısını diğer kişiyle paylaşın.",
       ],
       [
-        "3. Mikrofonu açın",
-        "Tarayıcı izninden sonra konuşmanız anlık olarak yazıya çevrilir.",
+        "3. Sesli görüşmeyi açın",
+        "Tarayıcı izninden sonra orijinal sesiniz karşı tarafa ulaşır; konuşmanız aynı anda yazıya dönüşür.",
       ],
       [
         "4. Çeviriyi alın",
@@ -545,6 +648,10 @@ const pages: {
     title: "Özellikler",
     intro: "Canlı iletişim için gereken temel araçlar tek yerde.",
     sections: [
+      [
+        "Orijinal ses görüşmesi",
+        "İki kişi birbirinin gerçek sesini WebRTC üzerinden duyarken altyazı ve çeviriyi aynı ekranda takip eder.",
+      ],
       [
         "Canlı konuşma tanıma",
         "Desteklenen tarayıcılarda Web Speech API ile konuşmayı anlık metne dönüştürür.",
