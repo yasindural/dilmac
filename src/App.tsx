@@ -22,6 +22,9 @@ import {
   Plane,
   Briefcase,
   GraduationCap,
+  Share2,
+  Link2,
+  Sparkles,
 } from "lucide-react";
 import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
@@ -285,7 +288,16 @@ function Translator() {
     [active, setActive] = useState(""),
     [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || ""),
     [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("Hazır");
+    [notice, setNotice] = useState("Hazır"),
+    [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const incoming = new URLSearchParams(location.search).get("room")?.toUpperCase();
+    if (incoming && /^[A-Z0-9]{6}$/.test(incoming)) {
+      setRoom(incoming);
+      setActive(incoming);
+      setNotice(`Davet bağlantısıyla ${incoming} odasına katıldınız.`);
+    }
+  }, []);
   const add = async (text: string) => {
     setBusy(true);
     setNotice("Çevriliyor…");
@@ -313,6 +325,22 @@ function Translator() {
     setActive(code);
     setNotice("Oda oluşturuldu. Davet bağlantısını paylaşın.");
   };
+  const inviteLink = active
+    ? `${location.origin}${import.meta.env.BASE_URL}uygulama?room=${active}`
+    : "";
+  const copyInvite = async () => {
+    if (!inviteLink) return;
+    await navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setNotice("Davet bağlantısı kopyalandı.");
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+  const shareInvite = async () => {
+    if (!inviteLink) return;
+    if (navigator.share) {
+      await navigator.share({ title: "Dilmaç canlı çeviri", text: `Dilmaç'ta ${active} odasına katıl.`, url: inviteLink });
+    } else await copyInvite();
+  };
   const join = () => {
     if (!/^[A-Z0-9]{6}$/.test(room.toUpperCase())) {
       setNotice("Oda kodu 6 harf veya rakam olmalı.");
@@ -337,6 +365,10 @@ function Translator() {
           {active ? `Oda ${active}` : "Bağlantı bekleniyor"}
         </div>
       </div>
+      <div className="quick-guide"><Sparkles /><span><b>1.</b> Oda oluştur</span><i/><span><b>2.</b> Bağlantıyı gönder</span><i/><span><b>3.</b> Konuşmaya başla</span></div>
+      <section className="room-card" aria-label="Görüşme odası">
+        <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı</span><h2>{active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
+        {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
       <div className="roombar">
         <label>
           Oda kodu
@@ -355,20 +387,8 @@ function Translator() {
         <button className="ghost" onClick={createRoom}>
           Oda oluştur
         </button>
-        {active && (
-          <button
-            className="icon-btn"
-            aria-label="Davet bağlantısını kopyala"
-            onClick={() =>
-              navigator.clipboard.writeText(
-                `${location.origin}/dilmac/uygulama?room=${active}`,
-              )
-            }
-          >
-            <Copy />
-          </button>
-        )}
       </div>
+      </section>
       <div className="languagebar">
         <label>
           Konuştuğunuz dil
