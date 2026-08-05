@@ -37,7 +37,7 @@ import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
-import { useRoom, type RoomMessage } from "./hooks/useRoom";
+import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { bundledOpenRouterKey } from "./lib/runtimeConfig";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
@@ -316,6 +316,7 @@ function Translator() {
     [draft, setDraft] = useState(""),
     [remoteMuted, setRemoteMuted] = useState(false),
     [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const [remoteLanguage, setRemoteLanguage] = useState<RoomLanguage | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const keyRef = useRef(key);
   keyRef.current = key;
@@ -323,12 +324,19 @@ function Translator() {
   const queueRef = useRef<MessageQueue | null>(null);
   if (!queueRef.current) queueRef.current = new MessageQueue((text, language) => translate(text, language, keyRef.current), (message) => sendRef.current(message));
   const receiveMessage = useCallback((message: RoomMessage) => {
+    if (!message.source.trim() || !message.translated.trim()) return;
     setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
     setNotice("Karşı taraftan yeni çeviri geldi.");
   }, []);
+  const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
+    setRemoteLanguage(language);
+    setTarget(language.name);
+    setNotice(`Karşı tarafın dili ${language.name}; çeviri dili otomatik güncellendi.`);
+  }, []);
   const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
-  const roomConnection = useRoom(receiveMessage, markDelivered);
+  const roomConnection = useRoom(receiveMessage, markDelivered, receiveRemoteLanguage);
   sendRef.current = roomConnection.send;
+  const sendLanguage = roomConnection.sendLanguage;
   useEffect(() => {
     const audio = remoteAudioRef.current;
     if (!audio) return;
@@ -356,6 +364,10 @@ function Translator() {
     }
   }, [roomConnection.voiceConnected]);
   useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
+  useEffect(() => {
+    const language = langs.find(([code]) => code === source);
+    if (language) sendLanguage({ code: language[0], name: language[1] });
+  }, [sendLanguage, source]);
   const connectRoom = roomConnection.join;
   useEffect(() => {
     const legacyRoom = new URLSearchParams(location.search).get("room")?.toUpperCase();
@@ -365,6 +377,8 @@ function Translator() {
     }
     const incoming = roomId?.toUpperCase();
     if (incoming && /^[A-Z0-9]{6}$/.test(incoming)) {
+      setRemoteLanguage(null);
+      setRemoteMessages([]);
       setRoom(incoming);
       setActive(incoming);
       const incomingRole = new URLSearchParams(location.search).get("role") === "host" ? "host" : "guest";
@@ -517,8 +531,8 @@ function Translator() {
         </label>
         <Languages />
         <label>
-          Çeviri dili
-          <select value={target} onChange={(e) => setTarget(e.target.value)}>
+          {remoteLanguage ? "Karşı tarafın dili (otomatik)" : "Çeviri dili"}
+          <select value={target} onChange={(e) => setTarget(e.target.value)} disabled={Boolean(remoteLanguage)}>
             {langs.map((l) => (
               <option key={l[0]} value={l[1]}>
                 {l[1]}
@@ -779,3 +793,4 @@ export function App() {
     </Layout>
   );
 }
+
