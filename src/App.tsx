@@ -368,6 +368,14 @@ function Translator() {
     const language = langs.find(([code]) => code === source);
     if (language) sendLanguage({ code: language[0], name: language[1] });
   }, [sendLanguage, source]);
+  const changeSourceLanguage = (code: string) => {
+    setSource(code);
+    const language = langs.find(([candidate]) => candidate === code);
+    if (language) {
+      sendLanguage({ code: language[0], name: language[1] });
+      setNotice(`Konuşma diliniz ${language[1]} olarak güncellendi.`);
+    }
+  };
   const connectRoom = roomConnection.join;
   useEffect(() => {
     const legacyRoom = new URLSearchParams(location.search).get("room")?.toUpperCase();
@@ -521,7 +529,7 @@ function Translator() {
       <div className="languagebar">
         <label>
           Konuştuğunuz dil
-          <select value={source} onChange={(e) => setSource(e.target.value)}>
+          <select value={source} onChange={(event) => changeSourceLanguage(event.target.value)}>
             {langs.map((l) => (
               <option key={l[0]} value={l[0]}>
                 {l[1]}
