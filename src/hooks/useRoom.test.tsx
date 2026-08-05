@@ -237,4 +237,44 @@ describe("useRoom voice channel", () => {
     expect(result.current.remoteStream).toBe(remoteStream);
     expect(result.current.voiceConnecting).toBe(false);
   });
+
+  it("dil seçimini karşı tarafa anında gönderir ve uzak dil değişimini bildirir", () => {
+    const onRemoteLanguage = vi.fn();
+    const { result } = renderHook(() => useRoom(vi.fn(), undefined, onRemoteLanguage));
+
+    act(() => result.current.join("ABC123", "host"));
+    const { dataConnection } = connectHost();
+    dataConnection.send.mockClear();
+
+    act(() => result.current.sendLanguage({ code: "tr-TR", name: "Türkçe" }));
+    expect(dataConnection.send).toHaveBeenCalledWith({
+      kind: "language",
+      language: { code: "tr-TR", name: "Türkçe" },
+      protocol: 2,
+    });
+
+    act(() => dataConnection.emit("data", {
+      kind: "language",
+      language: { code: "en-US", name: "İngilizce" },
+      protocol: 2,
+    }));
+    expect(onRemoteLanguage).toHaveBeenCalledWith({ code: "en-US", name: "İngilizce" });
+  });
+
+  it("boş mesaj paketini konuşmaya eklemez", () => {
+    const onMessage = vi.fn();
+    const { result } = renderHook(() => useRoom(onMessage));
+
+    act(() => result.current.join("ABC123", "host"));
+    const { dataConnection } = connectHost();
+    act(() => dataConnection.emit("data", {
+      kind: "message",
+      message: { id: "empty", source: "", translated: "" },
+      protocol: 2,
+    }));
+
+    expect(onMessage).not.toHaveBeenCalled();
+    expect(result.current.error).toContain("geçersiz veya boş");
+  });
 });
+
