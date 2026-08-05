@@ -10,13 +10,34 @@ export type RoomMessage = {
   sentAt: number;
 };
 
+export type RoomLanguage = { code: string; name: string };
+
 type Role = "host" | "guest";
 type Envelope =
-  | { kind: "message"; message: RoomMessage }
+  | { kind: "message"; message: RoomMessage; protocol?: 2 }
   | { kind: "ack"; id: string }
-  | { kind: "voice-ready"; ready: boolean };
+  | { kind: "voice-ready"; ready: boolean }
+  | { kind: "language"; language: RoomLanguage; protocol?: 2 };
 
-export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?: (id: string) => void) {
+function isRoomMessage(value: unknown): value is RoomMessage {
+  if (!value || typeof value !== "object") return false;
+  const message = value as Partial<RoomMessage>;
+  return typeof message.id === "string" && message.id.length > 0
+    && typeof message.source === "string" && message.source.trim().length > 0
+    && typeof message.translated === "string" && message.translated.trim().length > 0
+    && typeof message.sourceLanguage === "string" && message.sourceLanguage.length > 0
+    && typeof message.targetLanguage === "string" && message.targetLanguage.length > 0
+    && typeof message.sentAt === "number";
+}
+
+function isRoomLanguage(value: unknown): value is RoomLanguage {
+  if (!value || typeof value !== "object") return false;
+  const language = value as Partial<RoomLanguage>;
+  return typeof language.code === "string" && language.code.length > 0
+    && typeof language.name === "string" && language.name.length > 0;
+}
+
+export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?: (id: string) => void, onRemoteLanguage?: (language: RoomLanguage) => void) {
   const peerRef = useRef<Peer | null>(null);
   const connectionRef = useRef<DataConnection | null>(null);
   const mediaConnectionRef = useRef<MediaConnection | null>(null);
@@ -31,6 +52,8 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const maybeStartGuestCallRef = useRef<() => void>(() => undefined);
   const onMessageRef = useRef(onMessage);
   const onDeliveredRef = useRef(onDelivered);
+  const onRemoteLanguageRef = useRef(onRemoteLanguage);
+  const localLanguageRef = useRef<RoomLanguage | null>(null);
   const outboundRef = useRef<RoomMessage[]>([]);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -43,6 +66,7 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
 
   useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
   useEffect(() => { onDeliveredRef.current = onDelivered; }, [onDelivered]);
+  useEffect(() => { onRemoteLanguageRef.current = onRemoteLanguage; }, [onRemoteLanguage]);
 
   const clearVoiceReconnectTimer = useCallback(() => {
     if (voiceReconnectTimerRef.current === null) return;
@@ -240,6 +264,7 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       setError("");
       for (const message of outboundRef.current) connection.send({ kind: "message", message } satisfies Envelope);
       connection.send({ kind: "voice-ready", ready: Boolean(localStreamRef.current) } satisfies Envelope);
+      if (localLanguageRef.current) connection.send({ kind: "language", language: localLanguageRef.current, protocol: 2 } satisfies Envelope);
       maybeStartGuestCall();
     });
     connection.on("data", (data) => {
@@ -259,9 +284,24 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
         }
         return;
       }
+      if (envelope.kind === "language") {
+        if (isRoomLanguage(envelope.language)) onRemoteLanguageRef.current?.(envelope.language);
+        return;
+      }
       if (envelope.kind === "message") {
+        if (!isRoomMessage(envelope.message)) {
+          setError("Karşı taraftan geçersiz veya boş bir mesaj geldi. Her iki sayfayı da yenileyin.");
+          return;
+        }
         onMessageRef.current(envelope.message);
         if (connection.open) connection.send({ kind: "ack", id: envelope.message.id } satisfies Envelope);
+        return;
+      }
+      // İlk sürümde mesajlar zarf kullanılmadan gönderiliyordu. Açık kalmış eski
+      // sekmelerle görüşme devam edebilsin; yalnızca eksiksiz paketleri kabul et.
+      if (isRoomMessage(data)) {
+        onMessageRef.current(data);
+        if (connection.open) connection.send({ kind: "ack", id: data.id } satisfies Envelope);
       }
     });
     connection.on("close", () => {
@@ -347,7 +387,14 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const send = useCallback((message: RoomMessage) => {
     if (!outboundRef.current.some((candidate) => candidate.id === message.id)) outboundRef.current.push(message);
     if (!connectionRef.current?.open) return false;
-    connectionRef.current.send({ kind: "message", message } satisfies Envelope);
+    connectionRef.current.send({ kind: "message", message, protocol: 2 } satisfies Envelope);
+    return true;
+  }, []);
+
+  const sendLanguage = useCallback((language: RoomLanguage) => {
+    localLanguageRef.current = language;
+    if (!connectionRef.current?.open) return false;
+    connectionRef.current.send({ kind: "language", language, protocol: 2 } satisfies Envelope);
     return true;
   }, []);
 
@@ -357,6 +404,7 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     error,
     join,
     send,
+    sendLanguage,
     close,
     voiceEnabled,
     remoteVoiceReady,
@@ -368,3 +416,4 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     disableVoice,
   };
 }
+
