@@ -549,35 +549,17 @@ function Translator() {
           </select>
         </label>
       </div>
-      <div className="conversation">
-        <div className="speaker">
-          <h2>Sen</h2>{pendingCount > 0 && <span className="queue-count">{pendingCount} bekliyor</span>}
-          <div className={`wave ${speech.listening ? "active" : ""}`}>
-            ▂▅▃▇▄▆▂▅▇▃▆▄▂
+      <div className="conversation conversation-focus">
+        <div className="speaker remote remote-focus">
+          <h2>Karşı tarafın konuşmaları</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
+          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda yalnızca onun mesajları burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
+          {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
+        </div>
+        <div className="talk-panel">
+          <div className="talk-panel-head">
+            <div><small>SİZ KONUŞUN</small><strong>Karşı taraf çevirisini görsün</strong></div>
+            <div className={`wave ${speech.listening ? "active" : ""}`}>▂▅▃▇▄▆▂▅▇▃▆▄▂</div>
           </div>
-          <div className="message-feed" ref={localScroll.ref} onScroll={localScroll.onScroll}>
-          {localMessages.length ? (
-            localMessages.map((m) => (
-              <article key={m.id} className={`message-${m.status}`}>
-                <p>{m.source}</p>
-                {m.translated && <strong>{m.translated}</strong>}
-                <small className="message-status">{m.status === "queued" ? "Sırada" : m.status === "translating" ? "Çevriliyor…" : m.status === "sent" ? "Gönderildi" : m.status === "delivered" ? "Teslim edildi" : "Gönderilemedi"}</small>
-                {m.status === "failed" && <button className="retry" onClick={() => queueRef.current?.retry(m.id)}><RotateCcw />Tekrar dene</button>}
-                {m.translated && <button
-                  onClick={() => speak(m.translated)}
-                  aria-label="Çeviriyi dinle"
-                >
-                  <Volume2 />
-                </button>}
-              </article>
-            ))
-          ) : (
-            <div className="empty">
-              Mikrofona dokunun ve konuşmaya başlayın.
-            </div>
-          )}
-          </div>
-          {localScroll.hasNew && <button className="new-messages" onClick={localScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
           <form className="message-composer" onSubmit={submitDraft}>
             <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Yazın veya mikrofonla konuşun…" aria-label="Çevrilecek mesaj" />
             <button className="primary" aria-label="Çevir ve gönder" disabled={!draft.trim()} type="submit"><ArrowRight /><span>Kuyruğa ekle</span></button>
@@ -591,11 +573,26 @@ function Translator() {
               {speech.listening ? "Dinlemeyi durdur" : "Konuşmaya başla"}
             </span>
           </button>
-        </div>
-        <div className="speaker remote">
-          <h2>Karşı taraf</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
-          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda çevirisi burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
-          {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
+          <details className="own-history">
+            <summary>
+              <span className="slash" aria-hidden="true">/</span>
+              <span><b>Kendi konuşmalarım</b><small>{localMessages.length ? `${localMessages.length} mesaj` : "Henüz mesaj yok"}</small></span>
+              {pendingCount > 0 && <em>{pendingCount} bekliyor</em>}
+              <ChevronDown />
+            </summary>
+            <div className="message-feed" ref={localScroll.ref} onScroll={localScroll.onScroll}>
+              {localMessages.length ? localMessages.map((m) => (
+                <article key={m.id} className={`message-${m.status}`}>
+                  <p>{m.source}</p>
+                  {m.translated && <strong>{m.translated}</strong>}
+                  <small className="message-status">{m.status === "queued" ? "Sırada" : m.status === "translating" ? "Çevriliyor…" : m.status === "sent" ? "Gönderildi" : m.status === "delivered" ? "Teslim edildi" : "Gönderilemedi"}</small>
+                  {m.status === "failed" && <button className="retry" onClick={() => queueRef.current?.retry(m.id)}><RotateCcw />Tekrar dene</button>}
+                  {m.translated && <button onClick={() => speak(m.translated)} aria-label="Çeviriyi dinle"><Volume2 /></button>}
+                </article>
+              )) : <div className="empty">Henüz kendi konuşmanız yok.</div>}
+            </div>
+            {localScroll.hasNew && <button className="new-messages own-new" onClick={localScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
+          </details>
         </div>
       </div>
       <div
