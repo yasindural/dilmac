@@ -1,3 +1,78 @@
-import {useRef,useState} from 'react';
-declare global{interface Window{SpeechRecognition?:new()=>SpeechRecognitionLike;webkitSpeechRecognition?:new()=>SpeechRecognitionLike}}type SpeechRecognitionLike={lang:string;continuous:boolean;interimResults:boolean;start():void;stop():void;onresult:((e:{results:ArrayLike<{0:{transcript:string};isFinal:boolean}>})=>void)|null;onerror:((e:{error:string})=>void)|null;onend:(()=>void)|null};
-export function useSpeech(lang:string,onFinal:(text:string)=>void){const [listening,setListening]=useState(false);const [error,setError]=useState('');const ref=useRef<SpeechRecognitionLike|null>(null);const supported=Boolean(window.SpeechRecognition||window.webkitSpeechRecognition);const toggle=()=>{if(listening){ref.current?.stop();return}const C=window.SpeechRecognition||window.webkitSpeechRecognition;if(!C){setError('Bu tarayıcı canlı konuşma tanımayı desteklemiyor. Chrome veya Edge deneyin.');return}const r=new C();r.lang=lang;r.continuous=true;r.interimResults=false;r.onresult=e=>{for(let i=0;i<e.results.length;i++)if(e.results[i].isFinal)onFinal(e.results[i][0].transcript)};r.onerror=e=>{setError(e.error==='not-allowed'?'Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.':`Mikrofon hatası: ${e.error}`);setListening(false)};r.onend=()=>setListening(false);ref.current=r;setError('');setListening(true);r.start()};return{supported,listening,error,toggle}}
+import { useCallback, useEffect, useRef, useState } from "react";
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  }
+}
+
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  start(): void;
+  stop(): void;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+};
+
+export function useSpeech(lang: string, onFinal: (text: string) => void) {
+  const [listening, setListening] = useState(false);
+  const [error, setError] = useState("");
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const onFinalRef = useRef(onFinal);
+  onFinalRef.current = onFinal;
+
+  const supported = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  // Dil veya çeviri hedefi görüşme sırasında değişirse açık tanıma oturumu da
+  // yeni ayarı kullanır; eski render'daki callback'e takılı kalmaz.
+  useEffect(() => {
+    if (recognitionRef.current) recognitionRef.current.lang = lang;
+  }, [lang]);
+
+  useEffect(() => () => recognitionRef.current?.stop(), []);
+
+  const toggle = useCallback(() => {
+    if (recognitionRef.current && listening) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setError("Bu tarayıcı canlı konuşma tanımayı desteklemiyor. Chrome veya Edge deneyin.");
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognition.lang = lang;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      for (let index = 0; index < event.results.length; index += 1) {
+        const transcript = event.results[index][0]?.transcript?.trim();
+        if (event.results[index].isFinal && transcript) onFinalRef.current(transcript);
+      }
+    };
+    recognition.onerror = (event) => {
+      setError(event.error === "not-allowed"
+        ? "Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin."
+        : `Mikrofon hatası: ${event.error}`);
+      setListening(false);
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      setListening(false);
+    };
+    recognitionRef.current = recognition;
+    setError("");
+    setListening(true);
+    recognition.start();
+  }, [lang, listening]);
+
+  return { supported, listening, error, toggle };
+}
+
