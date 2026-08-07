@@ -32,8 +32,14 @@ import {
   PhoneCall,
   PhoneOff,
   VolumeX,
+  UserCircle,
+  Crown,
+  Camera,
+  CreditCard,
+  Mail,
+  LockKeyhole,
 } from "lucide-react";
-import { authReady, loginGoogle, logout, observeUser } from "./lib/auth";
+import { authReady, loginEmail, loginGoogle, logout, observeUser, registerEmail } from "./lib/auth";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
@@ -51,6 +57,32 @@ const langs = [
   ["it-IT", "İtalyanca"],
   ["ar-SA", "Arapça"],
 ];
+type PlanId = "free" | "pro" | "business";
+type MemberProfile = {
+  firstName: string;
+  lastName: string;
+  photoURL: string;
+  plan: PlanId;
+  completed: boolean;
+};
+const plans: { id: PlanId; name: string; price: string; note: string; features: string[] }[] = [
+  { id: "free", name: "Başlangıç", price: "Ücretsiz", note: "Dilmaç'ı keşfetmek için", features: ["Günde 15 dakika mock kullanım", "Temel dil çiftleri", "Tek cihaz profili"] },
+  { id: "pro", name: "Pro", price: "₺149 / ay", note: "Düzenli görüşmeler için", features: ["Sınırsız mock görüşme", "Tüm dil çiftleri", "Görüşme geçmişi", "Öncelikli çeviri"] },
+  { id: "business", name: "Ekip", price: "₺399 / ay", note: "Küçük ekipler için", features: ["5 kullanıcıya kadar", "Ortak çalışma alanı", "Kullanım raporları", "Öncelikli destek"] },
+];
+const profileKey = (uid: string) => `dilmac-profile:${uid}`;
+function readProfile(user: User | null): MemberProfile | null {
+  if (!user) return null;
+  try {
+    const saved = localStorage.getItem(profileKey(user.uid));
+    if (saved) return JSON.parse(saved) as MemberProfile;
+  } catch { /* malformed local mock data is ignored */ }
+  return null;
+}
+function defaultProfile(user: User): MemberProfile {
+  const parts = (user.displayName || "").trim().split(/\s+/).filter(Boolean);
+  return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), photoURL: user.photoURL || "", plan: "free", completed: false };
+}
 function useSmartScroll(changeCount: number) {
   const ref = useRef<HTMLDivElement>(null);
   const nearBottom = useRef(true);
@@ -76,25 +108,18 @@ function Brand() {
 function Layout({
   children,
   user,
+  profile,
   dark,
   setDark,
 }: {
   children: React.ReactNode;
   user: User | null;
+  profile: MemberProfile | null;
   dark: boolean;
   setDark: (v: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const authClick = async () => {
-    if (user) await logout();
-    else
-      try {
-        await loginGoogle();
-      } catch (e) {
-        alert((e as Error).message);
-      }
-  };
   return (
     <>
       <a href="#main" className="skip">
@@ -115,6 +140,7 @@ function Layout({
             ["/", "Ana Sayfa"],
             ["/nasil-calisir", "Nasıl Çalışır"],
             ["/ozellikler", "Özellikler"],
+            ["/abonelik", "Abonelik"],
             ["/hakkinda", "Hakkında"],
           ].map(([p, n]) => (
             <NavLink key={p} to={p} onClick={() => setOpen(false)}>
@@ -128,19 +154,17 @@ function Layout({
           >
             {dark ? <Sun /> : <Moon />}
           </button>
-          <button className="ghost" onClick={authClick}>
-            {user ? (
-              <>
-                <LogOut />
-                Çıkış
-              </>
-            ) : (
-              <>
-                <LogIn />
-                Google ile giriş
-              </>
-            )}
-          </button>
+          {user && (
+            <Link className="member-chip" to="/profil" onClick={() => setOpen(false)}>
+              {profile?.photoURL ? <img src={profile.photoURL} alt="" referrerPolicy="no-referrer" /> : <UserCircle />}
+              <span><small>{plans.find((p) => p.id === profile?.plan)?.name || "Üye"}</small><strong>{profile?.firstName || user.displayName || "Profilim"}</strong></span>
+            </Link>
+          )}
+          {user ? (
+            <button className="ghost auth-button" onClick={() => logout()}><LogOut />Çıkış</button>
+          ) : (
+            <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />Kayıt ol</Link>
+          )}
           <button className="primary" onClick={() => navigate("/uygulama")}>
             Canlı çeviriyi başlat
             <ArrowRight />
@@ -159,6 +183,94 @@ function Layout({
       </footer>
     </>
   );
+}
+function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: MemberProfile) => void }) {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"register" | "login">("register");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const google = async () => {
+    setBusy(true); setError("");
+    try {
+      const result = await loginGoogle();
+      const existing = readProfile(result.user);
+      if (!existing) onRegistered(result.user, defaultProfile(result.user));
+      navigate(existing?.completed ? "/uygulama" : "/profil?welcome=1");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  };
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setError("");
+    try {
+      if (mode === "register") {
+        const result = await registerEmail(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`.trim());
+        onRegistered(result.user, { firstName: firstName.trim(), lastName: lastName.trim(), photoURL: "", plan: "free", completed: true });
+      } else await loginEmail(email.trim(), password);
+      navigate("/uygulama");
+    } catch (reason) { setError((reason as Error).message); }
+    finally { setBusy(false); }
+  };
+  return <section className="auth-page"><div className="auth-shell">
+    <div className="auth-copy"><span>YENİ ÜYELİK</span><h1>Konuşmaya bir adım kaldı.</h1><p>Normal üyelik oluşturun veya Google hesabınızla saniyeler içinde devam edin.</p><ul><li><CheckCircle2 />Profilinizi kişiselleştirin</li><li><CheckCircle2 />Mock planınızı seçin</li><li><CheckCircle2 />Canlı çeviri odanızı açın</li></ul></div>
+    <div className="auth-card"><div className="auth-tabs"><button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Kayıt ol</button><button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Giriş yap</button></div>
+      <button className="google-button" onClick={google} disabled={busy}><strong>G</strong>Google ile {mode === "register" ? "kayıt ol" : "giriş yap"}</button>
+      <div className="auth-divider"><span>veya e-posta ile</span></div>
+      <form onSubmit={submit}>{mode === "register" && <div className="name-row"><label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label><label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label></div>}
+        <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
+        <label><span><LockKeyhole />Şifre</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="En az 6 karakter" /></label>
+        {error && <div className="auth-error"><AlertCircle />{error}</div>}<button className="primary" type="submit" disabled={busy}>{busy ? "Lütfen bekleyin…" : mode === "register" ? "Normal kayıt oluştur" : "Giriş yap"}<ArrowRight /></button>
+      </form><small>Devam ederek Kullanım Şartları ve Gizlilik metnini kabul etmiş olursunuz.</small></div>
+  </div></section>;
+}
+function SubscriptionPage({ user, profile, onSave }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void }) {
+  const navigate = useNavigate();
+  const choose = async (plan: PlanId) => {
+    if (!user) {
+      try { await loginGoogle(); } catch (error) { alert((error as Error).message); }
+      return;
+    }
+    const next = { ...(profile || defaultProfile(user)), plan };
+    onSave(next);
+    navigate(next.completed ? "/profil" : "/profil?welcome=1");
+  };
+  return <section className="membership-page">
+    <div className="membership-hero"><span><Crown /> MOCK ABONELİK</span><h1>Size uygun planı seçin.</h1><p>Şimdilik hiçbir ücret alınmaz. Seçiminiz yalnızca bu cihazda demo olarak saklanır.</p></div>
+    <div className="plan-grid">{plans.map((plan) => <article key={plan.id} className={plan.id === "pro" ? "featured" : ""}>
+      {plan.id === "pro" && <b className="popular">En popüler</b>}<h2>{plan.name}</h2><p>{plan.note}</p><strong className="plan-price">{plan.price}</strong>
+      <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
+      <button className={profile?.plan === plan.id ? "ghost" : "primary"} onClick={() => choose(plan.id)}>{profile?.plan === plan.id ? "Mevcut plan" : user ? "Mock planı seç" : "Google ile kayıt ol"}</button>
+    </article>)}</div>
+  </section>;
+}
+function ProfilePage({ user, profile, onSave }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void }) {
+  const navigate = useNavigate();
+  const initial = user ? (profile || defaultProfile(user)) : null;
+  const [firstName, setFirstName] = useState(initial?.firstName || "");
+  const [lastName, setLastName] = useState(initial?.lastName || "");
+  const [photoURL, setPhotoURL] = useState(initial?.photoURL || "");
+  if (!user || !initial) return <section className="profile-gate"><UserCircle /><h1>Profilinizi oluşturun</h1><p>Önce Google hesabınızla güvenli şekilde kayıt olun.</p><button className="primary" onClick={() => loginGoogle().catch((error) => alert(error.message))}><LogIn />Google ile kayıt ol</button></section>;
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), photoURL: photoURL.trim(), completed: true };
+    if (!next.firstName || !next.lastName) return;
+    onSave(next); navigate("/uygulama");
+  };
+  const currentPlan = plans.find((plan) => plan.id === initial.plan) || plans[0];
+  return <section className="profile-page">
+    <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Google hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
+    <div className="profile-layout"><form className="profile-card" onSubmit={save}>
+      <div className="avatar-editor">{photoURL ? <img src={photoURL} alt="Profil önizlemesi" referrerPolicy="no-referrer" /> : <UserCircle />}<span><Camera /> Profil fotoğrafı</span></div>
+      <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+      <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+      <label>Profil fotoğrafı bağlantısı<input value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="Google fotoğrafınız otomatik gelir" inputMode="url" /></label>
+      <label>Google hesabı<input value={user.email || ""} disabled /></label>
+      <button className="primary" type="submit"><CheckCircle2 />Profili kaydet ve devam et</button>
+    </form><aside className="subscription-card"><CreditCard /><small>MOCK ABONELİK</small><h2>{currentPlan.name}</h2><strong>{currentPlan.price}</strong><p>Gerçek ödeme bağlantısı henüz aktif değildir.</p><Link className="ghost" to="/abonelik">Planı görüntüle veya değiştir</Link></aside></div>
+  </section>;
 }
 function Home() {
   return (
@@ -765,16 +877,26 @@ function OpenRouterCallback() {
 }
 export function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [dark, setDark] = useState(
     localStorage.getItem("dilmac-theme") !== "light",
   );
-  useEffect(() => observeUser(setUser), []);
+  useEffect(() => observeUser((nextUser) => { setUser(nextUser); setProfile(readProfile(nextUser)); }), []);
+  const saveProfile = useCallback((next: MemberProfile) => {
+    if (!user) return;
+    localStorage.setItem(profileKey(user.uid), JSON.stringify(next));
+    setProfile(next);
+  }, [user]);
+  const saveRegisteredProfile = useCallback((targetUser: User, next: MemberProfile) => {
+    localStorage.setItem(profileKey(targetUser.uid), JSON.stringify(next));
+    setProfile(next);
+  }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     localStorage.setItem("dilmac-theme", dark ? "dark" : "light");
   }, [dark]);
   return (
-    <Layout user={user} dark={dark} setDark={setDark}>
+    <Layout user={user} profile={profile} dark={dark} setDark={setDark}>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/uygulama" element={<Translator />} />
@@ -783,6 +905,9 @@ export function App() {
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
         <Route path="/ozellikler" element={<Info data={pages.features} />} />
+        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSave={saveProfile} />} />
+        <Route path="/kayit" element={<AuthPage onRegistered={saveRegisteredProfile} />} />
+        <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} />} />
         <Route path="/gizlilik" element={<Info data={pages.privacy} />} />
         <Route
           path="/kullanim-sartlari"
