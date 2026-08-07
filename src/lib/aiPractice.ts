@@ -30,30 +30,51 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
     user: turn.userTranslation,
     assistant: turn.reply,
   }));
-  const request = (model: string) => fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": location.origin,
-      "X-Title": "Dilmaç AI Deneme",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.45,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You are a friendly, concise conversation partner for testing live translation. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Return only valid JSON with exactly these string keys: userTranslation (the human's latest message translated naturally into ${partnerLanguage}), reply (your short natural response in ${partnerLanguage}), replyTranslation (your reply translated naturally into ${userLanguage}). Keep the reply to one or two sentences. Never add markdown.`,
-        },
-        {
-          role: "user",
-          content: JSON.stringify({ previousConversation: recentContext, latestMessage: text }),
-        },
-      ],
-    }),
-  });
+  const request = async (model: string) => {
+    let lastResponse: Response | null = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 25000);
+      try {
+        lastResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": location.origin,
+            "X-Title": "Dilmaç AI Deneme",
+          },
+          body: JSON.stringify({
+            model,
+            temperature: 0.45,
+            max_tokens: 180,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content: `You are a friendly, concise conversation partner for testing live translation. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Return only valid JSON with exactly these string keys: userTranslation (the human's latest message translated naturally into ${partnerLanguage}), reply (your short natural response in ${partnerLanguage}), replyTranslation (your reply translated naturally into ${userLanguage}). Keep the reply to one or two sentences. Never add markdown.`,
+              },
+              {
+                role: "user",
+                content: JSON.stringify({ previousConversation: recentContext, latestMessage: text }),
+              },
+            ],
+          }),
+        });
+      } catch (requestError) {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") {
+          throw new Error("AI yanıtı gecikti ve güvenli biçimde durduruldu. Mikrofon açık; sonraki cümleyle devam edebilirsiniz.");
+        }
+        throw requestError;
+      } finally {
+        window.clearTimeout(timeout);
+      }
+      if (lastResponse.status !== 429 && lastResponse.status < 500) return lastResponse;
+      if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 1400));
+    }
+    return lastResponse as Response;
+  };
 
   const preferredModel = import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4o-mini";
   let response = await request(preferredModel);
@@ -64,7 +85,9 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
   if (!response.ok) {
     throw new Error(response.status === 402
       ? "Ücretli ve ücretsiz AI modellerinin kullanım sınırı dolu. Biraz sonra tekrar deneyin."
-      : "AI deneme servisine ulaşılamadı. Birkaç saniye sonra tekrar deneyin.");
+      : response.status === 429
+        ? "Ücretsiz AI modeli şu an yoğun. Mikrofon açık kalacak; birkaç saniye sonra yeniden konuşabilirsiniz."
+        : "AI deneme servisine ulaşılamadı. Mikrofon açık; birkaç saniye sonra tekrar deneyin.");
   }
 
   const payload = await response.json();
