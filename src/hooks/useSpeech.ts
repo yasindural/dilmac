@@ -18,6 +18,16 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
 };
 
+export function getSpeechErrorMessage(error: string) {
+  if (error === "not-allowed") {
+    return "Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.";
+  }
+  if (error === "aborted") {
+    return "Dinleme tarayıcı tarafından durduruldu. Aynı cihazda başka bir Dilmaç sekmesi dinliyorsa onu durdurup tekrar deneyin.";
+  }
+  return `Mikrofon hatası: ${error}`;
+}
+
 export function useSpeech(lang: string, onFinal: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
@@ -58,9 +68,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       }
     };
     recognition.onerror = (event) => {
-      setError(event.error === "not-allowed"
-        ? "Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin."
-        : `Mikrofon hatası: ${event.error}`);
+      setError(getSpeechErrorMessage(event.error));
       setListening(false);
     };
     recognition.onend = () => {
@@ -75,4 +83,4 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
 
   return { supported, listening, error, toggle };
 }
-
+
