@@ -13,7 +13,7 @@ type SpeechRecognitionLike = {
   interimResults: boolean;
   start(): void;
   stop(): void;
-  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }> }) => void) | null;
+  onresult: ((event: { resultIndex?: number; results: ArrayLike<{ 0: { transcript: string; confidence?: number }; isFinal: boolean }> }) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
@@ -32,8 +32,10 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
   const [activityTick, setActivityTick] = useState(0);
+  const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const wantsToListenRef = useRef(false);
+  const lastFinalRef = useRef({ text: "", at: 0 });
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
@@ -49,6 +51,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     wantsToListenRef.current = false;
     recognitionRef.current?.stop();
     recognitionRef.current = null;
+    setInterimText("");
     setListening(false);
   }, []);
 
@@ -80,15 +83,27 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     const recognition = new Recognition();
     recognition.lang = lang;
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.onresult = (event) => {
-      for (let index = 0; index < event.results.length; index += 1) {
+      let preview = "";
+      for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
         const transcript = event.results[index][0]?.transcript?.trim();
         if (event.results[index].isFinal && transcript) {
+          const confidence = event.results[index][0]?.confidence || 0;
+          const normalized = transcript.toLocaleLowerCase(lang).replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+          const isNoise = /^(ı+|h+m+|m+|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
+          const isWeak = normalized.length < 3 || (confidence > 0 && confidence < 0.35);
+          const isDuplicate = lastFinalRef.current.text === normalized && Date.now() - lastFinalRef.current.at < 4000;
+          setInterimText("");
+          if (isNoise || isWeak || isDuplicate) continue;
+          lastFinalRef.current = { text: normalized, at: Date.now() };
           setActivityTick((value) => value + 1);
           onFinalRef.current(transcript);
+        } else if (transcript) {
+          preview = `${preview} ${transcript}`.trim();
         }
       }
+      if (preview) setInterimText(preview);
     };
     recognition.onerror = (event) => {
       if (event.error === "no-speech" && wantsToListenRef.current) return;
@@ -122,6 +137,6 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     recognition.start();
   }, [lang, listening, stop]);
 
-  return { supported, listening, error, toggle, stop, activityTick };
+  return { supported, listening, error, toggle, stop, activityTick, interimText };
 }
 

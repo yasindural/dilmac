@@ -309,6 +309,44 @@
   border-top: 1px solid #203a5e;
   background: #071427;
 }
+.practice-live-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  margin-bottom: 12px;
+  padding: 10px 15px;
+  border: 1px solid #24547b;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #071c33, #0b1830);
+  color: #8298b5;
+}
+.practice-live-preview i {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #29baff;
+  box-shadow: 0 0 0 6px #29baff18, 0 0 18px #29baff;
+  animation: pulse 1.1s infinite;
+}
+.practice-live-preview span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+.practice-live-preview small {
+  color: #40c8ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.practice-live-preview.has-text {
+  border-color: #248ad0;
+  color: #f0f7ff;
+}
 .practice-compose form {
   display: grid;
   grid-template-columns: 1fr auto;
