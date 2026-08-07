@@ -31,7 +31,9 @@ export function getSpeechErrorMessage(error: string) {
 export function useSpeech(lang: string, onFinal: (text: string) => void) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
+  const [activityTick, setActivityTick] = useState(0);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const wantsToListenRef = useRef(false);
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
@@ -43,11 +45,29 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     if (recognitionRef.current) recognitionRef.current.lang = lang;
   }, [lang]);
 
-  useEffect(() => () => recognitionRef.current?.stop(), []);
+  const stop = useCallback(() => {
+    wantsToListenRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setListening(false);
+  }, []);
+
+  useEffect(() => {
+    const stopWhenLeaving = () => {
+      if (document.visibilityState === "hidden") stop();
+    };
+    document.addEventListener("visibilitychange", stopWhenLeaving);
+    window.addEventListener("pagehide", stop);
+    return () => {
+      document.removeEventListener("visibilitychange", stopWhenLeaving);
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, [stop]);
 
   const toggle = useCallback(() => {
     if (recognitionRef.current && listening) {
-      recognitionRef.current.stop();
+      stop();
       return;
     }
 
@@ -64,23 +84,44 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     recognition.onresult = (event) => {
       for (let index = 0; index < event.results.length; index += 1) {
         const transcript = event.results[index][0]?.transcript?.trim();
-        if (event.results[index].isFinal && transcript) onFinalRef.current(transcript);
+        if (event.results[index].isFinal && transcript) {
+          setActivityTick((value) => value + 1);
+          onFinalRef.current(transcript);
+        }
       }
     };
     recognition.onerror = (event) => {
+      if (event.error === "no-speech" && wantsToListenRef.current) return;
+      if (event.error === "aborted" && !wantsToListenRef.current) return;
       setError(getSpeechErrorMessage(event.error));
+      wantsToListenRef.current = false;
       setListening(false);
     };
     recognition.onend = () => {
+      if (wantsToListenRef.current && document.visibilityState === "visible") {
+        window.setTimeout(() => {
+          if (!wantsToListenRef.current) return;
+          try {
+            recognition.start();
+            setListening(true);
+          } catch {
+            wantsToListenRef.current = false;
+            recognitionRef.current = null;
+            setListening(false);
+          }
+        }, 250);
+        return;
+      }
       if (recognitionRef.current === recognition) recognitionRef.current = null;
       setListening(false);
     };
     recognitionRef.current = recognition;
+    wantsToListenRef.current = true;
     setError("");
     setListening(true);
     recognition.start();
-  }, [lang, listening]);
+  }, [lang, listening, stop]);
 
-  return { supported, listening, error, toggle };
+  return { supported, listening, error, toggle, stop, activityTick };
 }
 

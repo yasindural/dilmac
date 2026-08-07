@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Bot, CheckCircle2, Languages, Mic, MicOff, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
 import { bundledOpenRouterKey } from "../lib/runtimeConfig";
@@ -20,6 +20,8 @@ export default function AiPractice() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const feedRef = useRef<HTMLDivElement>(null);
+  const aiSpeakingRef = useRef(false);
 
   const languageName = useCallback((code: string) => practiceLanguages.find(([value]) => value === code)?.[1] || code, []);
   const userLanguageName = useMemo(() => languageName(userLanguage), [languageName, userLanguage]);
@@ -29,6 +31,9 @@ export default function AiPractice() {
     speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = aiLanguage;
+    utterance.onstart = () => { aiSpeakingRef.current = true; };
+    utterance.onend = () => { aiSpeakingRef.current = false; };
+    utterance.onerror = () => { aiSpeakingRef.current = false; };
     speechSynthesis.speak(utterance);
   }, [aiLanguage]);
 
@@ -55,7 +60,27 @@ export default function AiPractice() {
     }
   }, [aiLanguageName, autoSpeak, busy, speak, turns, userLanguageName]);
 
-  const speech = useSpeech(userLanguage, (text) => void send(text));
+  const speech = useSpeech(userLanguage, (text) => {
+    if (!aiSpeakingRef.current && !busy) void send(text);
+  });
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: turns.length > 1 ? "smooth" : "auto" });
+  }, [busy, turns]);
+
+  useEffect(() => {
+    if (!speech.listening) return;
+    const warning = window.setTimeout(() => {
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("Mikrofon açık. Konuşmaya devam edebilirsiniz.");
+      utterance.lang = userLanguage;
+      utterance.onstart = () => { aiSpeakingRef.current = true; };
+      utterance.onend = () => { aiSpeakingRef.current = false; };
+      utterance.onerror = () => { aiSpeakingRef.current = false; };
+      speechSynthesis.speak(utterance);
+    }, 60000);
+    return () => window.clearTimeout(warning);
+  }, [speech.activityTick, speech.listening, userLanguage]);
   const submit = (event: FormEvent) => { event.preventDefault(); void send(draft); };
   const swapLanguages = () => {
     setUserLanguage(aiLanguage);
@@ -83,7 +108,7 @@ export default function AiPractice() {
 
         <div className="practice-status"><i className={busy ? "thinking" : ""} /><span>{busy ? "AI düşünüyor ve çeviriyor…" : `Hazır · ${userLanguageName} → ${aiLanguageName}`}</span></div>
 
-        <div className="practice-feed" aria-live="polite">
+        <div className="practice-feed" ref={feedRef} aria-live="polite">
           {!turns.length && !busy && <div className="practice-empty"><div><Bot /></div><h2>İlk cümlenizi söyleyin</h2><p>Örneklerden birini seçin veya aşağıdaki mikrofona dokunun.</p><div className="practice-starters">{starters.map((text) => <button key={text} onClick={() => void send(text)}>{text}<ArrowRight /></button>)}</div></div>}
           {turns.map((turn, index) => <div className="practice-turn" key={`${turn.userText}-${index}`}>
             <article className="practice-message mine"><header><span>Siz</span><small>{userLanguageName}</small></header><p>{turn.userText}</p><div className="translation-line"><Languages /><span><small>{aiLanguageName} çevirisi</small>{turn.userTranslation}</span></div></article>
@@ -94,7 +119,7 @@ export default function AiPractice() {
 
         <div className="practice-compose">
           <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`${userLanguageName} yazın…`} aria-label="AI deneme mesajı" /><button className="primary" type="submit" disabled={busy || !draft.trim()}><ArrowRight /> Gönder</button></form>
-          <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={speech.toggle} disabled={busy}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Dinlemeyi durdur" : "Konuşarak dene"}</span></button>
+          <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={speech.toggle}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Mikrofon açık · durdur" : "Konuşarak dene"}</span></button>
           {turns.length > 0 && <button className="practice-reset" onClick={() => { setTurns([]); setError(""); }}><RotateCcw /> Sohbeti temizle</button>}
         </div>
         {(error || speech.error) && <div className="practice-error" role="alert">{error || speech.error}</div>}
