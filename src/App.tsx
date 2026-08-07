@@ -34,7 +34,6 @@ import {
   VolumeX,
   UserCircle,
   Crown,
-  Camera,
   CreditCard,
   Mail,
   LockKeyhole,
@@ -61,7 +60,6 @@ type PlanId = "free" | "pro" | "business";
 type MemberProfile = {
   firstName: string;
   lastName: string;
-  photoURL: string;
   plan: PlanId;
   completed: boolean;
 };
@@ -75,13 +73,21 @@ function readProfile(user: User | null): MemberProfile | null {
   if (!user) return null;
   try {
     const saved = localStorage.getItem(profileKey(user.uid));
-    if (saved) return JSON.parse(saved) as MemberProfile;
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<MemberProfile>;
+      return {
+        firstName: parsed.firstName || "",
+        lastName: parsed.lastName || "",
+        plan: parsed.plan === "pro" || parsed.plan === "business" ? parsed.plan : "free",
+        completed: Boolean(parsed.completed),
+      };
+    }
   } catch { /* malformed local mock data is ignored */ }
   return null;
 }
 function defaultProfile(user: User): MemberProfile {
   const parts = (user.displayName || "").trim().split(/\s+/).filter(Boolean);
-  return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), photoURL: user.photoURL || "", plan: "free", completed: false };
+  return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), plan: "free", completed: false };
 }
 function useSmartScroll(changeCount: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -156,7 +162,7 @@ function Layout({
           </button>
           {user && (
             <Link className="member-chip" to="/profil" onClick={() => setOpen(false)}>
-              {profile?.photoURL ? <img src={profile.photoURL} alt="" referrerPolicy="no-referrer" /> : <UserCircle />}
+              <UserCircle />
               <span><small>{plans.find((p) => p.id === profile?.plan)?.name || "Üye"}</small><strong>{profile?.firstName || user.displayName || "Profilim"}</strong></span>
             </Link>
           )}
@@ -208,7 +214,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
     try {
       if (mode === "register") {
         const result = await registerEmail(email.trim(), password, `${firstName.trim()} ${lastName.trim()}`.trim());
-        onRegistered(result.user, { firstName: firstName.trim(), lastName: lastName.trim(), photoURL: "", plan: "free", completed: true });
+        onRegistered(result.user, { firstName: firstName.trim(), lastName: lastName.trim(), plan: "free", completed: true });
       } else await loginEmail(email.trim(), password);
       navigate("/uygulama");
     } catch (reason) { setError((reason as Error).message); }
@@ -251,11 +257,10 @@ function ProfilePage({ user, profile, onSave }: { user: User | null; profile: Me
   const initial = user ? (profile || defaultProfile(user)) : null;
   const [firstName, setFirstName] = useState(initial?.firstName || "");
   const [lastName, setLastName] = useState(initial?.lastName || "");
-  const [photoURL, setPhotoURL] = useState(initial?.photoURL || "");
   if (!user || !initial) return <section className="profile-gate"><UserCircle /><h1>Profilinizi oluşturun</h1><p>Önce Google hesabınızla güvenli şekilde kayıt olun.</p><button className="primary" onClick={() => loginGoogle().catch((error) => alert(error.message))}><LogIn />Google ile kayıt ol</button></section>;
   const save = (event: React.FormEvent) => {
     event.preventDefault();
-    const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), photoURL: photoURL.trim(), completed: true };
+    const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), completed: true };
     if (!next.firstName || !next.lastName) return;
     onSave(next); navigate("/uygulama");
   };
@@ -263,11 +268,9 @@ function ProfilePage({ user, profile, onSave }: { user: User | null; profile: Me
   return <section className="profile-page">
     <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Google hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
     <div className="profile-layout"><form className="profile-card" onSubmit={save}>
-      <div className="avatar-editor">{photoURL ? <img src={photoURL} alt="Profil önizlemesi" referrerPolicy="no-referrer" /> : <UserCircle />}<span><Camera /> Profil fotoğrafı</span></div>
       <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
       <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
-      <label>Profil fotoğrafı bağlantısı<input value={photoURL} onChange={(e) => setPhotoURL(e.target.value)} placeholder="Google fotoğrafınız otomatik gelir" inputMode="url" /></label>
-      <label>Google hesabı<input value={user.email || ""} disabled /></label>
+      <label>Gmail hesabı<input value={user.email || ""} disabled /></label>
       <button className="primary" type="submit"><CheckCircle2 />Profili kaydet ve devam et</button>
     </form><aside className="subscription-card"><CreditCard /><small>MOCK ABONELİK</small><h2>{currentPlan.name}</h2><strong>{currentPlan.price}</strong><p>Gerçek ödeme bağlantısı henüz aktif değildir.</p><Link className="ghost" to="/abonelik">Planı görüntüle veya değiştir</Link></aside></div>
   </section>;
