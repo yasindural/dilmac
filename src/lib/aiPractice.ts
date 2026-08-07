@@ -76,7 +76,7 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
     return lastResponse as Response;
   };
 
-  const preferredModel = import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4o-mini";
+  const preferredModel = import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4.1-mini";
   let response = await request(preferredModel);
   if (response.status === 402 && preferredModel !== "openrouter/free") {
     response = await request("openrouter/free");
