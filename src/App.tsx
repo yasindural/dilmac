@@ -47,6 +47,7 @@ import { finishOpenRouter } from "./lib/openrouterAuth";
 import { bundledOpenRouterKey } from "./lib/runtimeConfig";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import HomeExpansion from "./components/HomeExpansion";
+import AiPractice from "./components/AiPractice";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -146,6 +147,7 @@ function Layout({
             ["/", "Ana Sayfa"],
             ["/nasil-calisir", "Nasıl Çalışır"],
             ["/ozellikler", "Özellikler"],
+            ["/deneme", "AI ile Dene"],
             ["/abonelik", "Abonelik"],
             ["/hakkinda", "Hakkında"],
           ].map(([p, n]) => (
@@ -903,6 +905,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/uygulama" element={<Translator />} />
+        <Route path="/deneme" element={<AiPractice />} />
         <Route path="/oda/:roomId" element={<Translator />} />
         <Route path="/openrouter-callback" element={<OpenRouterCallback />} />
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
