@@ -23,6 +23,9 @@ export default function AiPractice() {
   const feedRef = useRef<HTMLDivElement>(null);
   const aiSpeakingRef = useRef(false);
   const ignoreSpeechUntilRef = useRef(0);
+  const turnsRef = useRef<PracticeHistoryTurn[]>([]);
+  const speechQueueRef = useRef<string[]>([]);
+  const processingSpeechRef = useRef(false);
 
   const languageName = useCallback((code: string) => practiceLanguages.find(([value]) => value === code)?.[1] || code, []);
   const userLanguageName = useMemo(() => languageName(userLanguage), [languageName, userLanguage]);
@@ -38,9 +41,9 @@ export default function AiPractice() {
     speechSynthesis.speak(utterance);
   }, [aiLanguage]);
 
-  const send = useCallback(async (rawText: string) => {
+  const runTurn = useCallback(async (rawText: string) => {
     const text = rawText.trim();
-    if (!text || busy) return;
+    if (!text) return;
     setBusy(true);
     setError("");
     setDraft("");
@@ -49,20 +52,46 @@ export default function AiPractice() {
         text,
         userLanguage: userLanguageName,
         partnerLanguage: aiLanguageName,
-        history: turns,
+        history: turnsRef.current,
         key: bundledOpenRouterKey,
       });
-      setTurns((current) => [...current, { userText: text, ...result }]);
+      setTurns((current) => {
+        const next = [...current, { userText: text, ...result }];
+        turnsRef.current = next;
+        return next;
+      });
       if (autoSpeak) speak(result.reply);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "AI cevabı alınamadı.");
     } finally {
       setBusy(false);
     }
-  }, [aiLanguageName, autoSpeak, busy, speak, turns, userLanguageName]);
+  }, [aiLanguageName, autoSpeak, speak, userLanguageName]);
+
+  const send = useCallback(async (rawText: string) => {
+    if (processingSpeechRef.current || busy) return;
+    await runTurn(rawText);
+  }, [busy, runTurn]);
+
+  const enqueueSpeech = useCallback((rawText: string) => {
+    const sentences = rawText.match(/[^.!?…。！？]+[.!?…。！？]?/g)?.map((part) => part.trim()).filter(Boolean) || [];
+    speechQueueRef.current.push(...sentences);
+    if (processingSpeechRef.current) return;
+    processingSpeechRef.current = true;
+    void (async () => {
+      try {
+        while (speechQueueRef.current.length) {
+          const nextSentence = speechQueueRef.current.shift();
+          if (nextSentence) await runTurn(nextSentence);
+        }
+      } finally {
+        processingSpeechRef.current = false;
+      }
+    })();
+  }, [runTurn]);
 
   const speech = useSpeech(userLanguage, (text) => {
-    if (!aiSpeakingRef.current && Date.now() > ignoreSpeechUntilRef.current && !busy) void send(text);
+    if (!aiSpeakingRef.current && Date.now() > ignoreSpeechUntilRef.current) enqueueSpeech(text);
   });
   useEffect(() => {
     const feed = feedRef.current;
@@ -87,6 +116,8 @@ export default function AiPractice() {
     setUserLanguage(aiLanguage);
     setAiLanguage(userLanguage);
     setTurns([]);
+    turnsRef.current = [];
+    speechQueueRef.current = [];
     setError("");
   };
 
@@ -101,9 +132,9 @@ export default function AiPractice() {
 
       <div className="practice-shell">
         <div className="practice-topbar">
-          <label>Sizin diliniz<select value={userLanguage} onChange={(event) => { setUserLanguage(event.target.value); setTurns([]); }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
+          <label>Sizin diliniz<select value={userLanguage} onChange={(event) => { setUserLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
           <button className="practice-swap" onClick={swapLanguages} aria-label="Dilleri değiştir"><Languages /></button>
-          <label>AI'ın dili<select value={aiLanguage} onChange={(event) => { setAiLanguage(event.target.value); setTurns([]); }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
+          <label>AI'ın dili<select value={aiLanguage} onChange={(event) => { setAiLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
           <label className="voice-toggle"><input type="checkbox" checked={autoSpeak} onChange={(event) => setAutoSpeak(event.target.checked)} /><span>AI cevabını seslendir</span></label>
         </div>
 
@@ -122,7 +153,7 @@ export default function AiPractice() {
           {speech.listening && <div className={`practice-live-preview ${speech.interimText ? "has-text" : ""}`} aria-live="polite"><i /><span><small>CANLI ÖN İZLEME</small>{speech.interimText || "Sizi dinliyorum…"}</span></div>}
           <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`${userLanguageName} yazın…`} aria-label="AI deneme mesajı" /><button className="primary" type="submit" disabled={busy || !draft.trim()}><ArrowRight /> Gönder</button></form>
           <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={speech.toggle}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Mikrofon açık · durdur" : "Konuşarak dene"}</span></button>
-          {turns.length > 0 && <button className="practice-reset" onClick={() => { setTurns([]); setError(""); }}><RotateCcw /> Sohbeti temizle</button>}
+          {turns.length > 0 && <button className="practice-reset" onClick={() => { setTurns([]); turnsRef.current = []; speechQueueRef.current = []; setError(""); }}><RotateCcw /> Sohbeti temizle</button>}
         </div>
         {(error || speech.error) && <div className="practice-error" role="alert">{error || speech.error}</div>}
       </div>
