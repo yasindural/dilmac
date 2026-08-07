@@ -30,7 +30,7 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
     user: turn.userTranslation,
     assistant: turn.reply,
   }));
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const request = (model: string) => fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
@@ -39,7 +39,7 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
       "X-Title": "Dilmaç AI Deneme",
     },
     body: JSON.stringify({
-      model: import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4o-mini",
+      model,
       temperature: 0.45,
       response_format: { type: "json_object" },
       messages: [
@@ -55,9 +55,15 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
     }),
   });
 
+  const preferredModel = import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4o-mini";
+  let response = await request(preferredModel);
+  if (response.status === 402 && preferredModel !== "openrouter/free") {
+    response = await request("openrouter/free");
+  }
+
   if (!response.ok) {
     throw new Error(response.status === 402
-      ? "OpenRouter bakiyesi yetersiz. Bakiye ekledikten sonra tekrar deneyin."
+      ? "Ücretli ve ücretsiz AI modellerinin kullanım sınırı dolu. Biraz sonra tekrar deneyin."
       : "AI deneme servisine ulaşılamadı. Birkaç saniye sonra tekrar deneyin.");
   }
 
