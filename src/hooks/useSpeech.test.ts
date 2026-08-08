@@ -17,6 +17,7 @@ class MockRecognition {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   delete window.webkitSpeechRecognition;
   MockRecognition.latest = null;
@@ -35,7 +36,8 @@ describe("getSpeechErrorMessage", () => {
     expect(getSpeechErrorMessage("network")).toBe("Mikrofon hatası: network");
   });
 
-  it("submits the last interim sentence when iPhone WebKit ends without a final result", () => {
+  it("submits a stable interim sentence on iPhone even when WebKit never sends a final result", () => {
+    vi.useFakeTimers();
     vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 CriOS/140 Mobile");
     window.webkitSpeechRecognition = MockRecognition as never;
     const onFinal = vi.fn();
@@ -45,7 +47,7 @@ describe("getSpeechErrorMessage", () => {
     expect(MockRecognition.latest?.continuous).toBe(false);
     act(() => {
       MockRecognition.latest?.onresult?.({ results: [{ 0: { transcript: "Sesimi duyuyor musun" }, isFinal: false }] });
-      MockRecognition.latest?.onend?.();
+      vi.advanceTimersByTime(1200);
     });
 
     expect(onFinal).toHaveBeenCalledWith("Sesimi duyuyor musun");

@@ -38,6 +38,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
   const wantsToListenRef = useRef(false);
   const lastFinalRef = useRef({ text: "", at: 0 });
   const lastInterimRef = useRef("");
+  const interimCommitTimerRef = useRef<number | null>(null);
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
 
@@ -51,6 +52,8 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
 
   const stop = useCallback(() => {
     wantsToListenRef.current = false;
+    if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
+    interimCommitTimerRef.current = null;
     lastInterimRef.current = "";
     recognitionRef.current?.stop();
     recognitionRef.current = null;
@@ -92,6 +95,8 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     recognition.continuous = !isIOSWebKit;
     recognition.interimResults = true;
     const commitTranscript = (transcript: string, confidence = 0) => {
+      if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
+      interimCommitTimerRef.current = null;
       const normalized = transcript.toLocaleLowerCase(lang).replace(/[^\p{L}\p{N}\s]/gu, "").trim();
       const isNoise = /^(ı+|h+m+|m+|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
       const isWeak = normalized.length < 3 || (confidence > 0 && confidence < 0.35);
@@ -117,6 +122,12 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       if (preview) {
         lastInterimRef.current = preview;
         setInterimText(preview);
+        if (isIOSWebKit) {
+          if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
+          interimCommitTimerRef.current = window.setTimeout(() => {
+            if (wantsToListenRef.current && lastInterimRef.current) commitTranscript(lastInterimRef.current);
+          }, 1200);
+        }
       }
     };
     recognition.onerror = (event) => {
