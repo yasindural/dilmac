@@ -3,16 +3,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getSpeechErrorMessage } from "./useSpeech";
 import { useSpeech } from "./useSpeech";
 
-let recognitionInstance: MockRecognition | null = null;
-
 class MockRecognition {
+  static latest: MockRecognition | null = null;
   lang = "";
   continuous = true;
   interimResults = false;
   onresult: ((event: { resultIndex?: number; results: ArrayLike<{ 0: { transcript: string; confidence?: number }; isFinal: boolean }> }) => void) | null = null;
   onerror: ((event: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
-  constructor() { recognitionInstance = this; }
+  constructor() { MockRecognition.latest = this; }
   start() {}
   stop() {}
 }
@@ -20,7 +19,7 @@ class MockRecognition {
 afterEach(() => {
   vi.restoreAllMocks();
   delete window.webkitSpeechRecognition;
-  recognitionInstance = null;
+  MockRecognition.latest = null;
 });
 
 describe("getSpeechErrorMessage", () => {
@@ -43,10 +42,10 @@ describe("getSpeechErrorMessage", () => {
     const { result } = renderHook(() => useSpeech("tr-TR", onFinal));
 
     act(() => result.current.toggle());
-    expect(recognitionInstance?.continuous).toBe(false);
+    expect(MockRecognition.latest?.continuous).toBe(false);
     act(() => {
-      recognitionInstance?.onresult?.({ results: [{ 0: { transcript: "Sesimi duyuyor musun" }, isFinal: false }] });
-      recognitionInstance?.onend?.();
+      MockRecognition.latest?.onresult?.({ results: [{ 0: { transcript: "Sesimi duyuyor musun" }, isFinal: false }] });
+      MockRecognition.latest?.onend?.();
     });
 
     expect(onFinal).toHaveBeenCalledWith("Sesimi duyuyor musun");
