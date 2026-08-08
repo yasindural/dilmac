@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm test -- --run
+      - run: npm run lint
       - run: npm run build
       - name: SPA fallback
         run: cp dist/index.html dist/404.html

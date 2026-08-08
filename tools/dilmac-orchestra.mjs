@@ -1,10 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { resolve, relative, sep } from "node:path";
+import { dirname, resolve, relative, sep } from "node:path";
 
-const root = resolve(process.cwd());
+const planPath = resolve(process.argv[2] || "orchestra-plan.json");
+const root = dirname(planPath);
 const key = process.env.OPENROUTER_API_KEY;
 if (!key) throw new Error("OPENROUTER_API_KEY eksik.");
-const plan = JSON.parse(await readFile(resolve(root, process.argv[2] || "orchestra-plan.json"), "utf8"));
+const plan = JSON.parse(await readFile(planPath, "utf8"));
 const forbidden = /(^|[\\/])(\.env(?:\.|$)|\.git|node_modules|dist|\.wrangler)([\\/]|$)/i;
 
 async function loadFiles(paths) {
@@ -39,8 +40,15 @@ async function ask(model, system, prompt, maxTokens = 3500) {
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(`${model} başarısız (${response.status}): ${payload?.error?.message || "Bilinmeyen hata"}`);
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content !== "string" || !content.trim()) throw new Error(`${model} boş cevap verdi.`);
+  const message = payload?.choices?.[0]?.message;
+  const content = typeof message?.content === "string"
+    ? message.content
+    : Array.isArray(message?.content)
+      ? message.content.map((part) => typeof part === "string" ? part : part?.text || "").join("\n")
+      : typeof message?.reasoning === "string"
+        ? message.reasoning
+        : "";
+  if (!content.trim()) throw new Error(`${model} boş cevap verdi (finish_reason: ${payload?.choices?.[0]?.finish_reason || "unknown"}).`);
   return content.trim();
 }
 
@@ -49,19 +57,23 @@ Inspect only the supplied code. Never request secrets. Do not claim execution or
 Report evidence with file names and concrete failure paths. Preserve working desktop audio behavior.
 Return: FINDINGS (P0-P3), SAFE FIXES, TESTS, and DO-NOT-CHANGE.`;
 
-const reports = await Promise.all(plan.workers.map(async (worker) => {
+const outputDir = resolve(root, ".orchestra-output");
+await mkdir(outputDir, { recursive: true });
+const workerResults = await Promise.allSettled(plan.workers.map(async (worker) => {
   const files = await loadFiles(worker.files);
   const prompt = `MISSION:\n${plan.mission}\n\nYOUR FOCUS:\n${worker.focus}\n\nCODE:\n${files}`;
   const report = await ask(worker.model, workerSystem, prompt);
-  return { ...worker, report };
+  const result = { ...worker, report };
+  await writeFile(resolve(outputDir, `${worker.name}.md`), `${report}\n`, "utf8");
+  return result;
 }));
+const reports = workerResults.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+const failures = workerResults.flatMap((result, index) => result.status === "rejected" ? [`${plan.workers[index].name}: ${result.reason?.message || result.reason}`] : []);
+if (reports.length === 0) throw new Error(`Hiçbir uzman raporu üretilemedi. ${failures.join(" | ")}`);
 
 const synthesisInput = reports.map((item) => `=== ${item.name} (${item.model}) ===\n${item.report}`).join("\n\n");
 const conductorSystem = `You are the chief reviewer of a supervised development orchestra. You receive independent audit reports, not ground truth. Reject unsupported claims, merge duplicates, flag conflicts, and produce a safe implementation order. You cannot claim tests were run.`;
 const finalReport = await ask(plan.conductor.model, conductorSystem, `MISSION:\n${plan.mission}\n\nCONDUCTOR RULES:\n${plan.conductor.instruction}\n\nSPECIALIST REPORTS:\n${synthesisInput}`, 5000);
 
-const outputDir = resolve(root, ".orchestra-output");
-await mkdir(outputDir, { recursive: true });
-await Promise.all(reports.map((item) => writeFile(resolve(outputDir, `${item.name}.md`), `${item.report}\n`, "utf8")));
-await writeFile(resolve(outputDir, "conductor-report.md"), `${finalReport}\n`, "utf8");
+await writeFile(resolve(outputDir, "conductor-report.md"), `${finalReport}\n\n## Ulaşılamayan uzmanlar\n${failures.length ? failures.map((item) => `- ${item}`).join("\n") : "- Yok"}\n`, "utf8");
 console.log(`Orkestra raporu hazır: ${resolve(outputDir, "conductor-report.md")}`);

@@ -11,7 +11,7 @@
       "name": "ux-gemini",
       "model": "google/gemini-3.6-flash",
       "focus": "Mobil ve masaüstü kullanıcı yolculuğu, kayıt, profil ve abonelik ekranlarını kullanılabilirlik ve satışa hazırlık açısından denetle. Gerçek ödeme varmış gibi davranan öneriler verme.",
-      "files": ["src/App.tsx", "src/ai-practice.css", "src/index.css"]
+      "files": ["src/App.tsx", "src/ai-practice.css", "src/styles.css"]
     },
     {
       "name": "qa-gemini",

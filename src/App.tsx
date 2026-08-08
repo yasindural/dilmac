@@ -230,14 +230,19 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
         <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
         <label><span><LockKeyhole />Şifre</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="En az 6 karakter" /></label>
         {error && <div className="auth-error"><AlertCircle />{error}</div>}<button className="primary" type="submit" disabled={busy}>{busy ? "Lütfen bekleyin…" : mode === "register" ? "Normal kayıt oluştur" : "Giriş yap"}<ArrowRight /></button>
-      </form><small>Devam ederek Kullanım Şartları ve Gizlilik metnini kabul etmiş olursunuz.</small></div>
+      </form><small>Devam ederek <Link to="/kullanim-sartlari">Kullanım Şartları</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiş olursunuz.</small></div>
   </div></section>;
 }
-function SubscriptionPage({ user, profile, onSave }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void }) {
+function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
   const choose = async (plan: PlanId) => {
     if (!user) {
-      try { await loginGoogle(); } catch (error) { alert((error as Error).message); }
+      try {
+        const result = await loginGoogle();
+        const next = { ...(readProfile(result.user) || defaultProfile(result.user)), plan };
+        onSaveForUser(result.user, next);
+        navigate("/profil?welcome=1");
+      } catch (error) { alert((error as Error).message); }
       return;
     }
     const next = { ...(profile || defaultProfile(user)), plan };
@@ -249,16 +254,30 @@ function SubscriptionPage({ user, profile, onSave }: { user: User | null; profil
     <div className="plan-grid">{plans.map((plan) => <article key={plan.id} className={plan.id === "pro" ? "featured" : ""}>
       {plan.id === "pro" && <b className="popular">En popüler</b>}<h2>{plan.name}</h2><p>{plan.note}</p><strong className="plan-price">{plan.price}</strong>
       <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
-      <button className={profile?.plan === plan.id ? "ghost" : "primary"} onClick={() => choose(plan.id)}>{profile?.plan === plan.id ? "Mevcut plan" : user ? "Mock planı seç" : "Google ile kayıt ol"}</button>
+      <button className={profile?.plan === plan.id ? "ghost" : "primary"} disabled={profile?.plan === plan.id} onClick={() => choose(plan.id)}>{profile?.plan === plan.id ? "Mevcut plan" : user ? "Demo planı seç" : "Google ile kayıt ol"}</button>
     </article>)}</div>
   </section>;
 }
-function ProfilePage({ user, profile, onSave }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void }) {
+function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
   const initial = user ? (profile || defaultProfile(user)) : null;
   const [firstName, setFirstName] = useState(initial?.firstName || "");
   const [lastName, setLastName] = useState(initial?.lastName || "");
-  if (!user || !initial) return <section className="profile-gate"><UserCircle /><h1>Profilinizi oluşturun</h1><p>Önce Google hesabınızla güvenli şekilde kayıt olun.</p><button className="primary" onClick={() => loginGoogle().catch((error) => alert(error.message))}><LogIn />Google ile kayıt ol</button></section>;
+  useEffect(() => {
+    if (!user) return;
+    const next = profile || defaultProfile(user);
+    setFirstName(next.firstName);
+    setLastName(next.lastName);
+  }, [user, profile]);
+  const google = async () => {
+    try {
+      const result = await loginGoogle();
+      const next = readProfile(result.user) || defaultProfile(result.user);
+      onSaveForUser(result.user, next);
+      navigate(next.completed ? "/uygulama" : "/profil?welcome=1");
+    } catch (error) { alert((error as Error).message); }
+  };
+  if (!user || !initial) return <section className="profile-gate"><UserCircle /><h1>Profilinizi oluşturun</h1><p>Önce Google hesabınızla güvenli şekilde kayıt olun.</p><button className="primary" onClick={() => void google()}><LogIn />Google ile kayıt ol</button></section>;
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), completed: true };
@@ -267,11 +286,11 @@ function ProfilePage({ user, profile, onSave }: { user: User | null; profile: Me
   };
   const currentPlan = plans.find((plan) => plan.id === initial.plan) || plans[0];
   return <section className="profile-page">
-    <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Google hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
+    <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
     <div className="profile-layout"><form className="profile-card" onSubmit={save}>
       <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
       <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
-      <label>Gmail hesabı<input value={user.email || ""} disabled /></label>
+      <label>E-posta hesabı<input value={user.email || ""} disabled /></label>
       <button className="primary" type="submit"><CheckCircle2 />Profili kaydet ve devam et</button>
     </form><aside className="subscription-card"><CreditCard /><small>MOCK ABONELİK</small><h2>{currentPlan.name}</h2><strong>{currentPlan.price}</strong><p>Gerçek ödeme bağlantısı henüz aktif değildir.</p><Link className="ghost" to="/abonelik">Planı görüntüle veya değiştir</Link></aside></div>
   </section>;
@@ -566,9 +585,13 @@ function Translator() {
       speech.toggle();
       return;
     }
-    if (!roomConnection.voiceEnabled) {
+    const isIOSWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
+    if (!isIOSWebKit && !roomConnection.voiceEnabled) {
       const enabled = await roomConnection.enableVoice();
       if (!enabled) return;
+    }
+    if (isIOSWebKit && !roomConnection.voiceEnabled) {
+      setNotice("iPhone'da çeviri mikrofonu açıldı. Orijinal sesi ayrıca açabilirsiniz.");
     }
     speech.toggle();
   };
@@ -910,9 +933,9 @@ export function App() {
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
         <Route path="/ozellikler" element={<Info data={pages.features} />} />
-        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSave={saveProfile} />} />
+        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
         <Route path="/kayit" element={<AuthPage onRegistered={saveRegisteredProfile} />} />
-        <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} />} />
+        <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
         <Route path="/gizlilik" element={<Info data={pages.privacy} />} />
         <Route
           path="/kullanim-sartlari"

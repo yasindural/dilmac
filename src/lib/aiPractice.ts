@@ -18,7 +18,7 @@ type PracticeRequest = {
 
 const cleanJson = (value: string) => value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 
-export async function practiceWithAi({ text, userLanguage, partnerLanguage, history, key }: PracticeRequest): Promise<PracticeReply> {
+export async function practiceWithAi({ text, userLanguage, partnerLanguage, history }: PracticeRequest): Promise<PracticeReply> {
   const apiBase = import.meta.env.VITE_DILMAC_API_URL?.replace(/\/$/, "");
   if (!apiBase) {
     return {

@@ -68,11 +68,6 @@ export default function AiPractice() {
     }
   }, [aiLanguageName, autoSpeak, speak, userLanguageName]);
 
-  const send = useCallback(async (rawText: string) => {
-    if (processingSpeechRef.current || busy) return;
-    await runTurn(rawText);
-  }, [busy, runTurn]);
-
   const enqueueSpeech = useCallback((rawText: string) => {
     const sentences = rawText.match(/[^.!?…。！？]+[.!?…。！？]?/g)?.map((part) => part.trim()).filter(Boolean) || [];
     speechQueueRef.current.push(...sentences);
@@ -89,6 +84,12 @@ export default function AiPractice() {
       }
     })();
   }, [runTurn]);
+
+  const send = useCallback(async (rawText: string) => {
+    const text = rawText.trim();
+    if (!text) return;
+    enqueueSpeech(text);
+  }, [enqueueSpeech]);
 
   const speech = useSpeech(userLanguage, (text) => {
     if (!aiSpeakingRef.current && Date.now() > ignoreSpeechUntilRef.current) enqueueSpeech(text);
