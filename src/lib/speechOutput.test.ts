@@ -97,6 +97,27 @@ describe("sesli çıktı", () => {
     expect(onEnd).toHaveBeenCalledTimes(1);
   });
 
+  it("aynı dilde ağ tabanlı kaliteli sesi cihaz içi basit sese tercih eder", async () => {
+    synth.getVoices.mockReturnValue([
+      { lang: "en-US", name: "English (US) compact", localService: true },
+      { lang: "en-US", name: "Google US English", localService: false },
+      { lang: "tr-TR", name: "Türkçe Ses", localService: true },
+    ] as never);
+    const { pickVoice } = await import("./speechOutput");
+    const chosen = pickVoice("en-US");
+    expect(chosen).toMatchObject({ name: "Google US English" });
+  });
+
+  it("tam eşleşme yoksa aynı dil ailesinden en iyi sesi seçer", async () => {
+    synth.getVoices.mockReturnValue([
+      { lang: "en-GB", name: "Google UK English Female", localService: false },
+      { lang: "tr-TR", name: "Türkçe Ses", localService: true },
+    ] as never);
+    const { pickVoice } = await import("./speechOutput");
+    const chosen = pickVoice("en-US");
+    expect(chosen).toMatchObject({ lang: "en-GB" });
+  });
+
   it("tarayıcı desteklemiyorsa hata bildirir ve çökmez", async () => {
     Object.defineProperty(window, "speechSynthesis", { value: undefined, configurable: true });
     const { speakText, unlockSpeechOutput } = await import("./speechOutput");

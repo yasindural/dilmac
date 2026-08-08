@@ -36,15 +36,59 @@ function refreshVoices() {
   }
 }
 
+// Aynı dilde birden fazla ses varsa en kalitelisini seç. Ağ tabanlı
+// (Google gibi) sesler cihaz içi basit motorlardan daha doğal konuşur;
+// "compact/espeak/pico" gibi motorlar ise telefonda metalik ve bozuk çıkar.
+function scoreVoice(voice: SpeechSynthesisVoice, wanted: string, family: string) {
+  const voiceLang = voice.lang.toLowerCase().replace("_", "-");
+  let score = 0;
+  if (voiceLang === wanted) score += 100;
+  else if (voiceLang.startsWith(`${family}-`) || voiceLang === family) score += 50;
+  else return -1;
+  if (voice.localService === false) score += 12;
+  if (/google|microsoft|siri/i.test(voice.name)) score += 8;
+  if (/natural|neural|enhanced|premium|online|hd/i.test(voice.name)) score += 6;
+  if (/compact|espeak|pico|basic/i.test(voice.name)) score -= 10;
+  return score;
+}
+
 export function pickVoice(lang: string): SpeechSynthesisVoice | null {
   refreshVoices();
   if (!lang || !cachedVoices.length) return null;
-  const wanted = lang.toLowerCase();
+  const wanted = lang.toLowerCase().replace("_", "-");
   const family = wanted.split("-")[0];
-  return cachedVoices.find((voice) => voice.lang.toLowerCase() === wanted)
-    || cachedVoices.find((voice) => voice.lang.toLowerCase().replace("_", "-") === wanted)
-    || cachedVoices.find((voice) => voice.lang.toLowerCase().replace("_", "-").startsWith(`${family}-`))
-    || null;
+  let best: SpeechSynthesisVoice | null = null;
+  let bestScore = 0;
+  for (const voice of cachedVoices) {
+    const score = scoreVoice(voice, wanted, family);
+    if (score > bestScore) {
+      best = voice;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+let voiceChoiceReported = false;
+
+// Telefonda hangi sesin seçildiğini bir kez kayda yaz; kalite sorunlarını
+// tahminle değil gerçek cihaz verisiyle çözebilmek için.
+function reportVoiceChoice(lang: string, chosen: SpeechSynthesisVoice | null) {
+  if (voiceChoiceReported) return;
+  if (!/android|iP(?:hone|ad|od)/i.test(navigator.userAgent)) return;
+  voiceChoiceReported = true;
+  const family = lang.toLowerCase().replace("_", "-").split("-")[0];
+  const matches = cachedVoices
+    .filter((voice) => voice.lang.toLowerCase().replace("_", "-").startsWith(family))
+    .slice(0, 4)
+    .map((voice) => `${voice.lang}:${voice.name}${voice.localService === false ? "[net]" : ""}`)
+    .join("; ");
+  logClientError(
+    "voice_choice",
+    "speech_output",
+    `dil=${lang} secilen=${chosen ? `${chosen.lang}:${chosen.name}` : "varsayilan"} eslesen=${matches || "yok"} toplam=${cachedVoices.length}`,
+    "warning",
+  );
 }
 
 // Yalnızca gerçek kullanıcı dokunuşu işleyicilerinden çağrılmalı.
@@ -113,6 +157,7 @@ export function speakText(text: string, lang: string, handlers: SpeechOutputHand
     utterance.lang = lang;
     const voice = pickVoice(lang);
     if (voice) utterance.voice = voice;
+    reportVoiceChoice(lang, voice);
     const finish = (failed: boolean) => {
       stopKeepAlive();
       if (failed) handlers.onError?.();
