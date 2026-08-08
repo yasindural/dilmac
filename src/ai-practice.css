@@ -224,11 +224,6 @@
 .practice-message header small {
   color: #7187a5;
 }
-.practice-message > p {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.55;
-}
 .practice-message.mine {
   justify-self: end;
   border-color: #157ac4;
@@ -243,10 +238,14 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-top: 15px;
-  padding-top: 14px;
-  border-top: 1px solid #29435f;
-  color: #d9e9ff;
+  padding: 15px 16px;
+  border: 1px solid rgba(72, 200, 255, 0.36);
+  border-radius: 14px;
+  background: rgba(13, 55, 91, 0.42);
+  color: #f4f9ff;
+  font-size: 20px;
+  font-weight: 760;
+  line-height: 1.45;
 }
 .translation-line svg {
   width: 17px;
@@ -259,15 +258,37 @@
   gap: 4px;
 }
 .translation-line small {
-  color: #7189a9;
+  color: #69d7ff;
   font-size: 11px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.7px;
 }
+.original-line {
+  position: relative;
+  margin-top: 14px;
+  padding: 14px 42px 0 0;
+  border-top: 1px solid #29435f;
+  color: #a9bad0;
+}
+.original-line small {
+  display: block;
+  margin-bottom: 5px;
+  color: #7189a9;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .65px;
+  text-transform: uppercase;
+}
+.original-line p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
 .speak-reply {
   position: absolute;
-  right: 16px;
-  top: 54px;
+  right: 0;
+  top: 10px;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -456,8 +477,8 @@
     width: 96%;
     padding: 16px;
   }
-  .practice-message > p {
-    font-size: 16px;
+  .translation-line {
+    font-size: 18px;
   }
   .practice-compose {
     padding: 16px 12px 20px;
