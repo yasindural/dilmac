@@ -29,7 +29,7 @@ export function getSpeechErrorMessage(error: string) {
   return `Mikrofon hatası: ${error}`;
 }
 
-export function useSpeech(lang: string, onFinal: (text: string) => void) {
+export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAfterFinal = false) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
   const [activityTick, setActivityTick] = useState(0);
@@ -106,6 +106,11 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       if (isNoise || isWeak || isDuplicate) return;
       lastFinalRef.current = { text: normalized, at: Date.now() };
       setActivityTick((value) => value + 1);
+      if (isIOSWebKit && pauseAfterFinal) {
+        wantsToListenRef.current = false;
+        setListening(false);
+        recognition.stop();
+      }
       onFinalRef.current(transcript);
     };
     recognition.onresult = (event) => {
@@ -176,7 +181,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       setListening(false);
       setError("Mikrofon başlatılamadı. Safari ile tekrar deneyin.");
     }
-  }, [lang, listening, stop]);
+  }, [lang, listening, pauseAfterFinal, stop]);
 
   return { supported, listening, error, toggle, stop, activityTick, interimText };
 }

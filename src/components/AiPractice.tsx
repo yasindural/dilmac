@@ -26,6 +26,8 @@ export default function AiPractice() {
   const turnsRef = useRef<PracticeHistoryTurn[]>([]);
   const speechQueueRef = useRef<string[]>([]);
   const processingSpeechRef = useRef(false);
+  const restartMobileSpeechRef = useRef(false);
+  const speechToggleRef = useRef<() => void>(() => undefined);
 
   const languageName = useCallback((code: string) => practiceLanguages.find(([value]) => value === code)?.[1] || code, []);
   const userLanguageName = useMemo(() => languageName(userLanguage), [languageName, userLanguage]);
@@ -65,6 +67,10 @@ export default function AiPractice() {
       setError(requestError instanceof Error ? requestError.message : "AI cevabı alınamadı.");
     } finally {
       setBusy(false);
+      if (restartMobileSpeechRef.current) {
+        restartMobileSpeechRef.current = false;
+        window.setTimeout(() => speechToggleRef.current(), 500);
+      }
     }
   }, [aiLanguageName, autoSpeak, speak, userLanguageName]);
 
@@ -92,8 +98,12 @@ export default function AiPractice() {
   }, [enqueueSpeech]);
 
   const speech = useSpeech(userLanguage, (text) => {
-    if (!aiSpeakingRef.current && Date.now() > ignoreSpeechUntilRef.current) enqueueSpeech(text);
-  });
+    if (!aiSpeakingRef.current && Date.now() > ignoreSpeechUntilRef.current) {
+      restartMobileSpeechRef.current = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
+      enqueueSpeech(text);
+    }
+  }, true);
+  speechToggleRef.current = speech.toggle;
   useEffect(() => {
     const feed = feedRef.current;
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: turns.length > 1 ? "smooth" : "auto" });

@@ -11,9 +11,10 @@ class MockRecognition {
   onresult: ((event: { resultIndex?: number; results: ArrayLike<{ 0: { transcript: string; confidence?: number }; isFinal: boolean }> }) => void) | null = null;
   onerror: ((event: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  stopped = false;
   constructor() { MockRecognition.latest = this; }
   start() {}
-  stop() {}
+  stop() { this.stopped = true; }
 }
 
 afterEach(() => {
@@ -51,5 +52,23 @@ describe("getSpeechErrorMessage", () => {
     });
 
     expect(onFinal).toHaveBeenCalledWith("Sesimi duyuyor musun");
+  });
+
+  it("pauses iPhone recognition before an AI request when requested", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 CriOS/140 Mobile");
+    window.webkitSpeechRecognition = MockRecognition as never;
+    const onFinal = vi.fn();
+    const { result } = renderHook(() => useSpeech("tr-TR", onFinal, true));
+
+    act(() => result.current.toggle());
+    act(() => {
+      MockRecognition.latest?.onresult?.({ results: [{ 0: { transcript: "Sesim geliyor mu" }, isFinal: false }] });
+      vi.advanceTimersByTime(1200);
+    });
+
+    expect(MockRecognition.latest?.stopped).toBe(true);
+    expect(result.current.listening).toBe(false);
+    expect(onFinal).toHaveBeenCalledWith("Sesim geliyor mu");
   });
 });
