@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { ArrowRight, Bot, CheckCircle2, Languages, Mic, MicOff, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
 import { practiceWithAi, type PracticeHistoryTurn } from "../lib/aiPractice";
+import { speakText, unlockSpeechOutput } from "../lib/speechOutput";
 import { logClientError } from "../lib/errorLogger";
 import "../ai-practice.css";
 
@@ -34,13 +35,11 @@ export default function AiPractice() {
   const aiLanguageName = useMemo(() => languageName(aiLanguage), [aiLanguage, languageName]);
 
   const speak = useCallback((text: string) => {
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = aiLanguage;
-    utterance.onstart = () => { aiSpeakingRef.current = true; ignoreSpeechUntilRef.current = Number.POSITIVE_INFINITY; };
-    utterance.onend = () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 1800; };
-    utterance.onerror = () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 800; };
-    speechSynthesis.speak(utterance);
+    speakText(text, aiLanguage, {
+      onStart: () => { aiSpeakingRef.current = true; ignoreSpeechUntilRef.current = Number.POSITIVE_INFINITY; },
+      onEnd: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 1800; },
+      onError: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 800; },
+    });
   }, [aiLanguage]);
 
   const runTurn = useCallback(async (rawText: string) => {
@@ -112,17 +111,15 @@ export default function AiPractice() {
   useEffect(() => {
     if (!speech.listening) return;
     const warning = window.setTimeout(() => {
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance("Mikrofon açık. Konuşmaya devam edebilirsiniz.");
-      utterance.lang = userLanguage;
-      utterance.onstart = () => { aiSpeakingRef.current = true; ignoreSpeechUntilRef.current = Number.POSITIVE_INFINITY; };
-      utterance.onend = () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 1800; };
-      utterance.onerror = () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 800; };
-      speechSynthesis.speak(utterance);
+      speakText("Mikrofon açık. Konuşmaya devam edebilirsiniz.", userLanguage, {
+        onStart: () => { aiSpeakingRef.current = true; ignoreSpeechUntilRef.current = Number.POSITIVE_INFINITY; },
+        onEnd: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 1800; },
+        onError: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 800; },
+      });
     }, 60000);
     return () => window.clearTimeout(warning);
   }, [speech.activityTick, speech.listening, userLanguage]);
-  const submit = (event: FormEvent) => { event.preventDefault(); void send(draft); };
+  const submit = (event: FormEvent) => { event.preventDefault(); unlockSpeechOutput(); void send(draft); };
   const swapLanguages = () => {
     setUserLanguage(aiLanguage);
     setAiLanguage(userLanguage);
@@ -152,10 +149,10 @@ export default function AiPractice() {
         <div className="practice-status"><i className={busy ? "thinking" : ""} /><span>{busy ? "AI düşünüyor ve çeviriyor…" : `Hazır · ${userLanguageName} → ${aiLanguageName}`}</span></div>
 
         <div className="practice-feed" ref={feedRef} aria-live="polite">
-          {!turns.length && !busy && <div className="practice-empty"><div><Bot /></div><h2>İlk cümlenizi söyleyin</h2><p>Örneklerden birini seçin veya aşağıdaki mikrofona dokunun.</p><div className="practice-starters">{starters.map((text) => <button key={text} onClick={() => void send(text)}>{text}<ArrowRight /></button>)}</div></div>}
+          {!turns.length && !busy && <div className="practice-empty"><div><Bot /></div><h2>İlk cümlenizi söyleyin</h2><p>Örneklerden birini seçin veya aşağıdaki mikrofona dokunun.</p><div className="practice-starters">{starters.map((text) => <button key={text} onClick={() => { unlockSpeechOutput(); void send(text); }}>{text}<ArrowRight /></button>)}</div></div>}
           {turns.map((turn, index) => <div className="practice-turn" key={`${turn.userText}-${index}`}>
             <article className="practice-message mine"><header><span>Siz</span><small>{userLanguageName}</small></header><div className="translation-line"><Languages /><span><small>{aiLanguageName} çevirisi</small>{turn.userTranslation}</span></div><div className="original-line"><small>Orijinal sözünüz · {userLanguageName}</small><p>{turn.userText}</p></div></article>
-            <article className="practice-message ai"><header><span><Bot /> AI konuşma partneri</span><small>{aiLanguageName}</small></header><div className="translation-line"><Languages /><span><small>{userLanguageName} anlamı</small>{turn.replyTranslation}</span></div><div className="original-line"><small>AI yanıtı · {aiLanguageName}</small><p>{turn.reply}</p><button className="speak-reply" onClick={() => speak(turn.reply)} aria-label="AI cevabını dinle"><Volume2 /></button></div></article>
+            <article className="practice-message ai"><header><span><Bot /> AI konuşma partneri</span><small>{aiLanguageName}</small></header><div className="translation-line"><Languages /><span><small>{userLanguageName} anlamı</small>{turn.replyTranslation}</span></div><div className="original-line"><small>AI yanıtı · {aiLanguageName}</small><p>{turn.reply}</p><button className="speak-reply" onClick={() => { unlockSpeechOutput(); speak(turn.reply); }} aria-label="AI cevabını dinle"><Volume2 /></button></div></article>
           </div>)}
           {busy && <div className="practice-thinking"><span /><span /><span /><b>Çeviri hazırlanıyor</b></div>}
         </div>
@@ -163,7 +160,7 @@ export default function AiPractice() {
         <div className="practice-compose">
           {speech.listening && <div className={`practice-live-preview ${speech.interimText ? "has-text" : ""}`} aria-live="polite"><i /><span><small>CANLI ÖN İZLEME</small>{speech.interimText || "Sizi dinliyorum…"}</span></div>}
           <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`${userLanguageName} yazın…`} aria-label="AI deneme mesajı" /><button className="primary" type="submit" disabled={busy || !draft.trim()}><ArrowRight /> Gönder</button></form>
-          <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={speech.toggle}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Mikrofon açık · durdur" : "Konuşarak dene"}</span></button>
+          <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={() => { unlockSpeechOutput(); speech.toggle(); }}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Mikrofon açık · durdur" : "Konuşarak dene"}</span></button>
           {turns.length > 0 && <button className="practice-reset" onClick={() => { setTurns([]); turnsRef.current = []; speechQueueRef.current = []; setError(""); }}><RotateCcw /> Sohbeti temizle</button>}
         </div>
         {(error || speech.error) && <div className="practice-error" role="alert">{error || speech.error}</div>}

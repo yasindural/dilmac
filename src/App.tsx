@@ -45,6 +45,7 @@ import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
+import { speakText, unlockSpeechOutput } from "./lib/speechOutput";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
 const langs = [
@@ -562,10 +563,13 @@ function Translator() {
     }
     navigate(`/oda/${room.toUpperCase()}`);
   };
-  const speak = (t: string) =>
-    speechSynthesis.speak(new SpeechSynthesisUtterance(t));
+  const speak = (text: string, languageName?: string) => {
+    const code = langs.find(([, name]) => name === languageName)?.[0] || "tr-TR";
+    speakText(text, code);
+  };
   const submitDraft = (event: React.FormEvent) => {
     event.preventDefault();
+    unlockSpeechOutput();
     const text = draft.trim();
     if (!text) return;
     enqueue(text);
@@ -581,6 +585,7 @@ function Translator() {
     if (enabled) setNotice("Mikrofonunuz açık. Karşı tarafın ses bağlantısı bekleniyor.");
   };
   const toggleConversation = async () => {
+    unlockSpeechOutput();
     if (speech.listening) {
       speech.toggle();
       return;
@@ -691,7 +696,7 @@ function Translator() {
       <div className="conversation conversation-focus">
         <div className="speaker remote remote-focus">
           <h2>Karşı tarafın konuşmaları</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
-          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => speak(m.translated)} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda yalnızca onun mesajları burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
+          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => { unlockSpeechOutput(); speak(m.translated, m.targetLanguage); }} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda yalnızca onun mesajları burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
           {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
         </div>
         <div className="talk-panel">
@@ -726,7 +731,7 @@ function Translator() {
                   {m.translated && <strong>{m.translated}</strong>}
                   <small className="message-status">{m.status === "queued" ? "Sırada" : m.status === "translating" ? "Çevriliyor…" : m.status === "sent" ? "Gönderildi" : m.status === "delivered" ? "Teslim edildi" : "Gönderilemedi"}</small>
                   {m.status === "failed" && <button className="retry" onClick={() => queueRef.current?.retry(m.id)}><RotateCcw />Tekrar dene</button>}
-                  {m.translated && <button onClick={() => speak(m.translated)} aria-label="Çeviriyi dinle"><Volume2 /></button>}
+                  {m.translated && <button onClick={() => { unlockSpeechOutput(); speak(m.translated, m.targetLanguage); }} aria-label="Çeviriyi dinle"><Volume2 /></button>}
                 </article>
               )) : <div className="empty">Henüz kendi konuşmanız yok.</div>}
             </div>
