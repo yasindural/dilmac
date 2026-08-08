@@ -7,3 +7,5 @@ dist/
 vite.config.js
 vite.config.d.ts
 .DS_Store
+.claude-agent-output/
+claude-task.local.json

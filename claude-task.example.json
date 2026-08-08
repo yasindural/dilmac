@@ -1,0 +1,11 @@
+{
+  "objective": "Yapılacak işi burada açık ve ölçülebilir biçimde anlatın.",
+  "acceptanceCriteria": [
+    "Mevcut canlı oda ve AI deneme akışı bozulmamalı",
+    "TypeScript derlemesi ve testler geçmeli"
+  ],
+  "files": [
+    "src/hooks/useSpeech.ts",
+    "src/hooks/useSpeech.test.ts"
+  ]
+}
