@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logClientError } from "../lib/errorLogger";
 
 declare global {
   interface Window {
@@ -76,6 +77,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
 
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) {
+      logClientError("unsupported", "speech", "SpeechRecognition is unavailable", "warning");
       setError("Bu tarayıcı canlı konuşma tanımayı desteklemiyor. Chrome veya Edge deneyin.");
       return;
     }
@@ -106,8 +108,12 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
       if (preview) setInterimText(preview);
     };
     recognition.onerror = (event) => {
-      if (event.error === "no-speech" && wantsToListenRef.current) return;
+      if (event.error === "no-speech" && wantsToListenRef.current) {
+        logClientError("no-speech", "speech", "No speech audio was detected", "warning");
+        return;
+      }
       if (event.error === "aborted" && !wantsToListenRef.current) return;
+      logClientError(event.error || "unknown", "speech", getSpeechErrorMessage(event.error));
       setError(getSpeechErrorMessage(event.error));
       wantsToListenRef.current = false;
       setListening(false);
@@ -120,6 +126,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
             recognition.start();
             setListening(true);
           } catch {
+            logClientError("restart_failed", "speech", "Recognition could not restart");
             wantsToListenRef.current = false;
             recognitionRef.current = null;
             setListening(false);
@@ -134,7 +141,15 @@ export function useSpeech(lang: string, onFinal: (text: string) => void) {
     wantsToListenRef.current = true;
     setError("");
     setListening(true);
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (startError) {
+      logClientError("start_failed", "speech", startError instanceof Error ? startError.message : startError);
+      wantsToListenRef.current = false;
+      recognitionRef.current = null;
+      setListening(false);
+      setError("Mikrofon başlatılamadı. Safari ile tekrar deneyin.");
+    }
   }, [lang, listening, stop]);
 
   return { supported, listening, error, toggle, stop, activityTick, interimText };

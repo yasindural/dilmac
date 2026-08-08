@@ -4,6 +4,7 @@ export type PracticeHistoryTurn = {
   reply: string;
   replyTranslation: string;
 };
+import { logClientError } from "./errorLogger";
 
 export type PracticeReply = Omit<PracticeHistoryTurn, "userText">;
 
@@ -51,6 +52,7 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
   }
 
   if (!response.ok) {
+    logClientError(`http_${response.status}`, "practice", "AI deneme servisi isteği başarısız");
     throw new Error(response.status === 402
       ? "Ücretli ve ücretsiz AI modellerinin kullanım sınırı dolu. Biraz sonra tekrar deneyin."
       : response.status === 429

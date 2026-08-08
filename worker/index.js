@@ -39,6 +39,26 @@ const openRouter = async (env, body, title) => {
   return response;
 };
 
+const clean = (value, max) => String(value ?? "").replace(/sk-or-v1-[a-z0-9]+/gi, "[secret]").slice(0, max);
+const recordError = async (env, entry) => {
+  const safe = {
+    level: clean(entry.level || "error", 12),
+    area: clean(entry.area || "unknown", 40),
+    code: clean(entry.code || "unknown", 80),
+    message: clean(entry.message || "Unknown error", 300),
+    page: clean(entry.page || "", 120),
+    userAgent: clean(entry.userAgent || "", 240),
+  };
+  console.log(JSON.stringify({ event: "dilmac_error", ...safe }));
+  try {
+    await env.dilmac_logs.prepare(
+      "INSERT INTO error_logs (level, area, code, message, page, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(safe.level, safe.area, safe.code, safe.message, safe.page, safe.userAgent).run();
+  } catch (logError) {
+    console.error(JSON.stringify({ event: "log_write_failed", message: clean(logError?.message, 200) }));
+  }
+};
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
@@ -54,11 +74,21 @@ export default {
     if (!allowedOrigins.has(origin)) return json({ error: "forbidden" }, 403, origin);
     if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);
     if (limited(request)) return json({ error: "rate_limited" }, 429, origin);
-    if (!env.OPENROUTER_API_KEY) return json({ error: "service_not_configured" }, 503, origin);
-
     let input;
     try { input = await request.json(); } catch { return json({ error: "invalid_json" }, 400, origin); }
     const path = new URL(request.url).pathname;
+    if (path === "/log") {
+      await recordError(env, input || {});
+      return new Response(null, { status: 204, headers: {
+        "Access-Control-Allow-Origin": origin,
+        "Vary": "Origin",
+        "Cache-Control": "no-store",
+      }});
+    }
+    if (!env.OPENROUTER_API_KEY) {
+      await recordError(env, { area: "backend", code: "service_not_configured", message: "OpenRouter secret is missing", page: path });
+      return json({ error: "service_not_configured" }, 503, origin);
+    }
     if (path === "/translate") {
       const text = String(input.text || "").trim().slice(0, 1200);
       const target = String(input.target || "").trim().slice(0, 40);
@@ -72,7 +102,10 @@ export default {
           { role: "user", content: text },
         ],
       }, "Dilmaç");
-      if (!response.ok) return json({ error: "upstream_error" }, response.status, origin);
+      if (!response.ok) {
+        await recordError(env, { area: "translation", code: `openrouter_${response.status}`, message: "OpenRouter translation request failed", page: path });
+        return json({ error: "upstream_error" }, response.status, origin);
+      }
       const payload = await response.json();
       return json({ text: payload.choices?.[0]?.message?.content || "" }, 200, origin);
     }
@@ -95,7 +128,10 @@ export default {
       }, "Dilmaç AI Deneme");
       let response = await makeRequest(env.OPENROUTER_MODEL || "openai/gpt-4.1-mini");
       if (response.status === 402) response = await makeRequest("openrouter/free");
-      if (!response.ok) return json({ error: "upstream_error" }, response.status, origin);
+      if (!response.ok) {
+        await recordError(env, { area: "practice", code: `openrouter_${response.status}`, message: "OpenRouter practice request failed", page: path });
+        return json({ error: "upstream_error" }, response.status, origin);
+      }
       const payload = await response.json();
       return json({ content: payload.choices?.[0]?.message?.content || "" }, 200, origin);
     }

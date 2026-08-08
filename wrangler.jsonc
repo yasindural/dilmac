@@ -5,6 +5,18 @@
   "compatibility_date": "2026-08-08",
   "workers_dev": true,
   "preview_urls": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "d1_databases": [
+    {
+      "binding": "dilmac_logs",
+      "database_name": "dilmac-logs",
+      "database_id": "c2a76953-235b-43ad-8fc0-2a5b1a35fff1",
+      "migrations_dir": "migrations"
+    }
+  ],
   "vars": {
     "OPENROUTER_MODEL": "openai/gpt-4.1-mini"
   }
