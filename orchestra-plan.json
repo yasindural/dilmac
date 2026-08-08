@@ -1,0 +1,27 @@
+{
+  "mission": "Dilmaç sitesini masaüstünde çalışan ses davranışını bozmadan baştan sona denetle. Mobil konuşma, iki kişilik WebRTC ses ve veri akışı, AI çeviri güvenilirliği, hata izleme, abonelik kullanılabilirliği ve test boşluklarını önceliklendir. Site içine AI arayüzü ekleme; yalnızca geliştirme önerileri üret.",
+  "workers": [
+    {
+      "name": "audio-claude",
+      "model": "anthropic/claude-sonnet-5",
+      "focus": "Web Speech, iPhone WebKit, cümle kuyruğu, AI çağrısı, WebRTC ve masaüstü regresyon risklerini kod seviyesinde denetle.",
+      "files": ["src/hooks/useSpeech.ts", "src/hooks/useSpeech.test.ts", "src/hooks/useRoom.ts", "src/hooks/useRoom.test.tsx", "src/components/AiPractice.tsx", "src/lib/aiPractice.ts", "worker/index.js"]
+    },
+    {
+      "name": "ux-gemini",
+      "model": "google/gemini-3.6-flash",
+      "focus": "Mobil ve masaüstü kullanıcı yolculuğu, kayıt, profil ve abonelik ekranlarını kullanılabilirlik ve satışa hazırlık açısından denetle. Gerçek ödeme varmış gibi davranan öneriler verme.",
+      "files": ["src/App.tsx", "src/ai-practice.css", "src/index.css"]
+    },
+    {
+      "name": "qa-gemini",
+      "model": "google/gemini-3.5-flash-lite",
+      "focus": "Test kapsamı, hata logları, zaman aşımı, yeniden deneme, mobil taşma, iki sekmeli oda testi ve yayın doğrulama boşluklarını çıkar.",
+      "files": ["src/lib/errorLogger.ts", "src/lib/messageQueue.ts", "src/lib/translation.ts", ".github/workflows/deploy.yml", "package.json", "worker/index.js"]
+    }
+  ],
+  "conductor": {
+    "model": "anthropic/claude-opus-5",
+    "instruction": "Uzman raporlarını çelişkileri gidererek birleştir. P0-P3 öncelikli, dosya bazlı ve test edilebilir bir uygulama planı hazırla. Masaüstünde çalışan sesi koru. Güvenlik, gerçek ödeme ve kullanıcı verisi konularında sahte tamamlanmışlık üretme. En küçük güvenli değişiklik grubunu ilk sıraya koy."
+  }
+}
