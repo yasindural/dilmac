@@ -18,7 +18,8 @@ type PracticeRequest = {
 const cleanJson = (value: string) => value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
 
 export async function practiceWithAi({ text, userLanguage, partnerLanguage, history, key }: PracticeRequest): Promise<PracticeReply> {
-  if (!key) {
+  const apiBase = import.meta.env.VITE_DILMAC_API_URL?.replace(/\/$/, "");
+  if (!apiBase) {
     return {
       userTranslation: `[${partnerLanguage}] ${text}`,
       reply: `Hello! I understood: ${text}`,
@@ -30,56 +31,23 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
     user: turn.userTranslation,
     assistant: turn.reply,
   }));
-  const request = async (model: string) => {
-    let lastResponse: Response | null = null;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 25000);
-      try {
-        lastResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            Authorization: `Bearer ${key}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": location.origin,
-            "X-Title": "Dilmaç AI Deneme",
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0.45,
-            max_tokens: 180,
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content: `You are a friendly, concise conversation partner for testing live translation. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Return only valid JSON with exactly these string keys: userTranslation (the human's latest message translated naturally into ${partnerLanguage}), reply (your short natural response in ${partnerLanguage}), replyTranslation (your reply translated naturally into ${userLanguage}). Keep the reply to one or two sentences. Never add markdown.`,
-              },
-              {
-                role: "user",
-                content: JSON.stringify({ previousConversation: recentContext, latestMessage: text }),
-              },
-            ],
-          }),
-        });
-      } catch (requestError) {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") {
-          throw new Error("AI yanıtı gecikti ve güvenli biçimde durduruldu. Mikrofon açık; sonraki cümleyle devam edebilirsiniz.");
-        }
-        throw requestError;
-      } finally {
-        window.clearTimeout(timeout);
-      }
-      if (lastResponse.status !== 429 && lastResponse.status < 500) return lastResponse;
-      if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 1400));
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 25000);
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase}/practice`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, userLanguage, partnerLanguage, history: recentContext }),
+    });
+  } catch (requestError) {
+    if (requestError instanceof DOMException && requestError.name === "AbortError") {
+      throw new Error("AI yanıtı gecikti ve güvenli biçimde durduruldu. Mikrofon açık; sonraki cümleyle devam edebilirsiniz.");
     }
-    return lastResponse as Response;
-  };
-
-  const preferredModel = import.meta.env.VITE_OPENROUTER_MODEL || "openai/gpt-4.1-mini";
-  let response = await request(preferredModel);
-  if (response.status === 402 && preferredModel !== "openrouter/free") {
-    response = await request("openrouter/free");
+    throw requestError;
+  } finally {
+    window.clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -91,7 +59,7 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
   }
 
   const payload = await response.json();
-  const raw = payload.choices?.[0]?.message?.content;
+  const raw = payload.content;
   if (typeof raw !== "string" || !raw.trim()) throw new Error("AI boş cevap verdi. Tekrar deneyin.");
 
   try {

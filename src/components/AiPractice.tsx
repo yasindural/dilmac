@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Bot, CheckCircle2, Languages, Mic, MicOff, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
-import { bundledOpenRouterKey } from "../lib/runtimeConfig";
 import { practiceWithAi, type PracticeHistoryTurn } from "../lib/aiPractice";
 import "../ai-practice.css";
 
@@ -53,7 +52,6 @@ export default function AiPractice() {
         userLanguage: userLanguageName,
         partnerLanguage: aiLanguageName,
         history: turnsRef.current,
-        key: bundledOpenRouterKey,
       });
       setTurns((current) => {
         const next = [...current, { userText: text, ...result }];

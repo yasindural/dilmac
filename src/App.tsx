@@ -44,7 +44,6 @@ import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
-import { bundledOpenRouterKey } from "./lib/runtimeConfig";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
@@ -426,7 +425,7 @@ function Translator() {
     [remoteMessages, setRemoteMessages] = useState<RoomMessage[]>([]),
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
-    [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || bundledOpenRouterKey),
+    [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || "backend"),
     [notice, setNotice] = useState("Hazır"),
     [copied, setCopied] = useState(false),
     [role, setRole] = useState<"host" | "guest" | null>(null),

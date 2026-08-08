@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dilmac-api",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-08",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "OPENROUTER_MODEL": "openai/gpt-4.1-mini"
+  }
+}
