@@ -28,6 +28,7 @@ const limited = (request) => {
 const openRouter = async (env, body, title) => {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
+    signal: AbortSignal.timeout(18_000),
     headers: {
       Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
@@ -93,15 +94,22 @@ export default {
       const text = String(input.text || "").trim().slice(0, 1200);
       const target = String(input.target || "").trim().slice(0, 40);
       if (!text || !target) return json({ error: "invalid_request" }, 400, origin);
-      const response = await openRouter(env, {
-        model: env.OPENROUTER_MODEL || "openai/gpt-4.1-mini",
-        temperature: 0.2,
-        max_tokens: 500,
-        messages: [
-          { role: "system", content: `Translate naturally into ${target}. Return only the translation.` },
-          { role: "user", content: text },
-        ],
-      }, "Dilmaç");
+      let response;
+      try {
+        response = await openRouter(env, {
+          model: env.OPENROUTER_MODEL || "openai/gpt-4.1-mini",
+          temperature: 0.2,
+          max_tokens: 500,
+          messages: [
+            { role: "system", content: `Translate naturally into ${target}. Return only the translation.` },
+            { role: "user", content: text },
+          ],
+        }, "Dilmaç");
+      } catch (requestError) {
+        const timedOut = requestError?.name === "TimeoutError" || requestError?.name === "AbortError";
+        await recordError(env, { area: "translation", code: timedOut ? "openrouter_timeout" : "openrouter_network", message: clean(requestError?.message, 200), page: path });
+        return json({ error: timedOut ? "upstream_timeout" : "upstream_network" }, 504, origin);
+      }
       if (!response.ok) {
         await recordError(env, { area: "translation", code: `openrouter_${response.status}`, message: "OpenRouter translation request failed", page: path });
         return json({ error: "upstream_error" }, response.status, origin);
@@ -126,8 +134,15 @@ export default {
           { role: "user", content: JSON.stringify({ previousConversation: history, latestMessage: text }) },
         ],
       }, "Dilmaç AI Deneme");
-      let response = await makeRequest(env.OPENROUTER_MODEL || "openai/gpt-4.1-mini");
-      if (response.status === 402) response = await makeRequest("openrouter/free");
+      let response;
+      try {
+        response = await makeRequest(env.OPENROUTER_MODEL || "openai/gpt-4.1-mini");
+        if (response.status === 402) response = await makeRequest("openrouter/free");
+      } catch (requestError) {
+        const timedOut = requestError?.name === "TimeoutError" || requestError?.name === "AbortError";
+        await recordError(env, { area: "practice", code: timedOut ? "openrouter_timeout" : "openrouter_network", message: clean(requestError?.message, 200), page: path });
+        return json({ error: timedOut ? "upstream_timeout" : "upstream_network" }, 504, origin);
+      }
       if (!response.ok) {
         await recordError(env, { area: "practice", code: `openrouter_${response.status}`, message: "OpenRouter practice request failed", page: path });
         return json({ error: "upstream_error" }, response.status, origin);

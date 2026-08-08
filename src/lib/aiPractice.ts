@@ -43,9 +43,12 @@ export async function practiceWithAi({ text, userLanguage, partnerLanguage, hist
       body: JSON.stringify({ text, userLanguage, partnerLanguage, history: recentContext }),
     });
   } catch (requestError) {
-    if (requestError instanceof DOMException && requestError.name === "AbortError") {
+    const isAbort = requestError instanceof Error && requestError.name === "AbortError";
+    if (isAbort) {
+      logClientError("request_timeout", "practice", "AI isteği 25 saniyede tamamlanmadı");
       throw new Error("AI yanıtı gecikti ve güvenli biçimde durduruldu. Mikrofon açık; sonraki cümleyle devam edebilirsiniz.");
     }
+    logClientError("network_error", "practice", requestError instanceof Error ? requestError.message : requestError);
     throw requestError;
   } finally {
     window.clearTimeout(timeout);

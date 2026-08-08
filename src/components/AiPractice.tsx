@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { ArrowRight, Bot, CheckCircle2, Languages, Mic, MicOff, RotateCcw, Sparkles, Volume2 } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
 import { practiceWithAi, type PracticeHistoryTurn } from "../lib/aiPractice";
+import { logClientError } from "../lib/errorLogger";
 import "../ai-practice.css";
 
 const practiceLanguages = [
@@ -60,6 +61,7 @@ export default function AiPractice() {
       });
       if (autoSpeak) speak(result.reply);
     } catch (requestError) {
+      logClientError("turn_failed", "practice_ui", requestError instanceof Error ? requestError.message : requestError);
       setError(requestError instanceof Error ? requestError.message : "AI cevabı alınamadı.");
     } finally {
       setBusy(false);
