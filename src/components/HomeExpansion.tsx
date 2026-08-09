@@ -6,36 +6,21 @@ import {
   ShieldCheck,
   Volume2,
 } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 import "../home-expansion.css";
 
 const waveBars = Array.from({ length: 17 }, (_, index) => (
   <i key={index} aria-hidden="true" />
 ));
 
-const questions = [
-  {
-    question: "Karşımdaki kişinin orijinal sesini nasıl duyarım?",
-    answer:
-      "Görüşme odasında iki taraf da ses bağlantısını açtığında orijinal ses anında iletilir. Aynı ekranda konuşmanın metnini ve çevirisini de takip edebilirsiniz.",
-  },
-  {
-    question: "Dilmaç'ı kullanmak için uygulama indirmem gerekir mi?",
-    answer:
-      "Hayır. Güncel bir tarayıcı yeterlidir. Oda bağlantısını açın, mikrofon iznini verin ve görüşmeye katılın.",
-  },
-  {
-    question: "Mikrofonum ne zaman açılır?",
-    answer:
-      "Mikrofon yalnızca siz ses bağlantısını açtığınızda çalışır. Görüşme ekranındaki durum göstergesi mikrofon ve bağlantı durumunu açıkça gösterir.",
-  },
-  {
-    question: "Bağlantı kesilirse konuşmam kaybolur mu?",
-    answer:
-      "Dilmaç bağlantı durumunu ekranda gösterir ve yeniden bağlanmayı dener. Gönderilmeyi bekleyen metinler sırada tutulur; böylece konuşmanın akışına kaldığınız yerden devam edebilirsiniz.",
-  },
-];
-
 export default function HomeExpansion() {
+  const { t } = useI18n();
+  const questions = [
+    { question: t("q1"), answer: t("a1") },
+    { question: t("q2"), answer: t("a2") },
+    { question: t("q3"), answer: t("a3") },
+    { question: t("q4"), answer: t("a4") },
+  ];
   return (
     <>
       <section className="voice-story" aria-labelledby="voice-story-title">
@@ -43,32 +28,30 @@ export default function HomeExpansion() {
           <div className="voice-story__mark" aria-hidden="true">
             <Volume2 />
           </div>
-          <h2 id="voice-story-title">İki ses, tek konuşma.</h2>
+          <h2 id="voice-story-title">{t("vs.title")}</h2>
           <p>
-            Karşınızdaki kişinin gerçek sesini duyarken canlı altyazıyı ve yapay
-            zekâ çevirisini aynı anda takip edin. Konuşmanın doğallığı kaybolmaz,
-            anlamı arada kalmaz.
+            {t("vs.p")}
           </p>
           <ul aria-label="Canlı görüşme özellikleri">
             <li>
               <Mic2 />
               <span>
-                <strong>Orijinal sesi duyun</strong>
-                Ses tonu ve duygular konuşmada kalsın.
+                <strong>{t("vs1.t")}</strong>
+                {t("vs1.p")}
               </span>
             </li>
             <li>
               <Captions />
               <span>
-                <strong>Canlı altyazıyı izleyin</strong>
-                Söylenenleri kaçırmadan ekrandan takip edin.
+                <strong>{t("vs2.t")}</strong>
+                {t("vs2.p")}
               </span>
             </li>
             <li>
               <Languages />
               <span>
-                <strong>Anında çeviriyi okuyun</strong>
-                Seçtiğiniz dilde doğal ve anlaşılır karşılığını görün.
+                <strong>{t("vs3.t")}</strong>
+                {t("vs3.p")}
               </span>
             </li>
           </ul>
@@ -77,9 +60,9 @@ export default function HomeExpansion() {
         <div className="voice-stage" aria-label="İki dil arasındaki canlı ses ve çeviri akışı">
           <div className="voice-stage__topline">
             <span>
-              <i aria-hidden="true" /> Canlı ses bağlı
+              <i aria-hidden="true" /> {t("vs.live")}
             </span>
-            <span>Uçtan uca görüşme</span>
+            <span>{t("vs.e2e")}</span>
           </div>
 
           <div className="voice-lane voice-lane--turkish">
@@ -87,7 +70,7 @@ export default function HomeExpansion() {
             <div className="voice-lane__content">
               <div className="voice-lane__label">
                 <strong>Türkçe</strong>
-                <span>Orijinal ses</span>
+                <span>{t("vs.original")}</span>
               </div>
               <div className="voice-wave" aria-hidden="true">{waveBars}</div>
             </div>
@@ -105,7 +88,7 @@ export default function HomeExpansion() {
             <div className="voice-lane__content">
               <div className="voice-lane__label">
                 <strong>English</strong>
-                <span>Original voice</span>
+                <span>{t("vs.original")}</span>
               </div>
               <div className="voice-wave" aria-hidden="true">{waveBars}</div>
             </div>
@@ -113,7 +96,7 @@ export default function HomeExpansion() {
           </div>
 
           <div className="voice-caption">
-            <span>Canlı çeviri</span>
+            <span>{t("vs.caption")}</span>
             <p>Yarınki toplantıya saat kaçta başlayalım?</p>
             <strong>What time should we start tomorrow's meeting?</strong>
           </div>
@@ -123,8 +106,8 @@ export default function HomeExpansion() {
       <section className="home-faq" aria-labelledby="home-faq-title">
         <div className="home-faq__intro">
           <ShieldCheck aria-hidden="true" />
-          <h2 id="home-faq-title">Merak ettikleriniz.</h2>
-          <p>Görüşmeye başlamadan önce en sık sorulan kısa sorular.</p>
+          <h2 id="home-faq-title">{t("faq.title")}</h2>
+          <p>{t("faq.sub")}</p>
         </div>
         <div className="home-faq__list">
           {questions.map(({ question, answer }) => (

@@ -46,6 +46,7 @@ import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import { speakText, unlockSpeechOutput } from "./lib/speechOutput";
+import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
 const langs = [
@@ -127,16 +128,17 @@ function Layout({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { lang, setLang, t } = useI18n();
   return (
     <>
       <a href="#main" className="skip">
-        İçeriğe geç
+        {t("skip")}
       </a>
       <header>
         <Brand />
         <button
           className="mobile-menu"
-          aria-label="Menüyü aç"
+          aria-label={t("menu.open")}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -144,21 +146,27 @@ function Layout({
         </button>
         <nav className={open ? "open" : ""} aria-label="Ana menü">
           {[
-            ["/", "Ana Sayfa"],
-            ["/nasil-calisir", "Nasıl Çalışır"],
-            ["/ozellikler", "Özellikler"],
-            ["/deneme", "AI ile Dene"],
-            ["/abonelik", "Abonelik"],
-            ["/hakkinda", "Hakkında"],
+            ["/", t("nav.home")],
+            ["/nasil-calisir", t("nav.how")],
+            ["/ozellikler", t("nav.features")],
+            ["/deneme", t("nav.try")],
+            ["/abonelik", t("nav.pricing")],
+            ["/hakkinda", t("nav.about")],
           ].map(([p, n]) => (
             <NavLink key={p} to={p} onClick={() => setOpen(false)}>
               {n}
             </NavLink>
           ))}
+          <label className="lang-select">
+            <Languages />
+            <select value={lang} onChange={(event) => setLang(event.target.value as SiteLang)} aria-label={t("lang.pick")}>
+              {siteLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+            </select>
+          </label>
           <button
             className="icon-btn"
             onClick={() => setDark(!dark)}
-            aria-label={dark ? "Açık tema" : "Koyu tema"}
+            aria-label={dark ? t("theme.toLight") : t("theme.toDark")}
           >
             {dark ? <Sun /> : <Moon />}
           </button>
@@ -169,12 +177,12 @@ function Layout({
             </Link>
           )}
           {user ? (
-            <button className="ghost auth-button" onClick={() => logout()}><LogOut />Çıkış</button>
+            <button className="ghost auth-button" onClick={() => logout()}><LogOut />{t("auth.logout")}</button>
           ) : (
-            <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />Kayıt ol</Link>
+            <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />{t("auth.signup")}</Link>
           )}
           <button className="primary" onClick={() => navigate("/uygulama")}>
-            Canlı çeviriyi başlat
+            {t("cta.start")}
             <ArrowRight />
           </button>
         </nav>
@@ -182,10 +190,10 @@ function Layout({
       <main id="main">{children}</main>
       <footer>
         <Brand />
-        <p>Dilleri değil, mesafeleri aşın.</p>
+        <p>{t("footer.tagline")}</p>
         <div>
-          <Link to="/gizlilik">Gizlilik</Link>
-          <Link to="/kullanim-sartlari">Kullanım Şartları</Link>
+          <Link to="/gizlilik">{t("footer.privacy")}</Link>
+          <Link to="/kullanim-sartlari">{t("footer.terms")}</Link>
         </div>
         <small>© {new Date().getFullYear()} Dilmaç</small>
       </footer>
@@ -297,52 +305,52 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
   </section>;
 }
 function Home() {
+  const { t } = useI18n();
   return (
     <>
       <section className="hero">
         <div>
           <h1>
-            Konuş,
+            {t("hero.title1")}
             <br />
-            <span>anlaşıl.</span>
+            <span>{t("hero.title2")}</span>
           </h1>
           <p>
-            Dilmaç, iki kişi arasındaki konuşmayı anında yazıya döker ve seçilen
-            dile çevirir. Farklı dillerde konuşun, kesintisiz anlaşın.
+            {t("hero.sub")}
           </p>
           <Link className="primary large" to="/uygulama">
-            Canlı çeviriyi başlat
+            {t("cta.start")}
             <ArrowRight />
           </Link>
           <div className="trust">
             <span>
               <Radio />
-              Gerçek zamanlı
+              {t("trust.1")}
             </span>
             <span>
               <ShieldCheck />
-              Kontrol sizde
+              {t("trust.2")}
             </span>
             <span>
               <Users />
-              İki kişilik
+              {t("trust.3")}
             </span>
           </div>
         </div>
         <LivePreview />
       </section>
       <section className="band">
-        <h2>Nasıl çalışır?</h2>
+        <h2>{t("steps.title")}</h2>
         <div className="steps">
           {[
-            ["01", "Dili seçin"],
-            ["02", "Odayı paylaşın"],
-            ["03", "Konuşun"],
-            ["04", "Anında anlayın"],
-          ].map(([n, t]) => (
+            ["01", t("step.1")],
+            ["02", t("step.2")],
+            ["03", t("step.3")],
+            ["04", t("step.4")],
+          ].map(([n, text]) => (
             <div key={n}>
               <b>{n}</b>
-              <h3>{t}</h3>
+              <h3>{text}</h3>
             </div>
           ))}
         </div>
@@ -352,14 +360,12 @@ function Home() {
           <ShieldCheck />
         </div>
         <div>
-          <h2>Konuşmanız sizin.</h2>
+          <h2>{t("privacy.title")}</h2>
           <p>
-            Dilmaç, açık ve anlaşılır izinlerle çalışır. Mikrofon yalnızca siz
-            başlattığınızda açılır; API anahtarınız kalıcı olarak sunucuya
-            gönderilmez.
+            {t("privacy.text")}
           </p>
           <Link to="/gizlilik">
-            Gizlilik yaklaşımını okuyun <ArrowRight />
+            {t("privacy.link")} <ArrowRight />
           </Link>
         </div>
       </section>
@@ -367,58 +373,59 @@ function Home() {
         <article>
           <Radio />
           <div>
-            <h3>Gerçek zamanlı çeviri</h3>
-            <p>Konuşurken çevirir, bekletmez.</p>
+            <h3>{t("f1.t")}</h3>
+            <p>{t("f1.p")}</p>
           </div>
         </article>
         <article>
           <Languages />
           <div>
-            <h3>Çift yönlü iletişim</h3>
-            <p>Her iki tarafı da anlar ve çevirir.</p>
+            <h3>{t("f2.t")}</h3>
+            <p>{t("f2.p")}</p>
           </div>
         </article>
         <article>
           <ShieldCheck />
           <div>
-            <h3>Gizlilik odaklı</h3>
-            <p>Veriniz ve kontrol her zaman sizde.</p>
+            <h3>{t("f3.t")}</h3>
+            <p>{t("f3.p")}</p>
           </div>
         </article>
         <article>
           <Users />
           <div>
-            <h3>Sade ve güçlü</h3>
-            <p>Gereksiz kalabalık yok.</p>
+            <h3>{t("f4.t")}</h3>
+            <p>{t("f4.p")}</p>
           </div>
         </article>
       </section>
       <section className="use-cases">
         <div className="section-copy">
-          <span><Globe2 /> Her yerde aynı dil</span>
-          <h2>Dil engeli hayatın önüne geçmesin.</h2>
-          <p>Seyahatten iş toplantısına, eğitimden günlük sohbete kadar Dilmaç konuşmanın akışını korur.</p>
+          <span><Globe2 /> {t("uc.kicker")}</span>
+          <h2>{t("uc.title")}</h2>
+          <p>{t("uc.p")}</p>
         </div>
         <div className="use-grid">
-          <article><Plane /><b>Seyahatte</b><p>Yol tarifi sorun, rezervasyon yapın, bulunduğunuz yere güvenle uyum sağlayın.</p></article>
-          <article><Briefcase /><b>İş hayatında</b><p>Farklı dillerdeki ekiplerle toplantıyı kesmeden iletişim kurun.</p></article>
-          <article><GraduationCap /><b>Eğitimde</b><p>Dersleri ve konuşmaları kendi dilinizde takip etmeyi kolaylaştırın.</p></article>
+          <article><Plane /><b>{t("uc1.t")}</b><p>{t("uc1.p")}</p></article>
+          <article><Briefcase /><b>{t("uc2.t")}</b><p>{t("uc2.p")}</p></article>
+          <article><GraduationCap /><b>{t("uc3.t")}</b><p>{t("uc3.p")}</p></article>
         </div>
       </section>
       <HomeExpansion />
       <section className="home-cta">
-        <div><h2>Birbirinizi anlamaya hazırsınız.</h2><p>Odanızı oluşturun, bağlantıyı paylaşın ve konuşmaya başlayın.</p></div>
-        <Link className="primary large" to="/uygulama">Canlı çeviriyi aç<ArrowRight /></Link>
+        <div><h2>{t("cta.title")}</h2><p>{t("cta.p")}</p></div>
+        <Link className="primary large" to="/uygulama">{t("cta.open")}<ArrowRight /></Link>
       </section>
     </>
   );
 }
 function LivePreview() {
+  const { t } = useI18n();
   return (
     <div className="preview" aria-label="Canlı çeviri örneği">
       <div className="status">
         <i />
-        Canlı bağlantı
+        {t("preview.status")}
       </div>
       <div className="wave">▂▅▃▇▄▆▂▅▇▃▆▄▂▇▅</div>
       <b>Türkçe</b>
@@ -429,7 +436,7 @@ function LivePreview() {
       <div className="preview-controls">
         <span>
           <Mic />
-          Dinliyor
+          {t("preview.listening")}
         </span>
         <Volume2 />
       </div>
