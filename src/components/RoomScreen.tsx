@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowUp, Check, Copy, Keyboard, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
+  ArrowLeftRight, ArrowUp, Check, Copy, Keyboard, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
   RotateCcw, Share2, Type, Users, Volume2, VolumeX, X,
 } from "lucide-react";
 import type { QueueItem } from "../lib/messageQueue";
@@ -170,11 +170,33 @@ export default function RoomScreen(props: RoomScreenProps) {
           >
             {voiceEnabled ? <PhoneOff /> : <PhoneCall />}
           </button>
-          <button type="button" className="icon" onClick={() => setShowSettings(true)} title="Diller ve yazı boyutu">
+          <button type="button" className="icon" onClick={() => setShowSettings(true)} title="Yazı boyutu">
             <Type />
           </button>
         </div>
       </header>
+
+      {/* Diller her zaman görünür ve doğrudan dokunulabilir. Ayarlar
+          menüsünün içine saklandığında kullanıcı yanlış dille konuşuyordu. */}
+      <div className="langbar">
+        <label className="langbar-side">
+          <small>SİZ</small>
+          <b>{languages.find(([code]) => code === sourceCode)?.[1] || sourceCode}</b>
+          <select value={sourceCode} onChange={(event) => onSourceChange(event.target.value)} aria-label="Konuştuğunuz dil">
+            {languages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
+        <span className="langbar-swap" aria-hidden="true"><ArrowLeftRight /></span>
+        <label className={`langbar-side ${targetLocked ? "locked" : ""}`}>
+          <small>{targetLocked ? "KARŞI TARAF" : "ÇEVİRİ"}</small>
+          <b>{targetName}</b>
+          {!targetLocked && (
+            <select value={targetName} onChange={(event) => onTargetChange(event.target.value)} aria-label="Çeviri dili">
+              {languages.map(([code, name]) => <option key={code} value={name}>{name}</option>)}
+            </select>
+          )}
+        </label>
+      </div>
 
       <div className="room-feed" ref={feedRef} onScroll={onFeedScroll}>
         {feed.length === 0 && !interimText && (
@@ -318,19 +340,6 @@ export default function RoomScreen(props: RoomScreenProps) {
         <div className="sheet-backdrop" onClick={() => setShowSettings(false)}>
           <div className="sheet" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-grip" aria-hidden="true" />
-            <h3>Diller</h3>
-            <label className="sheet-field">
-              Konuştuğunuz dil
-              <select value={sourceCode} onChange={(event) => onSourceChange(event.target.value)}>
-                {languages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-              </select>
-            </label>
-            <label className="sheet-field">
-              {targetLocked ? "Karşı tarafın dili (otomatik)" : "Çeviri dili"}
-              <select value={targetName} onChange={(event) => onTargetChange(event.target.value)} disabled={targetLocked}>
-                {languages.map(([code, name]) => <option key={code} value={name}>{name}</option>)}
-              </select>
-            </label>
             <h3>Yazı boyutu</h3>
             <div className="sheet-sizes">
               {textSizes.map((label, index) => (

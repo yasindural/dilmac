@@ -170,6 +170,11 @@ export function speakText(text: string, lang: string, handlers: SpeechOutputHand
   window.setTimeout(() => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
+    // iOS'ta varsayılan ses seviyesi bazen sistem tarafından kısılıyor;
+    // açıkça tam ses ve doğal hız isteyerek sabitliyoruz.
+    utterance.volume = 1;
+    utterance.rate = 1;
+    utterance.pitch = 1;
     const voice = pickVoice(lang);
     if (voice) utterance.voice = voice;
     reportVoiceChoice(lang, voice);
@@ -198,7 +203,7 @@ export function speakText(text: string, lang: string, handlers: SpeechOutputHand
       logClientError("speak_failed", "speech_output", error instanceof Error ? error.message : error);
       finish(true);
     }
-  }, 60);
+  }, isIOSWebKit() ? 140 : 60);
   return true;
 }
 

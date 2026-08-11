@@ -1,7 +1,8 @@
 /* Canlı konuşma ekranı — tek akış, tek durum satırı, tek mikrofon. */
 
 .room{
-  --turn-main:20px;
+  --turn-in:25px;
+  --turn-main:18px;
   --turn-sub:14px;
   max-width:760px;
   margin:0 auto;
@@ -10,8 +11,8 @@
   flex-direction:column;
   height:calc(100dvh - 76px);
 }
-.room.size-1{--turn-main:24px;--turn-sub:15px}
-.room.size-2{--turn-main:29px;--turn-sub:16px}
+.room.size-1{--turn-in:31px;--turn-main:20px;--turn-sub:15px}
+.room.size-2{--turn-in:38px;--turn-main:22px;--turn-sub:16px}
 
 /* ---------- üst şerit ---------- */
 .room-bar{display:flex;align-items:center;gap:8px;padding-bottom:12px}
@@ -38,7 +39,7 @@
 .turn.theirs{align-self:flex-start;border-bottom-left-radius:6px}
 .turn.mine{align-self:flex-end;border-bottom-right-radius:6px;background:color-mix(in srgb,var(--cyan) 9%,var(--surface));border-color:color-mix(in srgb,var(--cyan) 26%,var(--line))}
 .turn-main{margin:0;font-size:var(--turn-main);line-height:1.34;font-weight:600;letter-spacing:-.2px}
-.turn.theirs .turn-main{color:var(--text)}
+.turn.theirs .turn-main{color:var(--text);font-size:var(--turn-in);font-weight:700;letter-spacing:-.5px;line-height:1.25}
 .turn-sub{margin:5px 0 0;font-size:var(--turn-sub);line-height:1.45;color:var(--muted);opacity:.85}
 .turn-meta{display:block;margin-top:8px;font-size:11px;letter-spacing:.3px;color:var(--muted);opacity:.75}
 .turn.is-failed{border-color:var(--coral)}
@@ -109,3 +110,17 @@
   .turn,.sheet,.sheet-backdrop,.takeover{animation:none}
   .mic-button.live,.peer-chip.wait i,.caret{animation:none}
 }
+
+/* ---------- sabit dil şeridi ---------- */
+.langbar{display:flex;align-items:stretch;gap:8px;margin-bottom:10px;padding:4px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.langbar-side{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;padding:8px 12px;border-radius:12px;cursor:pointer;transition:background .16s ease}
+.langbar-side:hover{background:var(--surface2)}
+.langbar-side small{font-size:9.5px;letter-spacing:1.2px;color:var(--muted)}
+.langbar-side b{font-size:16px;font-weight:700;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.langbar-side select{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:0;cursor:pointer}
+.langbar-side.locked{cursor:default;opacity:.9}
+.langbar-side.locked b{color:var(--cyan)}
+.langbar-side.locked:hover{background:transparent}
+.langbar-swap{display:grid;place-items:center;width:34px;flex:none;color:var(--muted)}
+.langbar-swap svg{width:16px;height:16px}
+@media (max-width:640px){.langbar-side b{font-size:15px}}

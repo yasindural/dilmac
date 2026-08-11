@@ -33,6 +33,9 @@ import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import RoomScreen from "./components/RoomScreen";
+import GoogleLogo from "./components/GoogleLogo";
+import { plans as planCatalog } from "./lib/billing";
+import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
 import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
@@ -55,11 +58,6 @@ type MemberProfile = {
   plan: PlanId;
   completed: boolean;
 };
-const plans: { id: PlanId; name: string; price: string; note: string; features: string[] }[] = [
-  { id: "free", name: "Başlangıç", price: "Ücretsiz", note: "Dilmaç'ı keşfetmek için", features: ["Günde 15 dakika mock kullanım", "Temel dil çiftleri", "Tek cihaz profili"] },
-  { id: "pro", name: "Pro", price: "₺149 / ay", note: "Düzenli görüşmeler için", features: ["Sınırsız mock görüşme", "Tüm dil çiftleri", "Görüşme geçmişi", "Öncelikli çeviri"] },
-  { id: "business", name: "Ekip", price: "₺399 / ay", note: "Küçük ekipler için", features: ["5 kullanıcıya kadar", "Ortak çalışma alanı", "Kullanım raporları", "Öncelikli destek"] },
-];
 const profileKey = (uid: string) => `dilmac-profile:${uid}`;
 function readProfile(user: User | null): MemberProfile | null {
   if (!user) return null;
@@ -154,7 +152,7 @@ function Layout({
           {user && (
             <Link className="member-chip" to="/profil" onClick={() => setOpen(false)}>
               <UserCircle />
-              <span><small>{plans.find((p) => p.id === profile?.plan)?.name || "Üye"}</small><strong>{profile?.firstName || user.displayName || "Profilim"}</strong></span>
+              <span><small>{planCatalog.find((p) => p.id === profile?.plan)?.name || "Üye"}</small><strong>{profile?.firstName || user.displayName || "Profilim"}</strong></span>
             </Link>
           )}
           {user ? (
@@ -214,7 +212,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
   return <section className="auth-page"><div className="auth-shell">
     <div className="auth-copy"><span>YENİ ÜYELİK</span><h1>Konuşmaya bir adım kaldı.</h1><p>Normal üyelik oluşturun veya Google hesabınızla saniyeler içinde devam edin.</p><ul><li><CheckCircle2 />Profilinizi kişiselleştirin</li><li><CheckCircle2 />Mock planınızı seçin</li><li><CheckCircle2 />Canlı çeviri odanızı açın</li></ul></div>
     <div className="auth-card"><div className="auth-tabs"><button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Kayıt ol</button><button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Giriş yap</button></div>
-      <button className="google-button" onClick={google} disabled={busy}><strong>G</strong>Google ile {mode === "register" ? "kayıt ol" : "giriş yap"}</button>
+      <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />Google ile {mode === "register" ? "kayıt ol" : "giriş yap"}</button>
       <div className="auth-divider"><span>veya e-posta ile</span></div>
       <form onSubmit={submit}>{mode === "register" && <div className="name-row"><label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label><label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label></div>}
         <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
@@ -225,29 +223,78 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
 }
 function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
+  const [busy, setBusy] = useState<PlanId | null>(null);
+  const [error, setError] = useState("");
+  useReveal();
   const choose = async (plan: PlanId) => {
-    if (!user) {
-      try {
+    setError("");
+    setBusy(plan);
+    try {
+      if (!user) {
         const result = await loginGoogle();
         const next = { ...(readProfile(result.user) || defaultProfile(result.user)), plan };
         onSaveForUser(result.user, next);
         navigate("/profil?welcome=1");
-      } catch (error) { alert((error as Error).message); }
-      return;
+        return;
+      }
+      const next = { ...(profile || defaultProfile(user)), plan };
+      onSave(next);
+      navigate(next.completed ? "/profil" : "/profil?welcome=1");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "İşlem tamamlanamadı.");
+    } finally {
+      setBusy(null);
     }
-    const next = { ...(profile || defaultProfile(user)), plan };
-    onSave(next);
-    navigate(next.completed ? "/profil" : "/profil?welcome=1");
   };
-  return <section className="membership-page">
-    <div className="membership-hero"><span><Crown /> MOCK ABONELİK</span><h1>Size uygun planı seçin.</h1><p>Şimdilik hiçbir ücret alınmaz. Seçiminiz yalnızca bu cihazda demo olarak saklanır.</p></div>
-    <div className="plan-grid">{plans.map((plan) => <article key={plan.id} className={plan.id === "pro" ? "featured" : ""}>
-      {plan.id === "pro" && <b className="popular">En popüler</b>}<h2>{plan.name}</h2><p>{plan.note}</p><strong className="plan-price">{plan.price}</strong>
-      <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
-      <button className={profile?.plan === plan.id ? "ghost" : "primary"} disabled={profile?.plan === plan.id} onClick={() => choose(plan.id)}>{profile?.plan === plan.id ? "Mevcut plan" : user ? "Demo planı seç" : "Google ile kayıt ol"}</button>
-    </article>)}</div>
-  </section>;
+  return (
+    <section className="pricing">
+      <div className="pricing-head reveal">
+        <span className="pricing-tag"><Crown /> Abonelik</span>
+        <h1>Dil engelini <em>tamamen</em> kaldırın.</h1>
+        <p>Karşınızdaki kendi dilinde konuşsun, siz kendi dilinizde duyun. Ücretsiz başlayın, ihtiyacınız büyüyünce yükseltin.</p>
+      </div>
+
+      <div className="pricing-grid">
+        {planCatalog.map((plan) => {
+          const current = profile?.plan === plan.id;
+          return (
+            <article key={plan.id} className={`pricing-card reveal ${plan.highlight ? "featured" : ""}`}>
+              {plan.highlight && <b className="pricing-badge">EN POPÜLER</b>}
+              <h2>{plan.name}</h2>
+              <p className="note">{plan.note}</p>
+              <div className="pricing-amount"><b>{plan.price}</b><span>{plan.period}</span></div>
+              <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
+              {current ? (
+                <button className="pricing-cta current" type="button" disabled>Mevcut planınız</button>
+              ) : user ? (
+                <button className="primary pricing-cta" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
+                  {busy === plan.id ? "İşleniyor…" : plan.id === "free" ? "Ücretsiz devam et" : `${plan.name}'a geç`}
+                </button>
+              ) : (
+                <button className="google-button" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
+                  <GoogleLogo />{busy === plan.id ? "Bağlanıyor…" : "Google ile başla"}
+                </button>
+              )}
+            </article>
+          );
+        })}
+      </div>
+
+      {error && <p className="pricing-note" style={{ color: "var(--coral)" }}>{error}</p>}
+      <p className="pricing-note reveal">
+        Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.
+      </p>
+
+      <div className="pricing-faq reveal">
+        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Canlı çeviride 2 dakikalık gerçek kullanım hakkınız var. Sayaç yalnızca ekran açıkken işler; sekmeyi kapatınca durur. AI ile pratik modu ücretsiz kullanıcılara sınırsız açıktır.</p></details>
+        <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
+        <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi tek tıkla durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz.</p></details>
+        <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>
+      </div>
+    </section>
+  );
 }
+
 function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
   const initial = user ? (profile || defaultProfile(user)) : null;
@@ -274,7 +321,7 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
     if (!next.firstName || !next.lastName) return;
     onSave(next); navigate("/uygulama");
   };
-  const currentPlan = plans.find((plan) => plan.id === initial.plan) || plans[0];
+  const currentPlan = planCatalog.find((plan) => plan.id === initial.plan) || planCatalog[0];
   return <section className="profile-page">
     <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
     <div className="profile-layout"><form className="profile-card" onSubmit={save}>
@@ -285,7 +332,27 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
     </form><aside className="subscription-card"><CreditCard /><small>MOCK ABONELİK</small><h2>{currentPlan.name}</h2><strong>{currentPlan.price}</strong><p>Gerçek ödeme bağlantısı henüz aktif değildir.</p><Link className="ghost" to="/abonelik">Planı görüntüle veya değiştir</Link></aside></div>
   </section>;
 }
+function useReveal() {
+  useEffect(() => {
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>(".reveal:not(.seen)"));
+    if (!nodes.length) return;
+    if (!("IntersectionObserver" in window)) {
+      nodes.forEach((node) => node.classList.add("seen"));
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        (entry.target as HTMLElement).classList.add("seen");
+        observer.unobserve(entry.target);
+      }
+    }, { rootMargin: "0px 0px -12% 0px", threshold: 0.08 });
+    nodes.forEach((node, index) => { node.style.transitionDelay = `${Math.min(index, 5) * 60}ms`; observer.observe(node); });
+    return () => observer.disconnect();
+  }, []);
+}
 function Home() {
+  useReveal();
   const { t } = useI18n();
   return (
     <>
@@ -320,9 +387,9 @@ function Home() {
         </div>
         <LivePreview />
       </section>
-      <section className="band">
+      <section className="band reveal">
         <h2>{t("steps.title")}</h2>
-        <div className="steps">
+        <div className="steps reveal">
           {[
             ["01", t("step.1")],
             ["02", t("step.2")],
@@ -336,7 +403,7 @@ function Home() {
           ))}
         </div>
       </section>
-      <section className="privacy">
+      <section className="privacy reveal">
         <div className="shield">
           <ShieldCheck />
         </div>
@@ -350,7 +417,7 @@ function Home() {
           </Link>
         </div>
       </section>
-      <section className="feature-strip">
+      <section className="feature-strip reveal">
         <article>
           <Radio />
           <div>
@@ -489,7 +556,17 @@ function Translator() {
         if (!speechRef.current?.listening) speechRef.current?.toggle();
       }, 350);
     };
-    queueSpeech(message.translated, code, { onEnd: resume, onError: resume });
+    // iOS mikrofon oturumunu anında bırakmaz. Dinleme kapandıktan hemen sonra
+    // konuşmaya başlarsak sistem sesi sessizce yutuyor; telefonda "çeviri
+    // geliyor ama ses yok" şikayetinin sebebi buydu. Mikrofon açıkken
+    // seslendirmeyi oturum kapanana kadar geciktiriyoruz.
+    const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
+    const handoverDelay = wasListening ? (isAppleWebKit ? 550 : 200) : 0;
+    if (handoverDelay === 0) {
+      queueSpeech(message.translated, code, { onEnd: resume, onError: resume });
+      return;
+    }
+    window.setTimeout(() => queueSpeech(message.translated, code, { onEnd: resume, onError: resume }), handoverDelay);
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
