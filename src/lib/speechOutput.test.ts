@@ -126,4 +126,33 @@ describe("sesli çıktı", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(() => unlockSpeechOutput()).not.toThrow();
   });
+
+  it("iOS'un saka seslerini (Flo, Rocko) eler, gercek sesi secer", async () => {
+    synth.getVoices.mockReturnValue([
+      { lang: "en-US", name: "Flo", localService: true },
+      { lang: "en-GB", name: "Rocko", localService: true },
+      { lang: "en-US", name: "Samantha", localService: true },
+      { lang: "tr-TR", name: "Yelda", localService: true },
+    ] as never);
+    const { pickVoice } = await import("./speechOutput");
+    expect(pickVoice("en-US")).toMatchObject({ name: "Samantha" });
+    expect(pickVoice("tr-TR")).toMatchObject({ name: "Yelda" });
+  });
+
+  it("kuyruk cumleleri sirayla okur, birbirini kesmez", async () => {
+    vi.useFakeTimers();
+    const { queueSpeech, isSpeechQueueBusy } = await import("./speechOutput");
+    queueSpeech("Birinci cumle", "tr-TR");
+    queueSpeech("Ikinci cumle", "tr-TR");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(synth.speak).toHaveBeenCalledTimes(1);
+    expect(spoken[0].text).toBe("Birinci cumle");
+    expect(isSpeechQueueBusy()).toBe(true);
+    spoken[0].onend?.();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(spoken[1].text).toBe("Ikinci cumle");
+    spoken[1].onend?.();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(isSpeechQueueBusy()).toBe(false);
+  });
 });

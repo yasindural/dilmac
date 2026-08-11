@@ -36,18 +36,30 @@ function refreshVoices() {
   }
 }
 
+// iOS'un "novelty" (şaka) sesleri Web Speech API'sinde normal seslerle aynı
+// listede görünür ve dil kodu tam eştiği için puanları yüksek çıkar. Telefonda
+// çevirinin Flo/Rocko/Shelley gibi çizgi film sesiyle okunmasının sebebi buydu.
+const noveltyVoices = /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|eddy|flo|fred|good news|grandma|grandpa|hysterical|jester|junior|kathy|organ|princess|ralph|reed|rocko|sandy|shelley|superstar|trinoids|whisper|wobble|zarvox|bruce|pipe organ)\b/i;
+
+// Platformların gerçek, doğal konuşan varsayılan sesleri.
+const trustedVoices = /\b(samantha|alex|karen|daniel|moira|tessa|fiona|nicky|aaron|serena|martha|arthur|yelda|anna|thomas|monica|paulina|alice|milena|kyoko|o-ren|zosia|luciana|joana|ellen|xander|nora|sara|alva)\b/i;
+
 // Aynı dilde birden fazla ses varsa en kalitelisini seç. Ağ tabanlı
 // (Google gibi) sesler cihaz içi basit motorlardan daha doğal konuşur;
 // "compact/espeak/pico" gibi motorlar ise telefonda metalik ve bozuk çıkar.
-function scoreVoice(voice: SpeechSynthesisVoice, wanted: string, family: string) {
+export function scoreVoice(voice: SpeechSynthesisVoice, wanted: string, family: string) {
   const voiceLang = voice.lang.toLowerCase().replace("_", "-");
   let score = 0;
   if (voiceLang === wanted) score += 100;
   else if (voiceLang.startsWith(`${family}-`) || voiceLang === family) score += 50;
   else return -1;
+  // Şaka sesleri, yanlış aksanlı gerçek bir sesin bile altına düşsün.
+  if (noveltyVoices.test(voice.name)) score -= 60;
+  if (trustedVoices.test(voice.name)) score += 20;
   if (voice.localService === false) score += 12;
   if (/google|microsoft|siri/i.test(voice.name)) score += 8;
   if (/natural|neural|enhanced|premium|online|hd/i.test(voice.name)) score += 6;
+  if (voice.default) score += 5;
   if (/compact|espeak|pico|basic/i.test(voice.name)) score -= 10;
   return score;
 }
@@ -58,9 +70,12 @@ export function pickVoice(lang: string): SpeechSynthesisVoice | null {
   const wanted = lang.toLowerCase().replace("_", "-");
   const family = wanted.split("-")[0];
   let best: SpeechSynthesisVoice | null = null;
-  let bestScore = 0;
+  let bestScore = -Infinity;
   for (const voice of cachedVoices) {
     const score = scoreVoice(voice, wanted, family);
+    // Negatif puan "bu dil hiç uymuyor" demek; yanlış dilde okumaktansa
+    // tarayıcının kendi varsayılanına bırakmak daha doğru.
+    if (score < 0) continue;
     if (score > bestScore) {
       best = voice;
       bestScore = score;
@@ -185,4 +200,58 @@ export function speakText(text: string, lang: string, handlers: SpeechOutputHand
     }
   }, 60);
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// Seslendirme kuyruğu
+// ---------------------------------------------------------------------------
+// speakText her çağrıda önceki konuşmayı iptal eder; bu, kullanıcı bir balona
+// dokunup "şunu tekrar oku" dediğinde doğru davranıştır. Ama karşı taraftan
+// art arda iki cümle gelirse ikincisi birincisini yarıda keser. Otomatik
+// seslendirme için cümleleri sıraya alıp tek tek okuyoruz.
+
+type SpeechQueueItem = { text: string; lang: string; handlers: SpeechOutputHandlers };
+
+const speechQueue: SpeechQueueItem[] = [];
+let queueRunning = false;
+
+function runSpeechQueue() {
+  const item = speechQueue.shift();
+  if (!item) {
+    queueRunning = false;
+    return;
+  }
+  queueRunning = true;
+  const advance = (callback?: () => void) => {
+    callback?.();
+    // Cümleler arasında kısa bir nefes payı; art arda okunduğunda
+    // tek bir uzun cümle gibi algılanmasını engelliyor.
+    window.setTimeout(runSpeechQueue, 140);
+  };
+  const started = speakText(item.text, item.lang, {
+    onStart: item.handlers.onStart,
+    onEnd: () => advance(item.handlers.onEnd),
+    onError: () => advance(item.handlers.onError),
+  });
+  if (!started) advance(item.handlers.onError);
+}
+
+/** Sıraya alır; önceki seslendirmeyi kesmez. */
+export function queueSpeech(text: string, lang: string, handlers: SpeechOutputHandlers = {}) {
+  if (!text.trim()) return false;
+  speechQueue.push({ text, lang, handlers });
+  if (!queueRunning) runSpeechQueue();
+  return true;
+}
+
+/** Kuyrukta bekleyen ya da o an okunan bir cümle var mı? */
+export function isSpeechQueueBusy() {
+  return queueRunning || speechQueue.length > 0;
+}
+
+/** Kuyruğu boşaltır ve konuşmayı susturur. */
+export function clearSpeechQueue() {
+  speechQueue.length = 0;
+  queueRunning = false;
+  stopSpeechOutput();
 }

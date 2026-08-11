@@ -135,7 +135,7 @@ export default function AiPractice() {
         <div className="practice-kicker"><Sparkles /> KİMSEYİ BEKLEMEDEN TEST EDİN</div>
         <h1>AI ile konuşun,<br /><em>çeviriyi anlayın.</em></h1>
         <p>Siz kendi dilinizde konuşun. Dilmaç cümlenizi çevirsin, AI seçtiğiniz dilde yanıtlasın ve cevabın Türkçesini de yanına koysun.</p>
-        <div className="practice-badges"><span><CheckCircle2 /> Gerçek OpenRouter çevirisi</span><span><CheckCircle2 /> Sesli yanıt</span><span><CheckCircle2 /> Tek kişilik test</span></div>
+        <div className="practice-badges"><span><CheckCircle2 /> Gerçek AI çevirisi</span><span><CheckCircle2 /> Sesli yanıt</span><span><CheckCircle2 /> Tek kişilik test</span></div>
       </div>
 
       <div className="practice-shell">

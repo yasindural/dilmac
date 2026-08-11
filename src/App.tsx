@@ -4,9 +4,7 @@ import {
   Menu,
   X,
   Mic,
-  MicOff,
   Volume2,
-  Copy,
   ArrowRight,
   Languages,
   ShieldCheck,
@@ -22,16 +20,6 @@ import {
   Plane,
   Briefcase,
   GraduationCap,
-  Share2,
-  Link2,
-  Sparkles,
-  KeyRound,
-  RotateCcw,
-  ChevronDown,
-  Headphones,
-  PhoneCall,
-  PhoneOff,
-  VolumeX,
   UserCircle,
   Crown,
   CreditCard,
@@ -43,9 +31,11 @@ import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
-import { finishOpenRouter } from "./lib/openrouterAuth";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
-import { speakText, stopSpeechOutput, unlockSpeechOutput } from "./lib/speechOutput";
+import RoomScreen from "./components/RoomScreen";
+import AccessGate from "./components/AccessGate";
+import { useAccess } from "./lib/access";
+import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
@@ -90,15 +80,6 @@ function readProfile(user: User | null): MemberProfile | null {
 function defaultProfile(user: User): MemberProfile {
   const parts = (user.displayName || "").trim().split(/\s+/).filter(Boolean);
   return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), plan: "free", completed: false };
-}
-function useSmartScroll(changeCount: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const nearBottom = useRef(true);
-  const [hasNew, setHasNew] = useState(false);
-  const onScroll = () => { const node = ref.current; if (!node) return; nearBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight <= 140; if (nearBottom.current) setHasNew(false); };
-  const scrollToLatest = () => { const node = ref.current; if (!node) return; node.scrollTo({ top: node.scrollHeight, behavior: "smooth" }); nearBottom.current = true; setHasNew(false); };
-  useEffect(() => { const node = ref.current; if (!node) return; if (nearBottom.current) requestAnimationFrame(() => node.scrollTo({ top: node.scrollHeight, behavior: "smooth" })); else setHasNew(true); }, [changeCount]);
-  return { ref, onScroll, hasNew, scrollToLatest };
 }
 function Brand() {
   return (
@@ -443,6 +424,27 @@ function LivePreview() {
     </div>
   );
 }
+function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
+  const [visible, setVisible] = useState(() => typeof document === "undefined" || !document.hidden);
+  useEffect(() => {
+    const onVisibility = () => setVisible(!document.hidden);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  // Deneme sayacı yalnızca ekran gerçekten açıkken işler; sekmeyi arka plana
+  // alan kullanıcı hakkını boşa harcamaz.
+  const access = useAccess({
+    uid: user?.uid || null,
+    plan: profile?.plan || "free",
+    active: visible,
+    ready: authChecked,
+  });
+  return (
+    <AccessGate state={access.state} remaining={access.remaining}>
+      <Translator />
+    </AccessGate>
+  );
+}
 function Translator() {
   const navigate = useNavigate();
   const { roomId } = useParams();
@@ -452,10 +454,9 @@ function Translator() {
     [remoteMessages, setRemoteMessages] = useState<RoomMessage[]>([]),
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
-    [key, setKey] = useState(sessionStorage.getItem("dilmac-key") || "backend"),
+    [key] = useState(sessionStorage.getItem("dilmac-key") || "backend"),
     [notice, setNotice] = useState("Hazır"),
-    [copied, setCopied] = useState(false),
-    [role, setRole] = useState<"host" | "guest" | null>(null),
+    [, setRole] = useState<"host" | "guest" | null>(null),
     [draft, setDraft] = useState(""),
     [remoteMuted, setRemoteMuted] = useState(false),
     [playbackBlocked, setPlaybackBlocked] = useState(false);
@@ -483,9 +484,12 @@ function Translator() {
     if (wasListening) speechRef.current?.stop();
     const resume = () => {
       if (!wasListening) return;
-      window.setTimeout(() => { if (!speechRef.current?.listening) speechRef.current?.toggle(); }, 350);
+      window.setTimeout(() => {
+        if (isSpeechQueueBusy()) return;
+        if (!speechRef.current?.listening) speechRef.current?.toggle();
+      }, 350);
     };
-    speakText(message.translated, code, { onEnd: resume, onError: resume });
+    queueSpeech(message.translated, code, { onEnd: resume, onError: resume });
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
@@ -579,19 +583,6 @@ function Translator() {
   const inviteLink = active
     ? `${location.origin}${import.meta.env.BASE_URL}oda/${active}`
     : "";
-  const copyInvite = async () => {
-    if (!inviteLink) return;
-    await navigator.clipboard.writeText(inviteLink);
-    setCopied(true);
-    setNotice("Davet bağlantısı kopyalandı.");
-    window.setTimeout(() => setCopied(false), 1800);
-  };
-  const shareInvite = async () => {
-    if (!inviteLink) return;
-    if (navigator.share) {
-      await navigator.share({ title: "Dilmaç canlı çeviri", text: `Dilmaç'ta ${active} odasına katıl.`, url: inviteLink });
-    } else await copyInvite();
-  };
   const join = () => {
     if (!/^[A-Z0-9]{6}$/.test(room.toUpperCase())) {
       setNotice("Oda kodu 6 harf veya rakam olmalı.");
@@ -653,154 +644,50 @@ function Translator() {
     audio.muted = true;
     setRemoteMuted(true);
   };
-  const voiceStatus = roomConnection.voiceError
-    ? roomConnection.voiceError
-    : roomConnection.voiceConnected
-      ? "Orijinal ses canlı"
-      : roomConnection.voiceEnabled && roomConnection.remoteVoiceReady
-        ? "Ses bağlantısı kuruluyor…"
-        : roomConnection.voiceEnabled
-          ? "Mikrofonunuz açık, karşı taraf bekleniyor"
-          : roomConnection.remoteVoiceReady
-            ? "Karşı taraf hazır, mikrofonunuzu açın"
-            : "Orijinal ses bağlantısını açın";
   const statusError = speech.error || roomConnection.error || roomConnection.voiceError;
-  const pendingCount = localMessages.filter((message) => message.status === "queued" || message.status === "translating").length;
-  const localScroll = useSmartScroll(localMessages.length);
-  const remoteScroll = useSmartScroll(remoteMessages.length);
   if (!roomId) return <section className="room-lobby"><div className="lobby-hero"><div className="lobby-icon"><Languages /></div><h1>Konuşma odanızı açın.</h1><p>Yeni bir oda oluşturun veya size gönderilen kodla doğrudan görüşmeye katılın.</p></div><div className="lobby-actions"><article><span>Yeni görüşme</span><h2>Bir oda oluşturun</h2><p>Size özel bağlantıyı paylaşın; ikinci kişi tek dokunuşla katılsın.</p><button className="primary" onClick={createRoom}>Oda oluştur<ArrowRight /></button></article><article><span>Davete katıl</span><h2>Oda kodunu girin</h2><p>Bağlantının sonundaki 6 karakterli kodu kullanabilirsiniz.</p><label>Oda kodu<input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" /></label><button className="ghost" onClick={join}>Odaya katıl<ArrowRight /></button></article></div><div className="lobby-note"><ShieldCheck /> Görüşmeler doğrudan iki tarayıcı arasında kurulur.</div></section>;
   return (
-    <section className="workspace">
-      <div className="workspace-head">
-        <div>
-          <h1 className="live-title"><span aria-hidden="true"><Languages /></span>Canlı <em>çeviri</em></h1>
-          <p>Konuşun veya yazın; çeviri karşı tarafa anında ulaşsın.</p>
-        </div>
-        <div className="connection">
-          <i className={roomConnection.connected ? "on" : roomConnection.connecting ? "waiting" : ""} />
-          {roomConnection.connected ? "İkiniz de odadasınız" : roomConnection.connecting ? "Karşı taraf bekleniyor" : active ? `Oda ${active}` : "Bağlantı bekleniyor"}
-        </div>
-      </div>
-      <div className="quick-guide"><Sparkles /><span><b>1.</b> Oda oluştur</span><i/><span><b>2.</b> Bağlantıyı gönder</span><i/><span><b>3.</b> Konuşmaya başla</span></div>
-      <section className="room-card" aria-label="Görüşme odası">
-        <div className="room-card-copy"><span><Link2 /> Görüşme bağlantısı {role && <b>• {role === "host" ? "Oda sahibi" : "Katılımcı"}</b>}</span><h2>{roomConnection.connected ? "Bağlantı kuruldu, konuşabilirsiniz" : active ? `Oda ${active} hazır` : "Karşı tarafı görüşmeye davet edin"}</h2><p>{roomConnection.connected ? "Söyledikleriniz çevrilerek iki ekranda da anında görünecek." : active ? "Bu bağlantıyı gönderdiğiniz kişi doğrudan odanıza gelir." : "Yeni bir oda oluşturun veya size gönderilen 6 karakterli kodu girin."}</p></div>
-        {active && <div className="invite-box"><div><small>Paylaşılabilir bağlantı</small><strong>{inviteLink}</strong></div><button className="ghost" onClick={copyInvite}><Copy />{copied ? "Kopyalandı" : "Kopyala"}</button><button className="primary" onClick={shareInvite}><Share2 />Paylaş</button></div>}
-      </section>
-      <div className="ai-connect ready"><div><KeyRound /><span><b>Gerçek AI çevirisi hazır</b><small>OpenRouter otomatik bağlı — hiçbir ayar gerekmiyor.</small></span></div></div>
-      <section className={`voice-dock ${roomConnection.voiceConnected ? "connected" : ""} ${roomConnection.voiceError ? "has-error" : ""}`} aria-label="Orijinal ses bağlantısı">
-        <audio ref={remoteAudioRef} autoPlay playsInline aria-hidden="true" />
-        <div className="voice-dock-icon" aria-hidden="true"><Headphones /></div>
-        <div className="voice-dock-copy">
-          <small>CANLI ORİJİNAL SES</small>
-          <strong>{voiceStatus}</strong>
-          <span>İki taraf da bir kez açar. Yankıyı önlemek için kulaklık önerilir.</span>
-        </div>
-        <div className="voice-dock-actions">
-          <button className="ghost voice-output" type="button" onClick={toggleRemotePlayback} disabled={!roomConnection.voiceConnected}>
-            {remoteMuted ? <VolumeX /> : <Volume2 />}
-            {playbackBlocked ? "Sesi oynat" : remoteMuted ? "Sesi aç" : roomConnection.voiceConnected ? "Sesi kapat" : "Ses bekleniyor"}
-          </button>
-          <button className={roomConnection.voiceEnabled ? "ghost voice-stop" : "primary"} type="button" onClick={toggleVoice} disabled={roomConnection.voiceConnecting && !roomConnection.voiceEnabled}>
-            {roomConnection.voiceEnabled ? <PhoneOff /> : <PhoneCall />}
-            {roomConnection.voiceEnabled ? "Mikrofonu kapat" : roomConnection.voiceConnecting ? "Mikrofon açılıyor…" : "Orijinal sesi aç"}
-          </button>
-        </div>
-      </section>
-      <div className="languagebar">
-        <label>
-          Konuştuğunuz dil
-          <select value={source} onChange={(event) => changeSourceLanguage(event.target.value)}>
-            {langs.map((l) => (
-              <option key={l[0]} value={l[0]}>
-                {l[1]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Languages />
-        <label>
-          {remoteLanguage ? "Karşı tarafın dili (otomatik)" : "Çeviri dili"}
-          <select value={target} onChange={(e) => setTarget(e.target.value)} disabled={Boolean(remoteLanguage)}>
-            {langs.map((l) => (
-              <option key={l[0]} value={l[1]}>
-                {l[1]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="conversation conversation-focus">
-        <div className="speaker remote remote-focus">
-          <h2>Karşı tarafın konuşmaları</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span><button type="button" className={`autospeak ${autoSpeak ? "on" : ""}`} aria-pressed={autoSpeak} onClick={() => { unlockSpeechOutput(); setAutoSpeak((value) => !value); if (!autoSpeak) setNotice("Gelen çeviriler otomatik seslendirilecek."); else { stopSpeechOutput(); setNotice("Otomatik seslendirme kapatıldı."); } }}>{autoSpeak ? <Volume2 /> : <VolumeX />}{autoSpeak ? "Otomatik ses açık" : "Otomatik ses kapalı"}</button>
-          <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => { unlockSpeechOutput(); speak(m.translated, m.targetLanguage); }} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda yalnızca onun mesajları burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
-          {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
-        </div>
-        <div className="talk-panel">
-          <div className="talk-panel-head">
-            <div><small>SİZ KONUŞUN</small><strong>Karşı taraf çevirisini görsün</strong></div>
-            <div className={`wave ${speech.listening ? "active" : ""}`}>▂▅▃▇▄▆▂▅▇▃▆▄▂</div>
-          </div>
-          <form className="message-composer" onSubmit={submitDraft}>
-            <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Yazın veya mikrofonla konuşun…" aria-label="Çevrilecek mesaj" />
-            <button className="primary" aria-label="Çevir ve gönder" disabled={!draft.trim()} type="submit"><ArrowRight /><span>Kuyruğa ekle</span></button>
-          </form>
-          <button
-            className={`mic ${speech.listening ? "live" : ""}`}
-            onClick={toggleConversation}
-          >
-            {speech.listening ? <MicOff /> : <Mic />}
-            <span>
-              {speech.listening ? "Dinlemeyi durdur" : "Konuşmaya başla"}
-            </span>
-          </button>
-          <details className="own-history">
-            <summary>
-              <span className="slash" aria-hidden="true">/</span>
-              <span><b>Kendi konuşmalarım</b><small>{localMessages.length ? `${localMessages.length} mesaj` : "Henüz mesaj yok"}</small></span>
-              {pendingCount > 0 && <em>{pendingCount} bekliyor</em>}
-              <ChevronDown />
-            </summary>
-            <div className="message-feed" ref={localScroll.ref} onScroll={localScroll.onScroll}>
-              {localMessages.length ? localMessages.map((m) => (
-                <article key={m.id} className={`message-${m.status}`}>
-                  <p>{m.source}</p>
-                  {m.translated && <strong>{m.translated}</strong>}
-                  <small className="message-status">{m.status === "queued" ? "Sırada" : m.status === "translating" ? "Çevriliyor…" : m.status === "sent" ? "Gönderildi" : m.status === "delivered" ? "Teslim edildi" : "Gönderilemedi"}</small>
-                  {m.status === "failed" && <button className="retry" onClick={() => queueRef.current?.retry(m.id)}><RotateCcw />Tekrar dene</button>}
-                  {m.translated && <button onClick={() => { unlockSpeechOutput(); speak(m.translated, m.targetLanguage); }} aria-label="Çeviriyi dinle"><Volume2 /></button>}
-                </article>
-              )) : <div className="empty">Henüz kendi konuşmanız yok.</div>}
-            </div>
-            {localScroll.hasNew && <button className="new-messages own-new" onClick={localScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
-          </details>
-        </div>
-      </div>
-      <div
-        className={`notice ${statusError ? "error" : ""}`}
-        role="status"
-        aria-live="polite"
-      >
-        {statusError ? <AlertCircle /> : <CheckCircle2 />}
-        {statusError || notice}
-      </div>
-      <details className="settings">
-        <summary>Gerçek AI çevirisi ayarı</summary>
-        <p>
-          OpenRouter anahtarınız yalnızca bu sekmenin belleğinde tutulur. Ortak
-          bilgisayarda kullanmayın.
-        </p>
-        <input
-          type="password"
-          value={key}
-          placeholder="sk-or-..."
-          aria-label="OpenRouter API anahtarı"
-          onChange={(e) => {
-            setKey(e.target.value);
-            sessionStorage.setItem("dilmac-key", e.target.value);
-          }}
-        />
-      </details>
-    </section>
+    <RoomScreen
+      roomCode={active}
+      inviteLink={inviteLink}
+      connected={roomConnection.connected}
+      connecting={roomConnection.connecting}
+      peerLanguage={remoteLanguage?.name || null}
+      localMessages={localMessages}
+      remoteMessages={remoteMessages}
+      languages={langs}
+      sourceCode={source}
+      onSourceChange={changeSourceLanguage}
+      targetName={target}
+      onTargetChange={setTarget}
+      targetLocked={Boolean(remoteLanguage)}
+      listening={speech.listening}
+      interimText={speech.interimText}
+      onToggleMic={toggleConversation}
+      micSupported={speech.supported}
+      autoSpeak={autoSpeak}
+      onToggleAutoSpeak={() => {
+        unlockSpeechOutput();
+        setAutoSpeak((value) => {
+          if (value) clearSpeechQueue();
+          return !value;
+        });
+      }}
+      voiceEnabled={roomConnection.voiceEnabled}
+      voiceConnected={roomConnection.voiceConnected}
+      voiceConnecting={roomConnection.voiceConnecting}
+      onToggleVoice={toggleVoice}
+      remoteMuted={remoteMuted}
+      onToggleRemoteAudio={toggleRemotePlayback}
+      draft={draft}
+      onDraftChange={setDraft}
+      onSubmitDraft={submitDraft}
+      onSpeak={(text, languageName) => { unlockSpeechOutput(); speak(text, languageName); }}
+      onRetry={(id) => queueRef.current?.retry(id)}
+      status={statusError || notice}
+      statusIsError={Boolean(statusError)}
+      audioSlot={<audio ref={remoteAudioRef} autoPlay playsInline aria-hidden="true" />}
+    />
   );
 }
 const pages: {
@@ -857,7 +744,7 @@ const pages: {
       ],
       [
         "Doğal çeviri",
-        "OpenRouter üzerinden seçilebilir yapay zekâ modeliyle bağlama uygun çeviri yapar.",
+        "Bağlama uygun, doğal çeviri üreten güncel bir yapay zekâ modeli kullanır.",
       ],
       [
         "Sesli okuma",
@@ -884,7 +771,7 @@ const pages: {
       ],
       [
         "API anahtarı",
-        "Girilen OpenRouter anahtarı sessionStorage içinde, yalnızca açık sekme oturumu boyunca tutulur.",
+        "Çeviri istekleri sunucu tarafında işlenir; tarayıcınızda hiçbir anahtar saklanmaz.",
       ],
     ],
   },
@@ -933,23 +820,14 @@ function NotFound() {
     </section>
   );
 }
-function OpenRouterCallback() {
-  const navigate = useNavigate();
-  const [message, setMessage] = useState("OpenRouter bağlantısı tamamlanıyor…");
-  useEffect(() => {
-    const code = new URLSearchParams(location.search).get("code");
-    if (!code) { setMessage("OpenRouter doğrulama kodu bulunamadı."); return; }
-    finishOpenRouter(code).then((returnTo) => navigate(returnTo, { replace: true })).catch((error: Error) => setMessage(error.message));
-  }, [navigate]);
-  return <section className="oauth-callback"><div className="lobby-icon"><KeyRound /></div><h1>{message}</h1><p>Bu sayfayı kapatmayın.</p></section>;
-}
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [dark, setDark] = useState(
     localStorage.getItem("dilmac-theme") !== "light",
   );
-  useEffect(() => observeUser((nextUser) => { setUser(nextUser); setProfile(readProfile(nextUser)); }), []);
+  const [authChecked, setAuthChecked] = useState(!authReady);
+  useEffect(() => observeUser((nextUser) => { setUser(nextUser); setProfile(readProfile(nextUser)); setAuthChecked(true); }), []);
   const saveProfile = useCallback((next: MemberProfile) => {
     if (!user) return;
     localStorage.setItem(profileKey(user.uid), JSON.stringify(next));
@@ -967,10 +845,9 @@ export function App() {
     <Layout user={user} profile={profile} dark={dark} setDark={setDark}>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/uygulama" element={<Translator />} />
+        <Route path="/uygulama" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
         <Route path="/deneme" element={<AiPractice />} />
-        <Route path="/oda/:roomId" element={<Translator />} />
-        <Route path="/openrouter-callback" element={<OpenRouterCallback />} />
+        <Route path="/oda/:roomId" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
         <Route path="/ozellikler" element={<Info data={pages.features} />} />

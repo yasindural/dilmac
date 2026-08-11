@@ -40,4 +40,14 @@ describe("MessageQueue", () => {
     expect(left).toEqual(Array.from({ length: 10 }, (_, index) => `sol-${index + 1}`));
     expect(right).toEqual(Array.from({ length: 10 }, (_, index) => `sağ-${index + 1}`));
   });
+
+  it("kaynak ve hedef dil aynıysa çeviri servisine hiç gitmez", async () => {
+    const translator = vi.fn();
+    const sent: unknown[] = [];
+    const queue = new MessageQueue(translator as never, (message) => { sent.push(message); return true; });
+    queue.enqueue({ source: "Merhaba", sourceLanguage: "Türkçe", targetLanguage: "Türkçe" });
+    await vi.waitFor(() => expect(sent.length).toBe(1));
+    expect(translator).not.toHaveBeenCalled();
+    expect(queue.snapshot()[0]).toMatchObject({ translated: "Merhaba", status: "sent" });
+  });
 });

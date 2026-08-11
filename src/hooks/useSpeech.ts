@@ -38,6 +38,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
   const wantsToListenRef = useRef(false);
   const lastFinalRef = useRef({ text: "", at: 0 });
   const lastInterimRef = useRef("");
+  const networkRetriesRef = useRef(0);
   const interimCommitTimerRef = useRef<number | null>(null);
   const onFinalRef = useRef(onFinal);
   onFinalRef.current = onFinal;
@@ -105,6 +106,8 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
       lastInterimRef.current = "";
       if (isNoise || isWeak || isDuplicate) return;
       lastFinalRef.current = { text: normalized, at: Date.now() };
+      networkRetriesRef.current = 0;
+      setError("");
       setActivityTick((value) => value + 1);
       if (isIOSWebKit && pauseAfterFinal) {
         wantsToListenRef.current = false;
@@ -140,6 +143,18 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
         logClientError("no-speech", "speech", "No speech audio was detected", "warning");
         return;
       }
+      // "network", tarayıcının tanıma servisine anlık ulaşamadığı durumdur ve
+      // neredeyse her zaman geçicidir. Eskiden mikrofonu tamamen kapatıyorduk;
+      // kullanıcı konuşmanın ortasında sessizliğe düşüp elle tekrar açmak
+      // zorunda kalıyordu. Artık birkaç kez sessizce toparlanmayı deniyoruz.
+      if (event.error === "network" && wantsToListenRef.current) {
+        networkRetriesRef.current += 1;
+        logClientError("network", "speech", `Tanıma servisine ulaşılamadı (deneme ${networkRetriesRef.current})`, "warning");
+        if (networkRetriesRef.current <= 4) {
+          setError("Bağlantı dalgalandı, mikrofon yeniden bağlanıyor…");
+          return;
+        }
+      }
       if (event.error === "aborted" && !wantsToListenRef.current) return;
       logClientError(event.error || "unknown", "speech", getSpeechErrorMessage(event.error));
       setError(getSpeechErrorMessage(event.error));
@@ -162,7 +177,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
             recognitionRef.current = null;
             setListening(false);
           }
-        }, 250);
+        }, networkRetriesRef.current > 0 ? 700 : 250);
         return;
       }
       if (recognitionRef.current === recognition) recognitionRef.current = null;
@@ -170,6 +185,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
     };
     recognitionRef.current = recognition;
     wantsToListenRef.current = true;
+    networkRetriesRef.current = 0;
     setError("");
     setListening(true);
     try {

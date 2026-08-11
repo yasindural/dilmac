@@ -58,6 +58,15 @@ export class MessageQueue {
       while (true) {
         const item = this.items.find((candidate) => candidate.status === "queued");
         if (!item) break;
+        // Kaynak ve hedef dil aynıysa çeviri istemek hem gereksiz gecikme hem
+        // gereksiz maliyet; model "Türkçeyi Türkçeye çevir" isteğine takılıyordu.
+        if (item.sourceLanguage.trim().toLocaleLowerCase("tr") === item.targetLanguage.trim().toLocaleLowerCase("tr")) {
+          item.translated = item.source;
+          item.status = "sent";
+          this.sender(this.toRoomMessage(item));
+          this.emit();
+          continue;
+        }
         item.status = "translating";
         this.emit();
         try {
