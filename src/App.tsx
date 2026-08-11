@@ -45,7 +45,7 @@ import { useSpeech } from "./hooks/useSpeech";
 import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { finishOpenRouter } from "./lib/openrouterAuth";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
-import { speakText, unlockSpeechOutput } from "./lib/speechOutput";
+import { speakText, stopSpeechOutput, unlockSpeechOutput } from "./lib/speechOutput";
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
@@ -460,6 +460,10 @@ function Translator() {
     [remoteMuted, setRemoteMuted] = useState(false),
     [playbackBlocked, setPlaybackBlocked] = useState(false);
   const [remoteLanguage, setRemoteLanguage] = useState<RoomLanguage | null>(null);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const autoSpeakRef = useRef(true);
+  autoSpeakRef.current = autoSpeak;
+  const speechRef = useRef<{ listening: boolean; stop: () => void; toggle: () => void } | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const keyRef = useRef(key);
   keyRef.current = key;
@@ -470,6 +474,18 @@ function Translator() {
     if (!message.source.trim() || !message.translated.trim()) return;
     setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
     setNotice("Karşı taraftan yeni çeviri geldi.");
+    if (!autoSpeakRef.current) return;
+    const code = langs.find(([, name]) => name === message.targetLanguage)?.[0] || "tr-TR";
+    // Seslendirme sırasında kendi mikrofonumuz açık kalırsa hoparlörden çıkan ses
+    // tekrar yazıya dökülüp karşı tarafa geri gönderilir (yankı döngüsü).
+    // Bu yüzden dinlemeyi duraklatıp seslendirme bitince geri açıyoruz.
+    const wasListening = Boolean(speechRef.current?.listening);
+    if (wasListening) speechRef.current?.stop();
+    const resume = () => {
+      if (!wasListening) return;
+      window.setTimeout(() => { if (!speechRef.current?.listening) speechRef.current?.toggle(); }, 350);
+    };
+    speakText(message.translated, code, { onEnd: resume, onError: resume });
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
@@ -543,6 +559,19 @@ function Translator() {
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
   const speech = useSpeech(source, enqueue);
+  speechRef.current = { listening: speech.listening, stop: speech.stop, toggle: speech.toggle };
+  // Mobil tarayıcılar seslendirmeyi ilk kullanıcı dokunuşundan sonra oynatır.
+  // Karşı taraf hiçbir düğmeye basmadan mesaj alabildiği için sayfadaki ilk
+  // dokunuşta kilidi açıyoruz.
+  useEffect(() => {
+    const unlockOnce = () => unlockSpeechOutput();
+    window.addEventListener("pointerdown", unlockOnce, { once: true });
+    window.addEventListener("keydown", unlockOnce, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockOnce);
+      window.removeEventListener("keydown", unlockOnce);
+    };
+  }, []);
   const createRoom = () => {
     const code = Math.random().toString(36).slice(2, 8).toUpperCase();
     navigate(`/oda/${code}?role=host`);
@@ -702,7 +731,7 @@ function Translator() {
       </div>
       <div className="conversation conversation-focus">
         <div className="speaker remote remote-focus">
-          <h2>Karşı tarafın konuşmaları</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span>
+          <h2>Karşı tarafın konuşmaları</h2><span className={`presence ${roomConnection.connected ? "online" : ""}`}>{roomConnection.connected ? "Çevrim içi" : "Bekleniyor"}</span><button type="button" className={`autospeak ${autoSpeak ? "on" : ""}`} aria-pressed={autoSpeak} onClick={() => { unlockSpeechOutput(); setAutoSpeak((value) => !value); if (!autoSpeak) setNotice("Gelen çeviriler otomatik seslendirilecek."); else { stopSpeechOutput(); setNotice("Otomatik seslendirme kapatıldı."); } }}>{autoSpeak ? <Volume2 /> : <VolumeX />}{autoSpeak ? "Otomatik ses açık" : "Otomatik ses kapalı"}</button>
           <div className="message-feed" ref={remoteScroll.ref} onScroll={remoteScroll.onScroll}>{remoteMessages.length ? remoteMessages.map((m) => <article key={m.id}><p><small>{m.sourceLanguage}</small>{m.source}</p><strong>{m.translated}</strong><small className="message-status">Teslim alındı</small><button onClick={() => { unlockSpeechOutput(); speak(m.translated, m.targetLanguage); }} aria-label="Karşı tarafın çevirisini dinle"><Volume2 /></button></article>) : <div className="empty"><Users /><p>{roomConnection.connected ? "Bağlantı kuruldu. Karşı taraf konuştuğunda yalnızca onun mesajları burada görünecek." : "İkinci kişi davet bağlantısıyla katıldığında burada görünür."}</p></div>}</div>
           {remoteScroll.hasNew && <button className="new-messages" onClick={remoteScroll.scrollToLatest}>Yeni mesajlar<ChevronDown /></button>}
         </div>
