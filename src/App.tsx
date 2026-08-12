@@ -6,8 +6,6 @@ import {
   Mic,
   Volume2,
   ArrowRight,
-  Bot,
-  Sparkles,
   Languages,
   ShieldCheck,
   Users,
@@ -38,7 +36,6 @@ import RoomScreen from "./components/RoomScreen";
 import GoogleLogo from "./components/GoogleLogo";
 import { plans as planCatalog } from "./lib/billing";
 import "./membership.css";
-import "./home.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
 import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
@@ -358,11 +355,9 @@ function Home() {
   useReveal();
   const { t } = useI18n();
   return (
-    <div className="home">
+    <>
       <section className="hero">
-        <div className="home-aura" aria-hidden="true"><i /><i /><i /></div>
         <div>
-          <span className="home-badge"><b><Sparkles /> {t("home.badgeNew")}</b> {t("home.badge")}</span>
           <h1>
             {t("hero.title1")}
             <br />
@@ -371,16 +366,10 @@ function Home() {
           <p>
             {t("hero.sub")}
           </p>
-          <div className="home-actions">
-            <Link className="primary large" to="/uygulama">
-              {t("cta.start")}
-              <ArrowRight />
-            </Link>
-            <Link className="home-ghost" to="/deneme">
-              <Bot />
-              {t("nav.try")}
-            </Link>
-          </div>
+          <Link className="primary large" to="/uygulama">
+            {t("cta.start")}
+            <ArrowRight />
+          </Link>
           <div className="trust">
             <span>
               <Radio />
@@ -398,13 +387,6 @@ function Home() {
         </div>
         <LivePreview />
       </section>
-      <div className="lang-marquee" aria-hidden="true">
-        <div className="lang-track">
-          {[...langs, ...langs].map(([code, name], index) => (
-            <span key={`${code}-${index}`}><i />{name}</span>
-          ))}
-        </div>
-      </div>
       <section className="band reveal">
         <h2>{t("steps.title")}</h2>
         <div className="steps reveal">
@@ -482,7 +464,7 @@ function Home() {
         <div><h2>{t("cta.title")}</h2><p>{t("cta.p")}</p></div>
         <Link className="primary large" to="/uygulama">{t("cta.open")}<ArrowRight /></Link>
       </section>
-    </div>
+    </>
   );
 }
 function LivePreview() {
