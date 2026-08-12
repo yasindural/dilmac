@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // Erişim kuralları tek yerde toplanır:
 //  - Canlı çeviri yalnızca kayıtlı kullanıcılara açıktır.
-//  - Abone olmayan kayıtlı kullanıcı 2 dakika GERÇEK KULLANIM hakkı alır.
-//    Süre duvar saatiyle değil, ekranda geçirilen aktif süreyle işler; böylece
-//    sayfayı açıp kapatan kullanıcı hakkını boşa harcamaz.
+//  - Abone olmayan kayıtlı kullanıcı 5 dakika GERÇEK KULLANIM hakkı alır.
+//    Süre duvar saatiyle değil, gerçekten konuşulan süreyle işler: odaya
+//    girmek, karşı tarafı beklemek veya sekmeyi arka plana almak süreyi
+//    harcamaz. Sayaç ancak bağlantı kurulup konuşma başlayınca işler.
 
-export const FREE_TRIAL_MS = 120_000;
+export const FREE_TRIAL_MS = 300_000;
 
 export type PlanId = "free" | "pro" | "business";
 export type AccessState = "loading" | "anonymous" | "trial" | "expired" | "subscribed";

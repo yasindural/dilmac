@@ -24,3 +24,5 @@
 .trial-pill.urgent svg{color:#f6a94a;animation:trial-blink 1.1s ease-in-out infinite}
 @keyframes trial-blink{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.gate-spinner,.trial-pill.urgent svg{animation:none}}
+.trial-pill.paused{opacity:.75}
+.trial-pill em{font-style:normal;color:var(--muted);font-size:12px}

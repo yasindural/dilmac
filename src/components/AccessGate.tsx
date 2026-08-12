@@ -6,8 +6,10 @@ import "../access.css";
 type Props = {
   state: AccessState;
   remaining: number;
-  /** "live" = canlı çeviri (kayıt zorunlu), "ai" = AI pratik (kayıtsıza 2 dk) */
+  /** "live" = canlı çeviri (kayıt zorunlu), "ai" = AI pratik (kayıtsıza deneme) */
   variant?: "live" | "ai";
+  /** Sayaç şu an ilerlemiyorsa kullanıcıya bunu açıkça söyle. */
+  paused?: boolean;
   children: React.ReactNode;
 };
 
@@ -17,7 +19,7 @@ type Props = {
  *  - Abone olmayan kayıtlı kullanıcı 2 dakikalık aktif kullanım hakkıyla girer.
  *  - Hak bitince ekran kapanır, yükseltme kartı gelir.
  */
-export default function AccessGate({ state, remaining, variant = "live", children }: Props) {
+export default function AccessGate({ state, remaining, variant = "live", paused = false, children }: Props) {
   if (state === "loading") {
     return (
       <section className="gate">
@@ -43,7 +45,7 @@ export default function AccessGate({ state, remaining, variant = "live", childre
             <Link className="primary" to="/kayit">Ücretsiz kayıt ol</Link>
             <Link className="ghost" to="/deneme">Önce AI ile dene</Link>
           </div>
-          <div className="gate-perk"><Sparkles /> Kayıt olan herkese 2 dakika canlı çeviri hediye</div>
+          <div className="gate-perk"><Sparkles /> Kayıt olan herkese 5 dakika canlı çeviri hediye</div>
         </div>
       </section>
     );
@@ -58,14 +60,14 @@ export default function AccessGate({ state, remaining, variant = "live", childre
             <div className="gate-icon warn"><Timer /></div>
             <h1>Deneme süreniz doldu</h1>
             <p>
-              AI ile 2 dakikalık ücretsiz pratik hakkınızı kullandınız. Ücretsiz
+              AI ile 5 dakikalık ücretsiz pratik hakkınızı kullandınız. Ücretsiz
               hesap açtığınızda AI ile pratik sınırsız devam eder.
             </p>
             <div className="gate-actions">
               <Link className="primary" to="/kayit">Ücretsiz kayıt ol</Link>
               <Link className="ghost" to="/abonelik">Planları gör</Link>
             </div>
-            <div className="gate-perk"><Sparkles /> Kayıt olana AI pratik sınırsız + 2 dakika canlı çeviri</div>
+            <div className="gate-perk"><Sparkles /> Kayıt olana AI pratik sınırsız + 5 dakika canlı çeviri</div>
           </div>
         </section>
       );
@@ -76,7 +78,7 @@ export default function AccessGate({ state, remaining, variant = "live", childre
           <div className="gate-icon warn"><Timer /></div>
           <h1>Deneme süreniz doldu</h1>
           <p>
-            2 dakikalık ücretsiz canlı çeviri hakkınızı kullandınız. Sınırsız
+            5 dakikalık ücretsiz canlı çeviri hakkınızı kullandınız. Sınırsız
             görüşme için Pro'ya geçebilirsiniz.
           </p>
           <div className="gate-actions">
@@ -92,9 +94,9 @@ export default function AccessGate({ state, remaining, variant = "live", childre
   return (
     <>
       {state === "trial" && (
-        <div className={`trial-pill ${remaining < 30_000 ? "urgent" : ""}`} role="status">
+        <div className={`trial-pill ${paused ? "paused" : ""} ${!paused && remaining < 60_000 ? "urgent" : ""}`} role="status">
           <Timer />
-          <span>{variant === "ai" ? "Ücretsiz deneme" : "Deneme süresi"} <b>{formatRemaining(remaining)}</b></span>
+          <span>{variant === "ai" ? "Ücretsiz deneme" : "Deneme süresi"} <b>{formatRemaining(remaining)}</b>{paused && <em> · duraklatıldı</em>}</span>
           <Link to={variant === "ai" ? "/kayit" : "/abonelik"}>{variant === "ai" ? "Kayıt ol" : "Yükselt"}</Link>
         </div>
       )}

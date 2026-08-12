@@ -29,7 +29,7 @@ export const plans: Plan[] = [
     price: "Ücretsiz",
     period: "",
     note: "Dilmaç'ı denemek için",
-    features: ["AI ile pratik sınırsız", "2 dakika canlı çeviri denemesi", "Tüm dil çiftleri"],
+    features: ["AI ile pratik sınırsız", "5 dakika canlı çeviri denemesi", "Tüm dil çiftleri"],
   },
   {
     id: "pro",

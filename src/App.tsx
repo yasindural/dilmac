@@ -286,7 +286,7 @@ function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User
       </p>
 
       <div className="pricing-faq reveal">
-        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Hesabınız yoksa AI ile pratikte toplam 2 dakika denersiniz. Ücretsiz kayıt olduğunuzda AI pratik sınırsız açılır ve canlı çeviri için ayrıca 2 dakikalık hakkınız olur. Sayaç yalnızca ekran açıkken işler; sekmeyi kapatınca durur.</p></details>
+        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Hesabınız yoksa AI ile pratikte toplam 5 dakika denersiniz. Ücretsiz kayıt olduğunuzda AI pratik sınırsız açılır ve canlı çeviri için ayrıca 5 dakikalık hakkınız olur. Sayaç yalnızca gerçekten konuşurken işler: odaya girip beklemek, bağlantıyı kurmak veya sekmeyi arka plana almak sürenizi harcamaz.</p></details>
         <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
         <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi tek tıkla durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz.</p></details>
         <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>
@@ -504,34 +504,39 @@ function useVisible() {
 // AI pratik kayıtsız kullanıcıya 2 dakika açıktır; hesabı olan sınırsız kullanır.
 function AiPracticePage({ user, authChecked }: { user: User | null; authChecked: boolean }) {
   const visible = useVisible();
+  const [conversing, setConversing] = useState(false);
   const access = useAccess({
     uid: user ? null : "anon",
     plan: "free",
-    active: visible,
+    active: visible && conversing,
     ready: authChecked,
   });
   if (user) return <AiPractice />;
   return (
-    <AccessGate state={access.state} remaining={access.remaining} variant="ai">
-      <AiPractice />
+    <AccessGate state={access.state} remaining={access.remaining} variant="ai" paused={!conversing}>
+      <AiPractice onConversingChange={setConversing} />
     </AccessGate>
   );
 }
 function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
   const visible = useVisible();
+  // Sayaç yalnızca gerçekten konuşulurken işler. Odayı açıp karşı tarafı
+  // beklemek, bağlantı kurulmadan durmak veya sekmeyi arka plana almak
+  // kullanıcının hakkını yakmaz.
+  const [conversing, setConversing] = useState(false);
   const access = useAccess({
     uid: user?.uid || null,
     plan: profile?.plan || "free",
-    active: visible,
+    active: visible && conversing,
     ready: authChecked,
   });
   return (
-    <AccessGate state={access.state} remaining={access.remaining}>
-      <Translator />
+    <AccessGate state={access.state} remaining={access.remaining} paused={!conversing}>
+      <Translator onConversingChange={setConversing} />
     </AccessGate>
   );
 }
-function Translator() {
+function Translator({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
   const navigate = useNavigate();
   const { roomId } = useParams();
   const [source, setSource] = useState("tr-TR"),
@@ -659,6 +664,12 @@ function Translator() {
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
   const speech = useSpeech(source, enqueue);
+  // "Konuşma başladı" = karşı taraf bağlı VE ya mikrofon açık ya da en az bir
+  // cümle alışverişi olmuş. Deneme sayacı yalnızca bu koşulda ilerler.
+  const conversing = roomConnection.connected
+    && (speech.listening || localMessages.length > 0 || remoteMessages.length > 0);
+  useEffect(() => { onConversingChange?.(conversing); }, [conversing, onConversingChange]);
+  useEffect(() => () => onConversingChange?.(false), [onConversingChange]);
   speechRef.current = { listening: speech.listening, stop: speech.stop, toggle: speech.toggle };
   // Mobil tarayıcılar seslendirmeyi ilk kullanıcı dokunuşundan sonra oynatır.
   // Karşı taraf hiçbir düğmeye basmadan mesaj alabildiği için sayfadaki ilk

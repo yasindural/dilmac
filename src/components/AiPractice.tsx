@@ -13,7 +13,7 @@ const practiceLanguages = [
 
 const starters = ["Merhaba, bugün nasılsın?", "Bana kendinden biraz bahseder misin?", "Yarın için bir plan yapalım."];
 
-export default function AiPractice() {
+export default function AiPractice({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
   const [userLanguage, setUserLanguage] = useState("tr-TR");
   const [aiLanguage, setAiLanguage] = useState("en-US");
   const [draft, setDraft] = useState("");
@@ -108,6 +108,11 @@ export default function AiPractice() {
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: turns.length > 1 ? "smooth" : "auto" });
   }, [busy, turns]);
 
+  // Deneme sayacı ancak gerçekten konuşulurken işlesin: mikrofon açıkken,
+  // AI yanıt üretirken veya en az bir tur konuşulmuşken.
+  const conversing = speech.listening || busy || turns.length > 0;
+  useEffect(() => { onConversingChange?.(conversing); }, [conversing, onConversingChange]);
+  useEffect(() => () => onConversingChange?.(false), [onConversingChange]);
   useEffect(() => {
     if (!speech.listening) return;
     const warning = window.setTimeout(() => {
