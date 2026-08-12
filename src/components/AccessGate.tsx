@@ -6,6 +6,8 @@ import "../access.css";
 type Props = {
   state: AccessState;
   remaining: number;
+  /** "live" = canlı çeviri (kayıt zorunlu), "ai" = AI pratik (kayıtsıza 2 dk) */
+  variant?: "live" | "ai";
   children: React.ReactNode;
 };
 
@@ -15,7 +17,7 @@ type Props = {
  *  - Abone olmayan kayıtlı kullanıcı 2 dakikalık aktif kullanım hakkıyla girer.
  *  - Hak bitince ekran kapanır, yükseltme kartı gelir.
  */
-export default function AccessGate({ state, remaining, children }: Props) {
+export default function AccessGate({ state, remaining, variant = "live", children }: Props) {
   if (state === "loading") {
     return (
       <section className="gate">
@@ -48,6 +50,26 @@ export default function AccessGate({ state, remaining, children }: Props) {
   }
 
   if (state === "expired") {
+    // AI pratikte duvar kayıtsız kullanıcıya çıkar: çözüm ödeme değil, kayıt.
+    if (variant === "ai") {
+      return (
+        <section className="gate">
+          <div className="gate-card">
+            <div className="gate-icon warn"><Timer /></div>
+            <h1>Deneme süreniz doldu</h1>
+            <p>
+              AI ile 2 dakikalık ücretsiz pratik hakkınızı kullandınız. Ücretsiz
+              hesap açtığınızda AI ile pratik sınırsız devam eder.
+            </p>
+            <div className="gate-actions">
+              <Link className="primary" to="/kayit">Ücretsiz kayıt ol</Link>
+              <Link className="ghost" to="/abonelik">Planları gör</Link>
+            </div>
+            <div className="gate-perk"><Sparkles /> Kayıt olana AI pratik sınırsız + 2 dakika canlı çeviri</div>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="gate">
         <div className="gate-card">
@@ -72,8 +94,8 @@ export default function AccessGate({ state, remaining, children }: Props) {
       {state === "trial" && (
         <div className={`trial-pill ${remaining < 30_000 ? "urgent" : ""}`} role="status">
           <Timer />
-          <span>Deneme süresi <b>{formatRemaining(remaining)}</b></span>
-          <Link to="/abonelik">Yükselt</Link>
+          <span>{variant === "ai" ? "Ücretsiz deneme" : "Deneme süresi"} <b>{formatRemaining(remaining)}</b></span>
+          <Link to={variant === "ai" ? "/kayit" : "/abonelik"}>{variant === "ai" ? "Kayıt ol" : "Yükselt"}</Link>
         </div>
       )}
       {children}

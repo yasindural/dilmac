@@ -286,7 +286,7 @@ function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User
       </p>
 
       <div className="pricing-faq reveal">
-        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Canlı çeviride 2 dakikalık gerçek kullanım hakkınız var. Sayaç yalnızca ekran açıkken işler; sekmeyi kapatınca durur. AI ile pratik modu ücretsiz kullanıcılara sınırsız açıktır.</p></details>
+        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Hesabınız yoksa AI ile pratikte toplam 2 dakika denersiniz. Ücretsiz kayıt olduğunuzda AI pratik sınırsız açılır ve canlı çeviri için ayrıca 2 dakikalık hakkınız olur. Sayaç yalnızca ekran açıkken işler; sekmeyi kapatınca durur.</p></details>
         <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
         <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi tek tıkla durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz.</p></details>
         <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>
@@ -491,15 +491,34 @@ function LivePreview() {
     </div>
   );
 }
-function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
+// Sayaç yalnızca ekran gerçekten açıkken işlesin diye sekme görünürlüğünü izler.
+function useVisible() {
   const [visible, setVisible] = useState(() => typeof document === "undefined" || !document.hidden);
   useEffect(() => {
     const onVisibility = () => setVisible(!document.hidden);
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
-  // Deneme sayacı yalnızca ekran gerçekten açıkken işler; sekmeyi arka plana
-  // alan kullanıcı hakkını boşa harcamaz.
+  return visible;
+}
+// AI pratik kayıtsız kullanıcıya 2 dakika açıktır; hesabı olan sınırsız kullanır.
+function AiPracticePage({ user, authChecked }: { user: User | null; authChecked: boolean }) {
+  const visible = useVisible();
+  const access = useAccess({
+    uid: user ? null : "anon",
+    plan: "free",
+    active: visible,
+    ready: authChecked,
+  });
+  if (user) return <AiPractice />;
+  return (
+    <AccessGate state={access.state} remaining={access.remaining} variant="ai">
+      <AiPractice />
+    </AccessGate>
+  );
+}
+function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
+  const visible = useVisible();
   const access = useAccess({
     uid: user?.uid || null,
     plan: profile?.plan || "free",
@@ -923,7 +942,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/uygulama" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
-        <Route path="/deneme" element={<AiPractice />} />
+        <Route path="/deneme" element={<AiPracticePage user={user} authChecked={authChecked} />} />
         <Route path="/oda/:roomId" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
