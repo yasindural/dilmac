@@ -1,0 +1,86 @@
+/* Öğretici tur — spot ışığı + renkli anlatım kartları */
+
+.tour-layer{position:fixed;inset:0;z-index:90;pointer-events:none}
+.tour-backdrop{position:fixed;inset:0;z-index:95;background:#000a;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;animation:tour-fade .18s ease}
+.tour-backdrop.plain{background:#0009}
+@keyframes tour-fade{from{opacity:0}}
+
+/* ---- adım renkleri ---- */
+.tone-mic{--tone:#ff6b5c}
+.tone-voice{--tone:#3fc9a0}
+.tone-call{--tone:#7b8dff}
+.tone-lang{--tone:#f5b83d}
+.tone-text{--tone:#c07bff}
+.tone-room{--tone:#22c1e8}
+.tone-feed{--tone:#4ad06b}
+
+/* ---- spot ışığı ---- */
+.tour-spot{
+  position:fixed;
+  border-radius:18px;
+  border:2px solid var(--tone);
+  box-shadow:0 0 0 9999px rgba(3,8,18,.78), 0 0 24px 2px var(--tone);
+  pointer-events:none;
+  transition:top .28s cubic-bezier(.22,1,.36,1),left .28s cubic-bezier(.22,1,.36,1),width .28s,height .28s;
+  animation:tour-pulse 1.9s ease-in-out infinite;
+}
+@keyframes tour-pulse{50%{box-shadow:0 0 0 9999px rgba(3,8,18,.78), 0 0 34px 6px var(--tone)}}
+
+/* ---- anlatım kartı ---- */
+.tour-card{
+  position:fixed;
+  left:50%;
+  translate:-50% 0;
+  width:min(380px,calc(100vw - 28px));
+  pointer-events:auto;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-top:3px solid var(--tone);
+  border-radius:18px;
+  padding:18px 18px 14px;
+  box-shadow:0 30px 70px -30px #000d;
+  animation:tour-in .26s cubic-bezier(.22,1,.36,1) both;
+}
+.tour-card.floating{position:static;translate:none;animation:none}
+@keyframes tour-in{from{opacity:0;transform:translateY(10px)}}
+.tour-step{display:inline-block;font-size:11px;letter-spacing:1.2px;color:var(--tone);font-weight:700;margin-bottom:6px}
+.tour-card h3{margin:0 0 7px;font-size:17.5px;letter-spacing:-.3px;display:flex;align-items:center;gap:9px}
+.tour-card h3 span{font-size:20px}
+.tour-card p{margin:0 0 14px;font-size:14px;line-height:1.6;color:var(--muted)}
+.tour-skip{position:absolute;top:10px;right:10px;width:30px;min-width:30px;height:30px;min-height:0;padding:0;border-radius:50%;background:transparent;border:1px solid var(--line);color:var(--muted)}
+.tour-skip svg{width:14px;height:14px}
+.tour-card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tour-dots{display:flex;gap:5px}
+.tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--line);transition:.2s}
+.tour-dots i.past{background:color-mix(in srgb,var(--tone) 55%,var(--line))}
+.tour-dots i.on{width:18px;border-radius:3px;background:var(--tone)}
+
+.tour-yes{height:42px;min-height:0;padding:0 20px;border-radius:999px;background:var(--tone,var(--blue));color:#fff;font-weight:600;font-size:14px;border:0}
+.tour-no{height:42px;min-height:0;padding:0 20px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--muted);font-size:14px}
+
+/* ---- davet ve bitiş kartı ---- */
+.tour-invite{position:relative;width:min(430px,100%);text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:34px 26px 26px;box-shadow:0 40px 90px -40px #000d;overflow:hidden;animation:tour-in .26s cubic-bezier(.22,1,.36,1) both}
+.tour-invite-icon{width:58px;height:58px;margin:0 auto 16px;display:grid;place-items:center;border-radius:18px;background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}
+.tour-invite-icon.done{background:color-mix(in srgb,#4ad06b 16%,transparent);color:#4ad06b}
+.tour-invite-icon svg{width:26px;height:26px}
+.tour-invite h2{margin:0 0 8px;font-size:21px;letter-spacing:-.4px}
+.tour-invite p{margin:0 auto 22px;max-width:34ch;font-size:14.5px;line-height:1.6;color:var(--muted)}
+.tour-invite-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.tour-invite .tour-yes{background:var(--blue)}
+
+.tour-badges{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:22px}
+.tour-badge{font-size:11.5px;padding:5px 11px;border-radius:999px;border:1px solid color-mix(in srgb,var(--tone) 45%,var(--line));color:var(--tone);background:color-mix(in srgb,var(--tone) 9%,transparent)}
+
+/* ---- konfeti ---- */
+.tour-confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tour-confetti i{position:absolute;top:-14px;left:calc(var(--i) * 7.4%);width:7px;height:11px;border-radius:2px;opacity:.9;animation:tour-drop 2.4s linear infinite;animation-delay:calc(var(--i) * .13s)}
+.tour-confetti i:nth-child(3n){background:#ff6b5c}
+.tour-confetti i:nth-child(3n+1){background:#22c1e8}
+.tour-confetti i:nth-child(3n+2){background:#f5b83d}
+@keyframes tour-drop{to{transform:translateY(420px) rotate(420deg);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){
+  .tour-spot,.tour-card,.tour-invite,.tour-backdrop{animation:none}
+  .tour-confetti{display:none}
+  .tour-spot{transition:none}
+}

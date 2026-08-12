@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeftRight, ArrowUp, Check, Copy, Keyboard, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
+  ArrowLeftRight, ArrowUp, Check, Copy, HelpCircle, Keyboard, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
   RotateCcw, Share2, Type, Users, Volume2, VolumeX, X,
 } from "lucide-react";
 import type { QueueItem } from "../lib/messageQueue";
 import type { RoomMessage } from "../hooks/useRoom";
+import Tour, { isTourDone, type TourStep } from "./Tour";
 import "../room.css";
 
 export type FeedEntry = {
@@ -56,6 +57,60 @@ export type RoomScreenProps = {
 
 const textSizes = ["Normal", "Büyük", "Çok büyük"];
 
+// Öğretici tur adımları. Hedefler ekranın gerçek düğmeleri; biri yoksa
+// tur o adımı atlar, akış bozulmaz.
+const tourSteps: TourStep[] = [
+  {
+    target: ".langbar",
+    tone: "lang",
+    emoji: "🌍",
+    title: "Diller",
+    body: "Solda sizin konuştuğunuz dil, sağda çeviri dili. Dokununca listeden seçersiniz. Karşı taraf odaya girince onun dili otomatik kilitlenir.",
+  },
+  {
+    target: ".mic-button",
+    tone: "mic",
+    emoji: "🎤",
+    title: "Mikrofon",
+    body: "Ana düğme bu. Basın ve normal konuşun; söyledikleriniz anında yazıya dökülüp çevrilir ve karşı tarafa gider. Tekrar basınca durur.",
+  },
+  {
+    target: ".room-bar-actions .icon:nth-of-type(1)",
+    tone: "voice",
+    emoji: "🔊",
+    title: "Otomatik seslendirme",
+    body: "Açıkken karşı taraftan gelen her çeviri kendiliğinden sesli okunur. Sessiz ortamdaysanız buradan kapatabilirsiniz.",
+  },
+  {
+    target: ".room-bar-actions .icon:nth-of-type(2)",
+    tone: "call",
+    emoji: "📞",
+    title: "Canlı ses",
+    body: "Bu, çevirinin yanında karşı tarafın GERÇEK sesini de duymanızı sağlar. İki taraf da açmalı. Yankıyı önlemek için kulaklık önerilir.",
+  },
+  {
+    target: ".room-controls .round:first-child",
+    tone: "text",
+    emoji: "⌨️",
+    title: "Klavyeyle yaz",
+    body: "Konuşamayacağınız bir yerdeyseniz yazarak gönderin. Yazdığınız da aynı şekilde çevrilir.",
+  },
+  {
+    target: ".room-chip",
+    tone: "room",
+    emoji: "🔗",
+    title: "Oda kodu",
+    body: "Dokununca davet bağlantısı paylaşılır. Karşı taraf bu bağlantıyla tek dokunuşta odaya katılır.",
+  },
+  {
+    target: ".room-feed",
+    tone: "feed",
+    emoji: "💬",
+    title: "Konuşma akışı",
+    body: "Çeviri büyük, orijinal küçük yazılır. Bir balona dokunursanız tekrar okutabilir, tam ekranda gösterebilir veya kopyalayabilirsiniz.",
+  },
+];
+
 export default function RoomScreen(props: RoomScreenProps) {
   const {
     roomCode, inviteLink, connected, connecting, peerLanguage,
@@ -77,6 +132,8 @@ export default function RoomScreen(props: RoomScreenProps) {
   const [textSize, setTextSize] = useState(() => Number(localStorage.getItem("dilmac-text-size") || 0));
   const feedRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
+  // İlk gelişte bir kez soruyoruz; cevabı ne olursa olsun bir daha sormuyoruz.
+  const [tourMode, setTourMode] = useState<"ask" | "run" | "off">(() => (isTourDone() ? "off" : "ask"));
 
   useEffect(() => {
     localStorage.setItem("dilmac-text-size", String(textSize));
@@ -138,6 +195,7 @@ export default function RoomScreen(props: RoomScreenProps) {
   return (
     <section className={`room size-${textSize}`} aria-label="Canlı çeviri odası">
       {audioSlot}
+      <Tour steps={tourSteps} mode={tourMode} onFinish={() => setTourMode("off")} />
 
       <header className="room-bar">
         <button className="chip room-chip" type="button" onClick={share}>
@@ -172,6 +230,9 @@ export default function RoomScreen(props: RoomScreenProps) {
           </button>
           <button type="button" className="icon" onClick={() => setShowSettings(true)} title="Yazı boyutu">
             <Type />
+          </button>
+          <button type="button" className="icon" onClick={() => setTourMode("run")} title="Düğmeleri anlat">
+            <HelpCircle />
           </button>
         </div>
       </header>
