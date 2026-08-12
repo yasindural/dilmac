@@ -1,0 +1,118 @@
+/* Ana sayfa — mobil öncelikli yeniden tasarım.
+   Tüm kurallar .home altında; eski styles.css'i güvenle geçersiz kılar. */
+
+.home{overflow-x:clip}
+
+/* ---------------- atmosfer ---------------- */
+.home-aura{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.home-aura i{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
+.home-aura i:nth-child(1){width:46vw;height:46vw;min-width:320px;min-height:320px;top:-14vw;left:-8vw;background:color-mix(in srgb,var(--cyan) 42%,transparent);animation:drift1 18s ease-in-out infinite alternate}
+.home-aura i:nth-child(2){width:38vw;height:38vw;min-width:260px;min-height:260px;top:8vw;right:-10vw;background:color-mix(in srgb,var(--violet,var(--blue)) 38%,transparent);animation:drift2 22s ease-in-out infinite alternate}
+.home-aura i:nth-child(3){width:30vw;height:30vw;min-width:220px;min-height:220px;bottom:-12vw;left:34%;background:color-mix(in srgb,var(--blue) 30%,transparent);animation:drift1 26s ease-in-out infinite alternate-reverse}
+@keyframes drift1{to{transform:translate3d(4%,6%,0) scale(1.12)}}
+@keyframes drift2{to{transform:translate3d(-6%,4%,0) scale(1.08)}}
+
+/* ---------------- hero ---------------- */
+.home .hero{position:relative;z-index:1;min-height:auto;display:grid;grid-template-columns:1fr;gap:40px;align-items:center;padding:56px clamp(18px,5vw,72px) 40px;text-align:center}
+.home .hero::after{display:none}
+.home-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px 7px 8px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 75%,transparent);backdrop-filter:blur(10px);font-size:12.5px;color:var(--muted);margin-bottom:22px}
+.home-badge b{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:var(--cyan);color:#fff;font-size:10.5px;letter-spacing:.6px}
+.home-badge svg{width:12px;height:12px}
+.home .hero h1{font:600 clamp(40px,8.5vw,86px)/1 'Newsreader',serif;letter-spacing:-2.5px;margin-bottom:20px}
+.home .hero h1 span{background:linear-gradient(115deg,var(--cyan),var(--violet,var(--blue)) 85%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.home .hero>div>p{font-size:clamp(15.5px,2.2vw,19px);line-height:1.65;color:var(--muted);max-width:56ch;margin:0 auto 30px}
+.home-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:32px}
+.home .hero .primary.large{margin:0;min-height:56px;padding:0 28px;border-radius:999px;font-size:15.5px}
+.home-ghost{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:56px;padding:0 26px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 70%,transparent);color:var(--text);font-weight:600;font-size:15.5px;transition:border-color .2s ease,transform .2s ease}
+.home-ghost:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.home .trust{justify-content:center;flex-wrap:wrap;gap:10px}
+.home .trust span{gap:8px;padding:8px 15px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 55%,transparent);font-size:12.5px}
+.home .trust svg{width:14px;height:14px}
+
+/* ---------------- dil şeridi ---------------- */
+.lang-marquee{position:relative;z-index:1;padding:22px 0;border-block:1px solid var(--line);background:color-mix(in srgb,var(--bg2) 70%,transparent);overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.lang-track{display:flex;width:max-content;gap:14px;animation:marquee 34s linear infinite}
+.lang-track span{display:inline-flex;align-items:center;gap:9px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:14px;white-space:nowrap;color:var(--muted)}
+.lang-track span i{width:6px;height:6px;border-radius:50%;background:var(--cyan);flex:none}
+@keyframes marquee{to{transform:translateX(-50%)}}
+.lang-marquee:hover .lang-track{animation-play-state:paused}
+
+/* ---------------- ortak bölüm başlığı ---------------- */
+.home section{position:relative;z-index:1}
+.home .band,.home .use-cases,.home .feature-strip,.home .privacy{padding:clamp(56px,8vw,96px) clamp(18px,5vw,72px);border-block:0;background:transparent}
+.home .band{border-top:1px solid var(--line)}
+.home .band h2,.home .use-cases h2,.home .privacy h2{font:600 clamp(30px,4.4vw,48px)/1.08 'Newsreader',serif;letter-spacing:-1.4px;margin-bottom:14px}
+
+/* ---------------- adımlar ---------------- */
+.home .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-top:36px}
+.home .steps>div{display:block;position:relative;padding:26px 22px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(165deg,var(--surface2),var(--surface));overflow:hidden}
+.home .steps>div::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent);opacity:.7}
+.home .steps b{display:inline-grid;place-items:center;width:auto;height:auto;border:0;border-radius:0;font:600 34px/1 'Newsreader',serif;color:color-mix(in srgb,var(--cyan) 70%,transparent);margin-bottom:12px}
+.home .steps h3{font-size:16px;line-height:1.45;margin:0;font-weight:600}
+
+/* ---------------- özellikler ---------------- */
+.home .feature-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;border-top:1px solid var(--line)}
+.home .feature-strip article{display:block;padding:26px 24px;border-radius:20px;border:1px solid var(--line);background:var(--surface);transition:transform .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
+.home .feature-strip article:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--cyan) 45%,var(--line))}
+.home .feature-strip article>svg{width:22px;height:22px;padding:10px;box-sizing:content-box;border-radius:14px;background:color-mix(in srgb,var(--cyan) 13%,transparent);color:var(--cyan);margin-bottom:16px}
+.home .feature-strip h3{font-size:17px;margin:0 0 8px;letter-spacing:-.2px}
+.home .feature-strip p{margin:0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+
+/* ---------------- kullanım senaryoları ---------------- */
+.home .use-cases .section-copy{max-width:56ch;margin-bottom:36px}
+.home .use-cases .section-copy span{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.home .use-cases .section-copy svg{width:14px;height:14px;color:var(--cyan)}
+.home .use-cases .section-copy p{color:var(--muted);font-size:16px;line-height:1.65;margin:0}
+.home .use-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.home .use-grid article{position:relative;padding:28px 24px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(170deg,var(--surface2),var(--surface));overflow:hidden;transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.home .use-grid article:hover{transform:translateY(-4px)}
+.home .use-grid article::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--violet,var(--blue)))}
+.home .use-grid svg{width:24px;height:24px;color:var(--cyan);margin-bottom:16px}
+.home .use-grid b{display:block;font-size:17px;margin-bottom:8px}
+.home .use-grid p{margin:0;font-size:14.5px;line-height:1.6;color:var(--muted)}
+
+/* ---------------- gizlilik ---------------- */
+.home .privacy{display:grid;grid-template-columns:1fr;gap:28px;align-items:center;text-align:center;border-top:1px solid var(--line)}
+.home .privacy .shield{width:120px;height:120px;margin:0 auto;border:1px solid color-mix(in srgb,var(--cyan) 40%,var(--line));box-shadow:inset 0 0 50px color-mix(in srgb,var(--cyan) 12%,transparent)}
+.home .privacy .shield svg{width:52px;height:52px}
+.home .privacy p{font-size:16px;max-width:60ch;margin:0 auto 18px}
+.home .privacy a{color:var(--cyan);font-weight:600}
+
+/* ---------------- kapanış ---------------- */
+.home .home-cta{position:relative;margin:0 clamp(14px,4vw,48px) clamp(48px,7vw,80px);padding:clamp(40px,7vw,72px) clamp(22px,5vw,56px);border-radius:28px;border:1px solid color-mix(in srgb,var(--cyan) 32%,var(--line));background:linear-gradient(140deg,color-mix(in srgb,var(--cyan) 15%,var(--surface)),var(--surface) 60%);display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;overflow:hidden}
+.home .home-cta::before{content:"";position:absolute;width:420px;height:420px;border-radius:50%;top:-220px;right:-120px;background:radial-gradient(closest-side,color-mix(in srgb,var(--cyan) 30%,transparent),transparent);pointer-events:none}
+.home .home-cta h2{position:relative;font:600 clamp(28px,4.4vw,46px)/1.1 'Newsreader',serif;letter-spacing:-1.3px;margin:0 0 10px}
+.home .home-cta p{position:relative;margin:0;color:var(--muted);font-size:16px;line-height:1.6;max-width:52ch}
+.home .home-cta .primary.large{position:relative;margin:0;min-height:56px;border-radius:999px;padding:0 30px}
+
+/* ---------------- canlı önizleme kartı ---------------- */
+.home .preview{max-width:520px;margin:0 auto;width:100%;border-radius:26px;padding:22px;border:1px solid color-mix(in srgb,var(--cyan) 26%,var(--line));background:linear-gradient(160deg,var(--surface2),var(--surface));box-shadow:0 40px 90px -50px #000c;text-align:left}
+.home .preview p{font-size:17px;line-height:1.45}
+.home .preview .accent{font-weight:600}
+.home .preview .wave{font-size:22px;margin:18px 0;letter-spacing:4px}
+
+@media (min-width:960px){
+  .home .hero{grid-template-columns:1.02fr .98fr;text-align:left;gap:5vw;padding-block:80px 56px}
+  .home .hero>div>p{margin-inline:0}
+  .home-actions,.home .trust{justify-content:flex-start}
+  .home .privacy{grid-template-columns:180px 1fr;text-align:left;gap:56px}
+  .home .privacy .shield{margin:0}
+  .home .privacy p{margin-inline:0}
+  .home .home-cta{flex-direction:row;justify-content:space-between;text-align:left}
+  .home .home-cta p{margin:0}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .home-aura i,.lang-track{animation:none}
+  .home .feature-strip article:hover,.home .use-grid article:hover,.home-ghost:hover{transform:none}
+}
+
+/* Eski tema katmanlarından kalan .band kutusunu sıfırla */
+.home .band{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;background:transparent}
+.home .privacy{position:relative;isolation:isolate}
+.home .privacy>*{position:relative;z-index:1}
+
+/* Güven rozetleri mobilde de yan yana aksın, tam genişliğe yayılmasın */
+.home .trust{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px}
+.home .trust span{flex:0 0 auto;width:auto}
+.home .privacy p{max-width:52ch}
