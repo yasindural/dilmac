@@ -22,6 +22,7 @@
 // yalnızca cihaza yazılır, ödeme alınmaz.
 
 import type { PlanId } from "./access";
+import { logClientError } from "./errorLogger";
 
 export type Plan = {
   id: PlanId;
@@ -88,7 +89,7 @@ export class BillingNotConfiguredError extends Error {
 
 type PaddleJS = {
   Environment: { set: (env: "sandbox" | "production") => void };
-  Initialize: (options: { token: string }) => void;
+  Initialize: (options: { token: string; eventCallback?: (event: { name?: string; type?: string; code?: string; detail?: unknown; error?: unknown }) => void }) => void;
   Checkout: { open: (options: unknown) => void };
 };
 
@@ -114,7 +115,21 @@ function loadPaddle(): Promise<PaddleJS> {
         if (!paddle) { fail("Ödeme kitaplığı yüklenemedi. Sayfayı yenileyip tekrar deneyin."); return; }
         try {
           if (paddleSandbox) paddle.Environment.set("sandbox");
-          paddle.Initialize({ token: paddleToken as string });
+          paddle.Initialize({
+            token: paddleToken as string,
+            // Checkout içinde bir şey ters giderse gerçek sebebi kayda yaz;
+            // "Something went wrong" ekranı sebebi söylemiyor.
+            eventCallback: (event) => {
+              const name = event?.name || event?.type || "";
+              if (/error|failed/i.test(String(name)) || event?.error) {
+                logClientError(
+                  String(name || "checkout_error"),
+                  "billing",
+                  JSON.stringify({ code: event?.code, detail: event?.detail, error: event?.error }).slice(0, 280),
+                );
+              }
+            },
+          });
           resolve(paddle);
         } catch {
           fail("Ödeme kitaplığı başlatılamadı. Anahtar ayarlarını kontrol edin.");
