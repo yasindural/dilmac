@@ -165,16 +165,21 @@ export default {
       const target = String(input.target || "").trim().slice(0, 40);
       if (!text || !target) return json({ error: "invalid_request" }, 400, origin);
       let response;
-      try {
-        response = await openRouter(env, {
-          model: env.OPENROUTER_MODEL || "openai/gpt-4.1-mini",
+      // Birincil model (Gemini Flash) herhangi bir sebeple başarısız olursa
+      // görüşme kesilmesin: bir kez de yedek modelle (mini) denenir.
+      const translateWith = (model) => openRouter(env, {
+          model,
+          // Gemini gibi "dusunen" modellerde akil yurutme tokenlari cikti
+          // butcesinden yenir ve ceviri yarida kesilir; ceviri icin dusunmeye
+          // gerek yok - kapatmak hem keser hem hizlandirir.
+          reasoning: { enabled: false },
           // temperature 0: canli ceviride yaraticilik istemiyoruz. Onceki
           // prompt "bir yerlinin konustugu gibi yaz" diyordu; konusma tanima
           // bozuk/kisa bir parca urettiginde model bunu duzeltmek yerine
           // kulaga dogru gelen YENI bir cumle uyduruyordu. Kullanicinin
           // "hic soylemedigim seyleri yazdi" sikayeti buydu.
           temperature: 0,
-          max_tokens: 300,
+          max_tokens: 500,
           messages: [
             {
               role: "system",
@@ -185,16 +190,34 @@ export default {
                 "2. Never answer the message. You are not a conversation partner.",
                 "3. Keep the speaker's register: everyday spoken wording, contractions, and the original tone (question stays a question).",
                 "4. If the input is garbled, meaningless, a single filler sound, or already in the target language, return it EXACTLY as received. Do not invent a plausible sentence.",
-                "5. Output the translation and nothing else - no quotes, no notes, no markdown.",
+                "5. Output the translation and nothing else - no quotes, no notes, no markdown, no arrows.",
+                "6. Give exactly ONE translation. Never list alternatives separated by slashes.",
               ].join("\n"),
             },
             { role: "user", content: text },
           ],
         }, "Dilmaç");
+      const primaryModel = env.OPENROUTER_MODEL || "google/gemini-3.7-flash";
+      const fallbackModel = env.OPENROUTER_FALLBACK_MODEL || "openai/gpt-4.1-mini";
+      try {
+        response = await translateWith(primaryModel);
+        if (!response.ok && primaryModel !== fallbackModel) {
+          await recordError(env, { area: "translation", code: `model_fallback_${response.status}`, message: `${primaryModel} basarisiz, ${fallbackModel} denenecek`, page: path });
+          response = await translateWith(fallbackModel);
+        }
       } catch (requestError) {
         const timedOut = requestError?.name === "TimeoutError" || requestError?.name === "AbortError";
-        await recordError(env, { area: "translation", code: timedOut ? "openrouter_timeout" : "openrouter_network", message: clean(requestError?.message, 200), page: path });
-        return json({ error: timedOut ? "upstream_timeout" : "upstream_network" }, 504, origin);
+        if (primaryModel !== fallbackModel) {
+          try {
+            response = await translateWith(fallbackModel);
+          } catch {
+            await recordError(env, { area: "translation", code: timedOut ? "openrouter_timeout" : "openrouter_network", message: clean(requestError?.message, 200), page: path });
+            return json({ error: timedOut ? "upstream_timeout" : "upstream_network" }, 504, origin);
+          }
+        } else {
+          await recordError(env, { area: "translation", code: timedOut ? "openrouter_timeout" : "openrouter_network", message: clean(requestError?.message, 200), page: path });
+          return json({ error: timedOut ? "upstream_timeout" : "upstream_network" }, 504, origin);
+        }
       }
       if (!response.ok) {
         await recordError(env, { area: "translation", code: `openrouter_${response.status}`, message: "OpenRouter translation request failed", page: path });
@@ -212,8 +235,9 @@ export default {
       if (!text || !userLanguage || !partnerLanguage) return json({ error: "invalid_request" }, 400, origin);
       const makeRequest = (model) => openRouter(env, {
         model,
+        reasoning: { enabled: false },
         temperature: 0.45,
-        max_tokens: 180,
+        max_tokens: 260,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: `You are a real person having a casual voice chat, not an assistant. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Sound genuinely human: everyday spoken language, contractions, natural reactions ("oh nice", "hmm"), react to what they actually said, and about every other turn ask a short natural follow-up question to keep the chat alive. Never lecture, never list, never sound like a textbook. Keep replies to one or two short spoken sentences. Return only valid JSON with exactly these string keys: userTranslation (their message translated into ${partnerLanguage}), reply (your reply in ${partnerLanguage}), replyTranslation (your reply translated into ${userLanguage}). Never add markdown.` },
@@ -222,7 +246,8 @@ export default {
       }, "Dilmaç AI Deneme");
       let response;
       try {
-        response = await makeRequest(env.OPENROUTER_MODEL || "openai/gpt-4.1-mini");
+        response = await makeRequest(env.OPENROUTER_MODEL || "google/gemini-3.7-flash");
+        if (!response.ok) response = await makeRequest(env.OPENROUTER_FALLBACK_MODEL || "openai/gpt-4.1-mini");
         if (response.status === 402) response = await makeRequest("openrouter/free");
       } catch (requestError) {
         const timedOut = requestError?.name === "TimeoutError" || requestError?.name === "AbortError";
