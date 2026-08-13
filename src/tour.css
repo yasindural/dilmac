@@ -84,3 +84,16 @@
   .tour-confetti{display:none}
   .tour-spot{transition:none}
 }
+
+/* Tur açıkken arka plana dokunuşu yutan şeffaf katman. */
+.tour-block{
+  position:fixed;
+  inset:0;
+  z-index:94;
+  pointer-events:auto;
+  touch-action:none;
+  overscroll-behavior:contain;
+}
+.tour-backdrop{touch-action:none;overscroll-behavior:contain}
+/* Gövde sabitlenince başlık sticky'liğini kaybeder; tur boyunca gizlenmesin. */
+body.tour-open{overscroll-behavior:none}

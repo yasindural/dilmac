@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Menu,
   X,
@@ -116,7 +116,19 @@ function Layout({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang, setLang, t } = useI18n();
+  // Mobil menü, hangi öğeye basılırsa basılsın adres değişince kapanmalı.
+  // Tek tek onClick eklemek yerine rotayı dinliyoruz; böylece "Canlı çeviriyi
+  // başlat" gibi navigate() kullanan düğmelerde de menü açık kalmıyor.
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+  // Menü açıkken arka plan kaymasın.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
   // Sayfa kaydırıldığında başlık camlaşır; sınıfı gövdeye yazıyoruz ki
   // her sayfa aynı davranışı ücretsiz alsın.
   useEffect(() => {
@@ -189,11 +201,11 @@ function Layout({
             );
           })()}
           {user ? (
-            <button className="ghost auth-button" onClick={() => logout()}><LogOut />{t("auth.logout")}</button>
+            <button className="ghost auth-button" onClick={() => { setOpen(false); void logout(); }}><LogOut />{t("auth.logout")}</button>
           ) : (
             <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />{t("auth.signup")}</Link>
           )}
-          <button className="primary" onClick={() => navigate("/uygulama")}>
+          <button className="primary" onClick={() => { setOpen(false); navigate("/uygulama"); }}>
             {t("cta.start")}
             <ArrowRight />
           </button>

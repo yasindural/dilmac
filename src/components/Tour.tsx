@@ -68,23 +68,55 @@ export default function Tour({ steps, mode, onFinish }: Props) {
   useLayoutEffect(() => {
     if (!running || done) return;
     sync();
+    const raf = requestAnimationFrame(sync);
     const timer = window.setTimeout(sync, 120);
     window.addEventListener("resize", sync);
     window.addEventListener("scroll", sync, true);
     return () => {
+      cancelAnimationFrame(raf);
       window.clearTimeout(timer);
       window.removeEventListener("resize", sync);
       window.removeEventListener("scroll", sync, true);
     };
   }, [running, done, sync]);
 
-  // Tur açıkken sayfanın arkası kaymasın.
+  // Tur açıkken sayfa gerçekten kilitlenmeli. iOS Safari'de
+  // "body { overflow: hidden }" dokunmatik kaydırmayı durdurmuyor ve düzen
+  // viewport'u değiştiği için sayfa büyümüş gibi görünüyordu. Doğru yöntem
+  // gövdeyi position:fixed ile sabitlemek. Ayrıca tur boyunca sayfayı en
+  // üste alıyoruz; yoksa kullanıcı aşağıdayken hedef düğmeler ekran dışında
+  // kalıp spot ışığı boşluğa düşüyordu.
+  const locked = asking || running || done;
   useEffect(() => {
-    if (!asking && !running && !done) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
-  }, [asking, running, done]);
+    if (!locked) return;
+    const body = document.body;
+    const before = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.style.position = "fixed";
+    body.style.top = "0px";
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    body.classList.add("tour-open");
+    return () => {
+      body.style.position = before.position;
+      body.style.top = before.top;
+      body.style.left = before.left;
+      body.style.right = before.right;
+      body.style.width = before.width;
+      body.style.overflow = before.overflow;
+      body.classList.remove("tour-open");
+      // Tur bitince kullanıcı görüşme ekranının başında kalsın.
+      window.scrollTo(0, 0);
+    };
+  }, [locked]);
 
   const close = useCallback(() => {
     markTourDone();
@@ -179,6 +211,8 @@ export default function Tour({ steps, mode, onFinish }: Props) {
 
   return (
     <div className="tour-layer" role="dialog" aria-modal="true" aria-label={step.title}>
+      {/* Arka plana dokunuşları yutar; tur sırasında yanlış düğmeye basılmasın. */}
+      <div className="tour-block" aria-hidden="true" />
       <div
         className={`tour-spot tone-${step.tone}`}
         style={{ top: spot.top, left: spot.left, width: spot.width, height: spot.height }}

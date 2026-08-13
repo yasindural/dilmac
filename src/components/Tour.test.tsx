@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Tour, { isTourDone, resetTour, type TourStep } from "./Tour";
 
@@ -15,7 +15,9 @@ describe("öğretici tur", () => {
       top: 100, left: 40, width: 120, height: 48, bottom: 148, right: 160, x: 40, y: 100, toJSON: () => ({}),
     })) as never;
   });
-  afterEach(() => { resetTour(); });
+  // vitest globals kapalı olduğu için RTL otomatik temizlik yapmıyor;
+  // önceki testin bileşeni asılı kalırsa gövde kilidi de asılı kalıyor.
+  afterEach(() => { cleanup(); resetTour(); document.body.removeAttribute("style"); });
 
   it("ilk gelişte önce izin ister", () => {
     render(<Tour steps={steps} mode="ask" onFinish={() => {}} />);
@@ -40,5 +42,24 @@ describe("öğretici tur", () => {
     expect(screen.getByRole("heading", { name: /diller/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Bitir" }));
     expect(screen.getByRole("heading", { name: /görev tamamlandı/i })).toBeInTheDocument();
+  });
+
+  // iOS'ta overflow:hidden dokunmatik kaydırmayı durdurmuyor; gövde
+  // position:fixed ile sabitlenmeli ve tur bitince eski haline dönmeli.
+  it("tur açıkken sayfayı gerçekten kilitler, kapanınca serbest bırakır", () => {
+    const onFinish = vi.fn();
+    render(<Tour steps={steps} mode="ask" onFinish={onFinish} />);
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.top).toBe("0px");
+    expect(document.body.classList.contains("tour-open")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: /gerek yok/i }));
+    expect(document.body.style.position).toBe("");
+    expect(document.body.classList.contains("tour-open")).toBe(false);
+  });
+
+  it("adım kartının arkasına dokunuşu yutan katman koyar", () => {
+    const { container } = render(<Tour steps={steps} mode="run" onFinish={() => {}} />);
+    expect(container.querySelector(".tour-block")).not.toBeNull();
   });
 });

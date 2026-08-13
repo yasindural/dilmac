@@ -1072,3 +1072,6 @@ header .member-chip > svg { display: none; }
   .member-chip .chip-text { display: flex !important; }
   .member-chip .chip-text strong { max-width: none; }
 }
+
+/* Tur katman sırası — tour.css ile aynı, premium katmanı ezmesin diye tekrar. */
+.tour-block { z-index: 94; }
