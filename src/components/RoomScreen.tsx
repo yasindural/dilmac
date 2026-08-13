@@ -6,6 +6,8 @@ import {
 import type { QueueItem } from "../lib/messageQueue";
 import type { RoomMessage } from "../hooks/useRoom";
 import Tour, { isTourDone, type TourStep } from "./Tour";
+import LanguagePicker from "./LanguagePicker";
+import { languageByName, type AppLanguage } from "../lib/languages";
 import "../room.css";
 
 export type FeedEntry = {
@@ -27,7 +29,7 @@ export type RoomScreenProps = {
   peerLanguage: string | null;
   localMessages: QueueItem[];
   remoteMessages: RoomMessage[];
-  languages: readonly (readonly string[])[];
+  languages: readonly AppLanguage[];
   sourceCode: string;
   onSourceChange: (code: string) => void;
   targetName: string;
@@ -255,23 +257,22 @@ export default function RoomScreen(props: RoomScreenProps) {
       {/* Diller her zaman görünür ve doğrudan dokunulabilir. Ayarlar
           menüsünün içine saklandığında kullanıcı yanlış dille konuşuyordu. */}
       <div className="langbar">
-        <label className="langbar-side">
-          <small>SİZ</small>
-          <b>{languages.find(([code]) => code === sourceCode)?.[1] || sourceCode}</b>
-          <select value={sourceCode} onChange={(event) => onSourceChange(event.target.value)} aria-label="Konuştuğunuz dil">
-            {languages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-          </select>
-        </label>
+        <LanguagePicker
+          value={sourceCode}
+          onChange={onSourceChange}
+          label="SİZ"
+        />
         <span className="langbar-swap" aria-hidden="true"><ArrowLeftRight /></span>
-        <label className={`langbar-side ${targetLocked ? "locked" : ""}`}>
-          <small>{targetLocked ? "KARŞI TARAF" : "ÇEVİRİ"}</small>
-          <b>{targetName}</b>
-          {!targetLocked && (
-            <select value={targetName} onChange={(event) => onTargetChange(event.target.value)} aria-label="Çeviri dili">
-              {languages.map(([code, name]) => <option key={code} value={name}>{name}</option>)}
-            </select>
-          )}
-        </label>
+        <LanguagePicker
+          value={languageByName(targetName)?.code || "en-US"}
+          onChange={(code) => {
+            const language = languages.find((candidate) => candidate.code === code);
+            if (language) onTargetChange(language.api);
+          }}
+          label={targetLocked ? "KARŞI TARAF" : "ÇEVİRİ"}
+          disabled={targetLocked}
+          align="end"
+        />
       </div>
 
       <div className="room-feed" ref={feedRef} onScroll={onFeedScroll}>
@@ -299,7 +300,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             onClick={() => setOpenEntry(entry)}
           >
             {(i === 0 || feed[i - 1].mine !== entry.mine) && (
-              <span className="turn-who">{entry.mine ? "Siz" : peerLanguage ? `Karşı taraf · ${entry.originalLanguage}` : "Karşı taraf"}</span>
+              <span className="turn-who">{entry.mine ? "Siz" : peerLanguage ? `Karşı taraf · ${languageByName(entry.originalLanguage)?.name || entry.originalLanguage}` : "Karşı taraf"}</span>
             )}
             {entry.mine ? (
               <>

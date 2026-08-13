@@ -6,17 +6,16 @@ import { speakText, unlockSpeechOutput } from "../lib/speechOutput";
 import { logClientError } from "../lib/errorLogger";
 import "../room.css";
 import "../ai-practice.css";
+import LanguagePicker from "./LanguagePicker";
+import { detectConversationLanguage, languageByCode } from "../lib/languages";
 
-const practiceLanguages = [
-  ["tr-TR", "Türkçe"], ["en-US", "İngilizce"], ["de-DE", "Almanca"],
-  ["fr-FR", "Fransızca"], ["es-ES", "İspanyolca"], ["it-IT", "İtalyanca"], ["ar-SA", "Arapça"],
-];
+
 
 const starters = ["Merhaba, bugün nasılsın?", "Bana kendinden biraz bahseder misin?", "Yarın için bir plan yapalım."];
 
 export default function AiPractice({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
-  const [userLanguage, setUserLanguage] = useState("tr-TR");
-  const [aiLanguage, setAiLanguage] = useState("en-US");
+  const [userLanguage, setUserLanguage] = useState(() => detectConversationLanguage().code);
+  const [aiLanguage, setAiLanguage] = useState(() => detectConversationLanguage().code.startsWith("en") ? "tr-TR" : "en-US");
   const [draft, setDraft] = useState("");
   const [turns, setTurns] = useState<PracticeHistoryTurn[]>([]);
   const [busy, setBusy] = useState(false);
@@ -32,9 +31,10 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   const restartMobileSpeechRef = useRef(false);
   const speechToggleRef = useRef<() => void>(() => undefined);
 
-  const languageName = useCallback((code: string) => practiceLanguages.find(([value]) => value === code)?.[1] || code, []);
-  const userLanguageName = useMemo(() => languageName(userLanguage), [languageName, userLanguage]);
-  const aiLanguageName = useMemo(() => languageName(aiLanguage), [aiLanguage, languageName]);
+  const userLanguageName = useMemo(() => languageByCode(userLanguage)?.name || userLanguage, [userLanguage]);
+  const aiLanguageName = useMemo(() => languageByCode(aiLanguage)?.name || aiLanguage, [aiLanguage]);
+  const userLanguageApi = useMemo(() => languageByCode(userLanguage)?.api || userLanguage, [userLanguage]);
+  const aiLanguageApi = useMemo(() => languageByCode(aiLanguage)?.api || aiLanguage, [aiLanguage]);
 
   const speak = useCallback((text: string) => {
     speakText(text, aiLanguage, {
@@ -53,8 +53,8 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
     try {
       const result = await practiceWithAi({
         text,
-        userLanguage: userLanguageName,
-        partnerLanguage: aiLanguageName,
+        userLanguage: userLanguageApi,
+        partnerLanguage: aiLanguageApi,
         history: turnsRef.current,
       });
       setTurns((current) => {
@@ -73,7 +73,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
         window.setTimeout(() => speechToggleRef.current(), 500);
       }
     }
-  }, [aiLanguageName, autoSpeak, speak, userLanguageName]);
+  }, [aiLanguageApi, autoSpeak, speak, userLanguageApi]);
 
   const enqueueSpeech = useCallback((rawText: string) => {
     const sentences = rawText.match(/[^.!?…。！？]+[.!?…。！？]?/g)?.map((part) => part.trim()).filter(Boolean) || [];
@@ -177,21 +177,18 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
       </header>
 
       <div className="langbar">
-        <label className="langbar-side">
-          <small>SİZ</small>
-          <b>{userLanguageName}</b>
-          <select value={userLanguage} onChange={(event) => { setUserLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }} aria-label="Sizin diliniz">
-            {practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-          </select>
-        </label>
+        <LanguagePicker
+          value={userLanguage}
+          onChange={(code) => { setUserLanguage(code); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}
+          label="SİZ"
+        />
         <button className="langbar-swap swap-button" type="button" onClick={swapLanguages} aria-label="Dilleri değiştir"><ArrowLeftRight /></button>
-        <label className="langbar-side">
-          <small>AI</small>
-          <b>{aiLanguageName}</b>
-          <select value={aiLanguage} onChange={(event) => { setAiLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }} aria-label="AI dili">
-            {practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-          </select>
-        </label>
+        <LanguagePicker
+          value={aiLanguage}
+          onChange={(code) => { setAiLanguage(code); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}
+          label="AI"
+          align="end"
+        />
       </div>
 
       <div className="room-feed" ref={feedRef} aria-live="polite">

@@ -55,17 +55,10 @@ import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
 import HeroScene from "./components/HeroScene";
 import BrandMark from "./components/BrandMark";
+import { conversationLanguages, detectConversationLanguage, languageByCode, languageByName, speechCodeFor } from "./lib/languages";
 // Premium katman en son yüklenir; tüm sayfa stillerinin üstünde kalması gerekir.
 import "./premium.css";
-const langs = [
-  ["tr-TR", "Türkçe"],
-  ["en-US", "İngilizce"],
-  ["de-DE", "Almanca"],
-  ["fr-FR", "Fransızca"],
-  ["es-ES", "İspanyolca"],
-  ["it-IT", "İtalyanca"],
-  ["ar-SA", "Arapça"],
-];
+
 type PlanId = "free" | "pro" | "business";
 type MemberProfile = {
   firstName: string;
@@ -217,32 +210,32 @@ function Layout({
         <div className="foot-grid">
           <div className="foot-brand">
             <Brand />
-            <p>İki kişi kendi dilinde konuşur, Dilmaç aradaki mesafeyi kapatır. Tarayıcıda çalışır, kurulum istemez.</p>
+            <p>{t("foot.blurb")}</p>
           </div>
           <div className="foot-col">
-            <h4>Ürün</h4>
-            <Link to="/uygulama">Canlı çeviri</Link>
-            <Link to="/deneme">AI ile pratik</Link>
-            <Link to="/ozellikler">Özellikler</Link>
-            <Link to="/abonelik">Abonelik</Link>
+            <h4>{t("foot.product")}</h4>
+            <Link to="/uygulama">{t("foot.live")}</Link>
+            <Link to="/deneme">{t("foot.ai")}</Link>
+            <Link to="/ozellikler">{t("nav.features")}</Link>
+            <Link to="/abonelik">{t("nav.pricing")}</Link>
           </div>
           <div className="foot-col">
-            <h4>Kaynaklar</h4>
-            <Link to="/nasil-calisir">Nasıl çalışır</Link>
-            <Link to="/hakkinda">Hakkında</Link>
-            <Link to="/kayit">Kayıt ol</Link>
-            <Link to="/profil">Hesabım</Link>
+            <h4>{t("foot.resources")}</h4>
+            <Link to="/nasil-calisir">{t("nav.how")}</Link>
+            <Link to="/hakkinda">{t("nav.about")}</Link>
+            <Link to="/kayit">{t("auth.signup")}</Link>
+            <Link to="/profil">{t("foot.account")}</Link>
           </div>
           <div className="foot-col">
-            <h4>Yasal</h4>
+            <h4>{t("foot.legal")}</h4>
             <Link to="/gizlilik">{t("footer.privacy")}</Link>
             <Link to="/kullanim-sartlari">{t("footer.terms")}</Link>
-            <Link to="/iade-politikasi">İade politikası</Link>
+            <Link to="/iade-politikasi">{t("foot.refund")}</Link>
           </div>
         </div>
         <div className="foot-bottom">
           <span>© {new Date().getFullYear()} Dilmaç</span>
-          <em>Dil farklı. Konuşma aynı.</em>
+          <em>{t("foot.tagline")}</em>
         </div>
       </footer>
     </>
@@ -576,15 +569,13 @@ function useReveal() {
 function Home() {
   useReveal();
   const { t } = useI18n();
-  const marquee = [
-    "Türkçe", "English", "Deutsch", "Français", "Español", "Italiano", "العربية",
-  ];
+  const marquee = conversationLanguages.map((language) => `${language.flag} ${language.name}`);
   return (
     <div className="home">
       {/* ---------- HERO ---------- */}
       <section className="hero">
         <div>
-          <span className="eyebrow"><Sparkles /> Canlı konuşma çevirisi</span>
+          <span className="eyebrow"><Sparkles /> {t("hero.eyebrow")}</span>
           <h1>
             {t("hero.title1")}
             <br />
@@ -598,14 +589,14 @@ function Home() {
             </Link>
             <Link className="ghost" to="/deneme">
               <Bot />
-              AI ile ücretsiz dene
+              {t("hero.tryai")}
             </Link>
           </div>
           <div className="trust">
             <span><Radio />{t("trust.1")}</span>
             <span><ShieldCheck />{t("trust.2")}</span>
             <span><Users />{t("trust.3")}</span>
-            <span><WifiOff />Kurulum yok</span>
+            <span><WifiOff />{t("trust.4")}</span>
           </div>
         </div>
         <HeroScene />
@@ -613,7 +604,7 @@ function Home() {
 
       {/* ---------- DİLLER ŞERİDİ ---------- */}
       <section className="langs-band reveal">
-        <h2>7 dilde çift yönlü konuşma — herkes kendi dilinde kalır</h2>
+        <h2>{t("band.title")}</h2>
         <div className="langs-track">
           {[...marquee, ...marquee].map((name, index) => (
             <span key={`${name}-${index}`}><i />{name}</span>
@@ -624,9 +615,9 @@ function Home() {
       {/* ---------- NASIL ÇALIŞIR ---------- */}
       <section className="band reveal">
         <div className="section-head">
-          <span className="eyebrow"><Zap /> Dört adım</span>
+          <span className="eyebrow"><Zap /> {t("steps.eyebrow")}</span>
           <h2>{t("steps.title")}</h2>
-          <p>Hesap açmadan da deneyebilirsiniz. Odayı açın, bağlantıyı paylaşın, konuşmaya başlayın.</p>
+          <p>{t("steps.sub")}</p>
         </div>
         <div className="steps">
           {[
@@ -646,15 +637,15 @@ function Home() {
       {/* ---------- BENTO ÖZELLİKLER ---------- */}
       <section className="reveal">
         <div className="section-head">
-          <span className="eyebrow"><Star /> Neden Dilmaç</span>
-          <h2>Konuşmanın hızında çeviri.</h2>
-          <p>Yazışma değil, konuşma için tasarlandı. Ses, metin ve çeviri aynı ekranda akar.</p>
+          <span className="eyebrow"><Star /> {t("why.kicker")}</span>
+          <h2>{t("why.title")}</h2>
+          <p>{t("why.sub")}</p>
         </div>
         <div className="bento">
           <article className="wide">
             <Gauge className="bento-ico" />
             <h3>{t("f1.t")}</h3>
-            <p>Siz konuşurken cümle tamamlanır tamamlanmaz çeviri karşı tarafa düşer. Bekleme, tuşa basma, sıra bekleme yok.</p>
+            <p>{t("b1.p")}</p>
             <div className="bento-demo">
               <div className="row"><b>Türkçe</b> Yarınki toplantı saat kaçta?</div>
               <div className="bar"><i /></div>
@@ -663,28 +654,28 @@ function Home() {
           </article>
           <article className="tall">
             <Headphones className="bento-ico" />
-            <h3>Orijinal ses + çeviri</h3>
-            <p>Karşınızdakinin gerçek sesini duyarsınız; ton ve duygu kaybolmaz. Çeviri aynı anda hem yazıyla hem sesle gelir.</p>
+            <h3>{t("b2.t")}</h3>
+            <p>{t("b2.p")}</p>
           </article>
           <article>
             <MessagesSquare className="bento-ico" />
             <h3>{t("f2.t")}</h3>
-            <p>Her iki taraf da kendi dilini seçer. Çeviri iki yönlü, tek ekranda akan tek bir sohbet olarak görünür.</p>
+            <p>{t("b3.p")}</p>
           </article>
           <article>
             <Bot className="bento-ico" />
-            <h3>AI ile pratik</h3>
-            <p>Karşınızda kimse yokken yapay zekâ ile sesli pratik yapın. Aynı ekran, aynı deneyim.</p>
+            <h3>{t("b4.t")}</h3>
+            <p>{t("b4.p")}</p>
           </article>
           <article className="wide">
             <Lock className="bento-ico" />
-            <h3>Görüşmeler saklanmaz</h3>
-            <p>Ses ve metin iki tarayıcı arasında doğrudan taşınır; sunucuda görüşme kaydı tutulmaz. Mikrofon yalnızca siz açtığınızda çalışır.</p>
+            <h3>{t("b5.t")}</h3>
+            <p>{t("b5.p")}</p>
           </article>
           <article>
             <Languages className="bento-ico" />
-            <h3>7 dil, tek arayüz</h3>
-            <p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça arasında anında geçiş.</p>
+            <h3>{t("b6.t")}</h3>
+            <p>{t("b6.p")}</p>
           </article>
         </div>
       </section>
@@ -700,7 +691,7 @@ function Home() {
           <article><Plane /><b>{t("uc1.t")}</b><p>{t("uc1.p")}</p></article>
           <article><Briefcase /><b>{t("uc2.t")}</b><p>{t("uc2.p")}</p></article>
           <article><GraduationCap /><b>{t("uc3.t")}</b><p>{t("uc3.p")}</p></article>
-          <article><Heart /><b>Ailede</b><p>Farklı ülkelerdeki yakınlarınızla arada tercüman olmadan konuşun.</p></article>
+          <article><Heart /><b>{t("uc4.t")}</b><p>{t("uc4.p")}</p></article>
         </div>
       </section>
 
@@ -713,11 +704,11 @@ function Home() {
             <Link className="ghost" to="/gizlilik">{t("privacy.link")} <ArrowRight /></Link>
           </div>
           <div className="trust-list">
-            <span><ShieldCheck />Görüşme metni ve sesi sunucuda saklanmaz.</span>
-            <span><ShieldCheck />Mikrofon yalnızca siz başlattığınızda açılır.</span>
-            <span><ShieldCheck />Ses bağlantısı iki tarayıcı arasında doğrudan kurulur.</span>
-            <span><ShieldCheck />Ödemeler yetkili satıcı üzerinden alınır; kart bilgisi bize ulaşmaz.</span>
-            <span><ShieldCheck />Tüm ücretli planlarda 30 gün koşulsuz iade.</span>
+            <span><ShieldCheck />{t("tl.1")}</span>
+            <span><ShieldCheck />{t("tl.2")}</span>
+            <span><ShieldCheck />{t("tl.3")}</span>
+            <span><ShieldCheck />{t("tl.4")}</span>
+            <span><ShieldCheck />{t("tl.5")}</span>
           </div>
         </div>
       </section>
@@ -782,8 +773,23 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
 function Translator({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
   const navigate = useNavigate();
   const { roomId } = useParams();
-  const [source, setSource] = useState("tr-TR"),
-    [target, setTarget] = useState("İngilizce"),
+  // Kaynak dil ilk girişte tarayıcının dilinden gelir; kullanıcının seçimi
+  // cihazda saklanır. Hedef dil karşı taraf odaya girince onunkine kilitlenir.
+  const [source, setSource] = useState(() => {
+    try {
+      const saved = localStorage.getItem("dilmac-source-lang");
+      if (saved && languageByCode(saved)) return saved;
+    } catch { /* gizli mod */ }
+    return detectConversationLanguage().code;
+  }),
+    [target, setTarget] = useState(() => {
+      const mine = (() => {
+        try { return localStorage.getItem("dilmac-source-lang"); } catch { return null; }
+      })() || detectConversationLanguage().code;
+      // Varsayılan hedef: kullanıcının dili İngilizce değilse İngilizce,
+      // İngilizceyse Türkçe — kendi diline çeviri anlamsız.
+      return mine.startsWith("en") ? "Turkish" : "English";
+    }),
     [localMessages, setLocalMessages] = useState<QueueItem[]>([]),
     [remoteMessages, setRemoteMessages] = useState<RoomMessage[]>([]),
     [room, setRoom] = useState(""),
@@ -825,7 +831,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
     setNotice("Karşı taraftan yeni çeviri geldi.");
     if (!autoSpeakRef.current) return;
-    const code = langs.find(([, name]) => name === message.targetLanguage)?.[0] || "tr-TR";
+    const code = speechCodeFor(message.targetLanguage);
     // Seslendirme sırasında kendi mikrofonumuz açık kalırsa hoparlörden çıkan ses
     // tekrar yazıya dökülüp karşı tarafa geri gönderilir (yankı döngüsü).
     // Bu yüzden dinlemeyi duraklatıp seslendirme bitince geri açıyoruz.
@@ -852,8 +858,9 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
-    setTarget(language.name);
-    setNotice(`Karşı tarafın dili ${language.name}; çeviri dili otomatik güncellendi.`);
+    const known = languageByCode(language.code) || languageByName(language.name);
+    setTarget(known?.api || language.name);
+    setNotice(`Karşı tarafın dili ${known?.name || language.name}; çeviri dili otomatik güncellendi.`);
   }, []);
   const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
   const roomConnection = useRoom(receiveMessage, markDelivered, receiveRemoteLanguage);
@@ -887,15 +894,16 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   }, [roomConnection.voiceConnected]);
   useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
   useEffect(() => {
-    const language = langs.find(([code]) => code === source);
-    if (language) sendLanguage({ code: language[0], name: language[1] });
+    const language = languageByCode(source);
+    if (language) sendLanguage({ code: language.code, name: language.api });
   }, [sendLanguage, source]);
   const changeSourceLanguage = (code: string) => {
+    try { localStorage.setItem("dilmac-source-lang", code); } catch { /* yoksay */ }
     setSource(code);
-    const language = langs.find(([candidate]) => candidate === code);
+    const language = languageByCode(code);
     if (language) {
-      sendLanguage({ code: language[0], name: language[1] });
-      setNotice(`Konuşma diliniz ${language[1]} olarak güncellendi.`);
+      sendLanguage({ code: language.code, name: language.api });
+      setNotice(`Konuşma diliniz ${language.name} olarak güncellendi.`);
     }
   };
   const connectRoom = roomConnection.join;
@@ -956,11 +964,11 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       }
       // Gerçek eş zamanlı konuşma: kaybetme, normal gönder.
     }
-    queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
+    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
   enqueueRawRef.current = (text: string) => {
-    queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
+    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
   };
   // Karşı taraf susunca: mesajı geldiyse bekleyen metin yankıdır, sil.
   // Mesaj gelmediyse kullanıcının gerçek cümlesidir, gönder.
@@ -1065,8 +1073,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     navigate(`/oda/${room.toUpperCase()}`);
   };
   const speak = (text: string, languageName?: string) => {
-    const code = langs.find(([, name]) => name === languageName)?.[0] || "tr-TR";
-    speakText(text, code);
+    speakText(text, speechCodeFor(languageName || ""));
   };
   const submitDraft = (event: React.FormEvent) => {
     event.preventDefault();
@@ -1129,7 +1136,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       peerLanguage={remoteLanguage?.name || null}
       localMessages={localMessages}
       remoteMessages={remoteMessages}
-      languages={langs}
+      languages={conversationLanguages}
       sourceCode={source}
       onSourceChange={changeSourceLanguage}
       targetName={target}

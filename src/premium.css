@@ -1088,3 +1088,124 @@ header .member-chip > svg { display: none; }
 @supports (height: 100svh) {
   .room { height: calc(100svh - var(--header-h)); }
 }
+
+/* ================= DİL SEÇİCİ ================= */
+.lp-button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(165deg, var(--surface2), var(--surface));
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+.lp-button:not(.locked):hover {
+  border-color: color-mix(in srgb, var(--cyan) 45%, var(--line));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.lp-button.locked { cursor: default; opacity: .92; }
+.lp-button small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--muted);
+}
+.lp-value { display: flex; align-items: center; gap: 8px; min-width: 0; width: 100%; }
+.lp-value i { font-style: normal; font-size: 17px; line-height: 1; flex: none; }
+.lp-value b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-value svg { width: 14px; height: 14px; color: var(--muted); margin-left: auto; flex: none; }
+
+.lp-layer { position: fixed; inset: 0; z-index: 80; display: grid; place-items: end center; }
+.lp-backdrop { position: absolute; inset: 0; background: #000a; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: lp-fade .16s ease; }
+@keyframes lp-fade { from { opacity: 0; } }
+.lp-panel {
+  position: relative;
+  width: min(440px, 100%);
+  max-height: min(72vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: lp-up .22s var(--ease);
+  overflow: hidden;
+}
+@keyframes lp-up { from { transform: translateY(26px); opacity: 0; } }
+@media (min-width: 720px) {
+  .lp-layer { place-items: center; }
+  .lp-panel { border-radius: 22px; }
+}
+.lp-head { display: flex; gap: 8px; padding: 14px 14px 10px; border-bottom: 1px solid var(--line-soft); }
+.lp-search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 13px;
+  height: 46px;
+  border-radius: 13px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+}
+.lp-search:focus-within { border-color: var(--cyan); }
+.lp-search svg { width: 16px; height: 16px; color: var(--muted); flex: none; }
+.lp-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+}
+.lp-close {
+  width: 46px; min-width: 46px; height: 46px; min-height: 0; padding: 0;
+  border-radius: 13px; border: 1px solid var(--line); background: transparent; color: var(--muted);
+}
+.lp-close svg { width: 16px; height: 16px; }
+.lp-list { overflow-y: auto; padding: 8px; display: grid; gap: 2px; overscroll-behavior: contain; }
+.lp-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition: background var(--t-fast);
+}
+.lp-item:hover { background: var(--surface2); }
+.lp-item.on { background: color-mix(in srgb, var(--violet) 13%, transparent); }
+.lp-item i { font-style: normal; font-size: 20px; flex: none; }
+.lp-item span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lp-item b { font-size: 15px; font-weight: 600; }
+.lp-item small { font-size: 11.5px; color: var(--muted); }
+.lp-item svg { width: 17px; height: 17px; color: var(--violet-soft, var(--violet)); margin-left: auto; flex: none; }
+.lp-empty { margin: 18px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* langbar içinde iki seçici yan yana */
+.langbar { gap: 10px; }
+.langbar .lp-button { max-width: none; }
+@media (prefers-reduced-motion: reduce) { .lp-panel, .lp-backdrop { animation: none; } }
