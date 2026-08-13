@@ -33,7 +33,19 @@ export async function translate(text: string, target: string, _legacyKey?: strin
       throw new Error("Çeviri servisine ulaşılamadı.");
     }
     const payload = await response.json();
-    return { text: payload.text || "", demo: false };
+    const translated = payload.text || "";
+    // Uydurma tespiti: çeviri, kaynağın birkaç katı uzunlukta çıkıyorsa model
+    // muhtemelen çevirmek yerine cümle uydurmuştur. İçerik YAZILMAZ — sadece
+    // uzunluklar; görüşme gizliliği bozulmadan sorunu ölçebilelim diye.
+    if (translated.length > text.length * 3 + 40) {
+      logClientError(
+        "translation_bloat",
+        "translation",
+        `kaynak=${text.length} ceviri=${translated.length} hedef=${target}`,
+        "warning",
+      );
+    }
+    return { text: translated, demo: false };
   } catch (requestError) {
     const timedOut = requestError instanceof Error && requestError.name === "AbortError";
     logClientError(timedOut ? "request_timeout" : "network_error", "translation", requestError instanceof Error ? requestError.message : requestError);

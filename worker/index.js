@@ -168,10 +168,26 @@ export default {
       try {
         response = await openRouter(env, {
           model: env.OPENROUTER_MODEL || "openai/gpt-4.1-mini",
-          temperature: 0.2,
-          max_tokens: 500,
+          // temperature 0: canli ceviride yaraticilik istemiyoruz. Onceki
+          // prompt "bir yerlinin konustugu gibi yaz" diyordu; konusma tanima
+          // bozuk/kisa bir parca urettiginde model bunu duzeltmek yerine
+          // kulaga dogru gelen YENI bir cumle uyduruyordu. Kullanicinin
+          // "hic soylemedigim seyleri yazdi" sikayeti buydu.
+          temperature: 0,
+          max_tokens: 300,
           messages: [
-            { role: "system", content: `You translate live spoken conversation into ${target}. Write the way a native speaker actually TALKS, not formal written prose: use contractions and everyday wording, keep the speaker's tone (question, joke, urgency), and never add explanations. Return only the translation.` },
+            {
+              role: "system",
+              content: [
+                `You are a translation engine. Translate the user message into ${target}.`,
+                "Rules you must never break:",
+                "1. Translate ONLY what is written. Never add, remove, explain, summarise or continue the thought.",
+                "2. Never answer the message. You are not a conversation partner.",
+                "3. Keep the speaker's register: everyday spoken wording, contractions, and the original tone (question stays a question).",
+                "4. If the input is garbled, meaningless, a single filler sound, or already in the target language, return it EXACTLY as received. Do not invent a plausible sentence.",
+                "5. Output the translation and nothing else - no quotes, no notes, no markdown.",
+              ].join("\n"),
+            },
             { role: "user", content: text },
           ],
         }, "Dilmaç");
