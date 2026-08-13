@@ -167,12 +167,27 @@ function Layout({
           >
             {dark ? <Sun /> : <Moon />}
           </button>
-          {user && (
-            <Link className="member-chip" to="/profil" onClick={() => setOpen(false)}>
-              <UserCircle />
-              <span><small>{planCatalog.find((p) => p.id === profile?.plan)?.name || "Üye"}</small><strong>{profile?.firstName || user.displayName || "Profilim"}</strong></span>
-            </Link>
-          )}
+          {user && (() => {
+            const shownName = profile?.firstName || user.displayName || "Profilim";
+            const plan = profile?.plan || "free";
+            const planName = planCatalog.find((p) => p.id === plan)?.name || "Üye";
+            // Avatar: Google fotoğrafı varsa o, yoksa baş harf. Ücretli planlarda
+            // halka marka gradyanına döner — rozet aramadan planı gösterir.
+            return (
+              <Link className={`member-chip plan-${plan}`} to="/profil" onClick={() => setOpen(false)} title={`${planName} · ${shownName}`}>
+                <span className="chip-avatar">
+                  {user.photoURL
+                    ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+                    : <b>{shownName.trim().charAt(0).toUpperCase()}</b>}
+                  {plan !== "free" && <i className="chip-crown" aria-hidden="true"><Crown /></i>}
+                </span>
+                <span className="chip-text">
+                  <small>{planName}</small>
+                  <strong>{shownName}</strong>
+                </span>
+              </Link>
+            );
+          })()}
           {user ? (
             <button className="ghost auth-button" onClick={() => logout()}><LogOut />{t("auth.logout")}</button>
           ) : (

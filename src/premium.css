@@ -953,3 +953,122 @@ html, body { overflow-x: clip; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* Yazı tipi yüklenirken satır yüksekliği sabit kalsın (FOUT kaymasını azaltır). */
 body { line-height: 1.55; }
+
+/* ================= ÜYE ROZETİ (başlıktaki profil) ================= */
+header .member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px 5px 5px !important;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 62%, transparent) !important;
+  color: var(--text);
+  transition: border-color var(--t), transform var(--t), background var(--t);
+}
+header .member-chip:hover {
+  border-color: color-mix(in srgb, var(--violet) 50%, var(--line));
+  background: var(--surface2) !important;
+  transform: translateY(-1px);
+}
+header .member-chip > svg { display: none; }
+
+/* avatar */
+.chip-avatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, var(--surface3), var(--surface2));
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: visible;
+}
+.chip-avatar img {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.chip-avatar b {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  letter-spacing: -.2px;
+}
+/* ücretli planlarda avatarın çevresi marka gradyanı olur */
+.member-chip.plan-pro .chip-avatar {
+  background: var(--brand-gradient);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--violet) 28%, transparent),
+              0 6px 16px -8px color-mix(in srgb, var(--violet) 80%, transparent);
+}
+.member-chip.plan-business .chip-avatar {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cyan) 28%, transparent),
+              0 6px 16px -8px color-mix(in srgb, var(--cyan) 80%, transparent);
+}
+.member-chip.plan-pro .chip-avatar b,
+.member-chip.plan-business .chip-avatar b { color: #fff; }
+.member-chip.plan-business .chip-avatar { background: linear-gradient(140deg, var(--cyan), var(--emerald)); }
+.member-chip.plan-pro .chip-avatar img,
+.member-chip.plan-business .chip-avatar img {
+  width: calc(100% - 4px); height: calc(100% - 4px);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* küçük taç rozeti */
+.chip-crown {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.chip-crown svg { width: 7.5px; height: 7.5px; color: #3a2503; stroke-width: 2.8; }
+
+/* metin bloğu */
+.member-chip .chip-text {
+  display: flex !important;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1;
+  min-width: 0;
+}
+.member-chip .chip-text small {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.member-chip.plan-pro .chip-text small {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.member-chip.plan-business .chip-text small { color: var(--emerald); }
+.member-chip .chip-text strong {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 108px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+/* mobil menüde tam genişlik, metin görünür kalsın */
+@media (max-width: 900px) {
+  header .member-chip { justify-content: flex-start; padding-right: 16px !important; }
+  .member-chip .chip-text { display: flex !important; }
+  .member-chip .chip-text strong { max-width: none; }
+}
