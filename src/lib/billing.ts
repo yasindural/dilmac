@@ -1,14 +1,25 @@
-// Ödeme altyapısı — sağlayıcı bağlanmaya hazır iskelet.
+// Ödeme altyapısı — sağlayıcıdan bağımsız katman.
 //
-// Uygulamanın geri kalanı ödeme sağlayıcısını hiç bilmez; yalnızca bu dosyadaki
-// startCheckout / openBillingPortal fonksiyonlarını çağırır. Sağlayıcı
-// bağlandığında (iyzico, PayTR, Stripe, Paddle…) sadece burası değişir.
+// Uygulamanın geri kalanı yalnızca startCheckout / billingProvider bilir.
+// Desteklenen sağlayıcılar:
 //
-// BAĞLAMAK İÇİN:
-//   1. VITE_BILLING_URL ortam değişkenine checkout başlatan uç noktayı yaz.
-//      Uç nokta { planId, uid, email } alıp { url } döndürmeli.
-//   2. Sağlayıcının webhook'u ödeme onaylanınca kullanıcının planını yükseltmeli.
-//   3. Başka hiçbir dosyaya dokunmak gerekmez.
+//   1. PADDLE (önerilen) — ortam değişkenlerini doldur, başka şey gerekmez:
+//        VITE_PADDLE_CLIENT_TOKEN = Paddle > Developer Tools > Client-side token
+//        VITE_PADDLE_PRICE_PRO      = pri_... (Pro planın fiyat kimliği)
+//        VITE_PADDLE_PRICE_BUSINESS = pri_... (Ekip planın fiyat kimliği)
+//        VITE_PADDLE_ENV = sandbox | production   (test için sandbox)
+//      Ödeme onaylanınca Paddle webhook'u Cloudflare Worker'daki
+//      /billing/webhook ucuna düşer ve kullanıcının planı sunucuya yazılır.
+//      Worker tarafında gerekli secret'lar:
+//        wrangler secret put PADDLE_WEBHOOK_SECRET
+//        wrangler secret put PADDLE_PRICE_PRO
+//        wrangler secret put PADDLE_PRICE_BUSINESS
+//
+//   2. ENDPOINT — kendi checkout API'n varsa:
+//        VITE_BILLING_URL = { planId, uid, email } alıp { url } döndüren uç.
+//
+// Hiçbiri tanımlı değilse uygulama "demo" kipinde çalışır: plan seçimi
+// yalnızca cihaza yazılır, ödeme alınmaz.
 
 import type { PlanId } from "./access";
 
@@ -50,9 +61,23 @@ export const plans: Plan[] = [
   },
 ];
 
-export const billingConfigured = Boolean(import.meta.env.VITE_BILLING_URL);
+export type BillingProvider = "none" | "endpoint" | "paddle";
 
-export type CheckoutRequest = { planId: PlanId; uid: string; email: string | null };
+const paddleToken = import.meta.env.VITE_PADDLE_CLIENT_TOKEN as string | undefined;
+const paddleSandbox = (import.meta.env.VITE_PADDLE_ENV as string | undefined) === "sandbox";
+const paddlePrices: Partial<Record<PlanId, string | undefined>> = {
+  pro: import.meta.env.VITE_PADDLE_PRICE_PRO as string | undefined,
+  business: import.meta.env.VITE_PADDLE_PRICE_BUSINESS as string | undefined,
+};
+const endpoint = import.meta.env.VITE_BILLING_URL as string | undefined;
+
+export function billingProvider(): BillingProvider {
+  if (paddleToken) return "paddle";
+  if (endpoint) return "endpoint";
+  return "none";
+}
+
+export const billingConfigured = billingProvider() !== "none";
 
 export class BillingNotConfiguredError extends Error {
   constructor() {
@@ -61,11 +86,84 @@ export class BillingNotConfiguredError extends Error {
   }
 }
 
-/** Sağlayıcının ödeme sayfasına yönlendirir. */
+type PaddleJS = {
+  Environment: { set: (env: "sandbox" | "production") => void };
+  Initialize: (options: { token: string }) => void;
+  Checkout: { open: (options: unknown) => void };
+};
+
+declare global {
+  interface Window { Paddle?: PaddleJS }
+}
+
+let paddleLoader: Promise<PaddleJS> | null = null;
+
+/** Paddle'ın resmi betiğini bir kez yükleyip başlatır. */
+function loadPaddle(): Promise<PaddleJS> {
+  if (!paddleLoader) {
+    paddleLoader = new Promise<PaddleJS>((resolve, reject) => {
+      const fail = (message: string) => {
+        paddleLoader = null; // sonraki denemede yeniden yüklenebilsin
+        reject(new Error(message));
+      };
+      const script = document.createElement("script");
+      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+      script.async = true;
+      script.onload = () => {
+        const paddle = window.Paddle;
+        if (!paddle) { fail("Ödeme kitaplığı yüklenemedi. Sayfayı yenileyip tekrar deneyin."); return; }
+        try {
+          if (paddleSandbox) paddle.Environment.set("sandbox");
+          paddle.Initialize({ token: paddleToken as string });
+          resolve(paddle);
+        } catch {
+          fail("Ödeme kitaplığı başlatılamadı. Anahtar ayarlarını kontrol edin.");
+        }
+      };
+      script.onerror = () => fail("Ödeme sağlayıcısına ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+      document.head.appendChild(script);
+    });
+  }
+  return paddleLoader;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 15_000): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (requestError) {
+    if (requestError instanceof Error && requestError.name === "AbortError") {
+      throw new Error("Ödeme sayfası zamanında yanıt vermedi. Tekrar deneyin.");
+    }
+    throw new Error("Ödeme sağlayıcısına ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+export type CheckoutRequest = { planId: PlanId; uid: string; email: string | null };
+
+/** Seçilen plan için ödeme akışını başlatır. */
 export async function startCheckout({ planId, uid, email }: CheckoutRequest): Promise<void> {
-  const endpoint = import.meta.env.VITE_BILLING_URL;
-  if (!endpoint) throw new BillingNotConfiguredError();
-  const response = await fetch(endpoint, {
+  const provider = billingProvider();
+  if (provider === "none") throw new BillingNotConfiguredError();
+
+  if (provider === "paddle") {
+    const priceId = paddlePrices[planId];
+    if (!priceId) throw new Error("Bu plan için fiyat tanımı eksik. (VITE_PADDLE_PRICE_* ayarlanmalı)");
+    const paddle = await loadPaddle();
+    paddle.Checkout.open({
+      items: [{ priceId, quantity: 1 }],
+      // Webhook bu uid ile planı sunucuya yazar; uygulama girişte doğrular.
+      customData: { uid, planId },
+      customer: email ? { email } : undefined,
+      settings: { displayMode: "overlay", locale: "tr", theme: "dark" },
+    });
+    return;
+  }
+
+  const response = await fetchWithTimeout(endpoint as string, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ planId, uid, email, returnTo: `${location.origin}${import.meta.env.BASE_URL}abonelik` }),
@@ -76,9 +174,12 @@ export async function startCheckout({ planId, uid, email }: CheckoutRequest): Pr
   location.assign(payload.url);
 }
 
-/** Aboneliği yönetme (iptal, kart değiştirme) ekranı. */
+/** Aboneliği yönetme (iptal, kart değiştirme). Paddle'da bu bağlantı e-postayla gelir. */
 export async function openBillingPortal(uid: string): Promise<void> {
-  const endpoint = import.meta.env.VITE_BILLING_URL;
-  if (!endpoint) throw new BillingNotConfiguredError();
-  location.assign(`${endpoint.replace(/\/$/, "")}/portal?uid=${encodeURIComponent(uid)}`);
+  const provider = billingProvider();
+  if (provider === "endpoint") {
+    location.assign(`${(endpoint as string).replace(/\/$/, "")}/portal?uid=${encodeURIComponent(uid)}`);
+    return;
+  }
+  throw new BillingNotConfiguredError();
 }

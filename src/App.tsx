@@ -34,10 +34,11 @@ import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import RoomScreen from "./components/RoomScreen";
 import GoogleLogo from "./components/GoogleLogo";
-import { plans as planCatalog } from "./lib/billing";
+import { billingProvider, plans as planCatalog, startCheckout } from "./lib/billing";
 import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
+import { fetchServerPlan } from "./lib/serverPlan";
 import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
@@ -221,7 +222,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
       </form><small>Devam ederek <Link to="/kullanim-sartlari">Kullanım Şartları</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiş olursunuz.</small></div>
   </div></section>;
 }
-function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
+function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState("");
@@ -230,15 +231,21 @@ function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User
     setError("");
     setBusy(plan);
     try {
-      if (!user) {
+      let activeUser = user;
+      if (!activeUser) {
         const result = await loginGoogle();
-        const next = { ...(readProfile(result.user) || defaultProfile(result.user)), plan };
-        onSaveForUser(result.user, next);
-        navigate("/profil?welcome=1");
+        activeUser = result.user;
+        onSaveForUser(result.user, { ...(readProfile(result.user) || defaultProfile(result.user)) });
+      }
+      // Ödeme sağlayıcısı bağlıysa ücretli planlar gerçek checkout'a gider;
+      // plan, ödeme onaylanınca webhook üzerinden sunucuya yazılır.
+      if (plan !== "free" && billingProvider() !== "none") {
+        await startCheckout({ planId: plan, uid: activeUser.uid, email: activeUser.email });
+        setBusy(null);
         return;
       }
-      const next = { ...(profile || defaultProfile(user)), plan };
-      onSave(next);
+      const next = { ...(readProfile(activeUser) || defaultProfile(activeUser)), plan };
+      onSaveForUser(activeUser, next);
       navigate(next.completed ? "/profil" : "/profil?welcome=1");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "İşlem tamamlanamadı.");
@@ -282,7 +289,9 @@ function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User
 
       {error && <p className="pricing-note" style={{ color: "var(--coral)" }}>{error}</p>}
       <p className="pricing-note reveal">
-        Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.
+        {billingProvider() === "none"
+          ? <>Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.</>
+          : <>Ödemeler <b>güvenli sağlayıcı</b> üzerinden alınır; kart bilgileriniz Dilmaç'a hiçbir zaman ulaşmaz. Aboneliğinizi istediğiniz an iptal edebilirsiniz.</>}
       </p>
 
       <div className="pricing-faq reveal">
@@ -552,8 +561,10 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     [remoteMuted, setRemoteMuted] = useState(false),
     [playbackBlocked, setPlaybackBlocked] = useState(false);
   const [remoteLanguage, setRemoteLanguage] = useState<RoomLanguage | null>(null);
-  const [autoSpeak, setAutoSpeak] = useState(true);
-  const autoSpeakRef = useRef(true);
+  // Oto ses girişte kapalı: odaya girer girmez karşı tarafın GERÇEK sesi
+  // otomatik bağlandığı için çeviri sesi ancak istenirse açılır.
+  const [autoSpeak, setAutoSpeak] = useState(() => localStorage.getItem("dilmac-autospeak") === "1");
+  const autoSpeakRef = useRef(autoSpeak);
   autoSpeakRef.current = autoSpeak;
   const speechRef = useRef<{ listening: boolean; stop: () => void; toggle: () => void } | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -664,6 +675,19 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
   const speech = useSpeech(source, enqueue);
+  // Bağlantı kurulur kurulmaz canlı sesi otomatik aç: iki taraf da birbirini
+  // hemen duysun. iOS'ta konuşma tanımayla mikrofon çakıştığı için orada
+  // kullanıcı elle açmaya devam ediyor.
+  const autoVoiceTriedRef = useRef(false);
+  const enableVoiceRef = useRef(roomConnection.enableVoice);
+  enableVoiceRef.current = roomConnection.enableVoice;
+  useEffect(() => {
+    if (!roomConnection.connected || roomConnection.voiceEnabled || autoVoiceTriedRef.current) return;
+    const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
+    if (isAppleWebKit) return;
+    autoVoiceTriedRef.current = true;
+    void enableVoiceRef.current();
+  }, [roomConnection.connected, roomConnection.voiceEnabled]);
   // "Konuşma başladı" = karşı taraf bağlı VE ya mikrofon açık ya da en az bir
   // cümle alışverişi olmuş. Deneme sayacı yalnızca bu koşulda ilerler.
   const conversing = roomConnection.connected
@@ -777,6 +801,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
         unlockSpeechOutput();
         setAutoSpeak((value) => {
           if (value) clearSpeechQueue();
+          localStorage.setItem("dilmac-autospeak", value ? "0" : "1");
           return !value;
         });
       }}
@@ -934,7 +959,25 @@ export function App() {
     localStorage.getItem("dilmac-theme") !== "light",
   );
   const [authChecked, setAuthChecked] = useState(!authReady);
-  useEffect(() => observeUser((nextUser) => { setUser(nextUser); setProfile(readProfile(nextUser)); setAuthChecked(true); }), []);
+  useEffect(() => observeUser((nextUser) => {
+    setUser(nextUser);
+    setProfile(readProfile(nextUser));
+    setAuthChecked(true);
+    if (!nextUser) return;
+    // Ödeme sağlayıcısının webhook'u planı sunucuya yazar; giriş yapan
+    // kullanıcının gerçek planı oradan doğrulanır. Sunucu kayıt yoksa
+    // cihazdaki seçim geçerli kalır.
+    void fetchServerPlan(nextUser.uid).then((serverPlan) => {
+      if (!serverPlan) return;
+      setProfile((current) => {
+        const base = current || defaultProfile(nextUser);
+        if (base.plan === serverPlan) return current;
+        const next = { ...base, plan: serverPlan };
+        localStorage.setItem(profileKey(nextUser.uid), JSON.stringify(next));
+        return next;
+      });
+    });
+  }), []);
   const saveProfile = useCallback((next: MemberProfile) => {
     if (!user) return;
     localStorage.setItem(profileKey(user.uid), JSON.stringify(next));
@@ -958,7 +1001,7 @@ export function App() {
         <Route path="/hakkinda" element={<Info data={pages.about} />} />
         <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
         <Route path="/ozellikler" element={<Info data={pages.features} />} />
-        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
+        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSaveForUser={saveRegisteredProfile} />} />
         <Route path="/kayit" element={<AuthPage onRegistered={saveRegisteredProfile} />} />
         <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
         <Route path="/gizlilik" element={<Info data={pages.privacy} />} />

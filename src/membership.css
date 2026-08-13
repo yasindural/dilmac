@@ -9,7 +9,7 @@
 .pricing-tag svg{width:14px;height:14px;color:var(--cyan)}
 .pricing-head h1{margin:18px 0 12px;font:600 clamp(34px,5vw,54px)/1.05 'Newsreader',serif;letter-spacing:-1.5px}
 .pricing-head h1 em{font-style:normal;color:var(--cyan)}
-.pricing-head p{margin:0 auto;max-width:52ch;color:var(--muted);font-size:16px;line-height:1.65}
+.pricing-head p{margin:0 auto;max-width:52ch;color:var(--muted);font-size:17px;line-height:1.7}
 
 .pricing-toggle{display:inline-flex;margin-top:26px;padding:4px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
 .pricing-toggle button{height:38px;min-height:0;padding:0 18px;border-radius:999px;background:transparent;color:var(--muted);font-size:13px}
@@ -23,26 +23,26 @@
 .pricing-card.featured::after{content:"";position:absolute;inset:-1px;border-radius:22px;padding:1px;background:linear-gradient(140deg,color-mix(in srgb,var(--cyan) 70%,transparent),transparent 55%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .pricing-badge{position:absolute;top:-11px;left:26px;padding:4px 12px;border-radius:999px;background:var(--cyan);color:#fff;font-size:11px;font-weight:700;letter-spacing:.6px}
 .pricing-card h2{margin:0 0 4px;font-size:19px;letter-spacing:-.3px}
-.pricing-card .note{margin:0 0 20px;font-size:13.5px;color:var(--muted)}
+.pricing-card .note{margin:0 0 20px;font-size:14.5px;color:var(--muted)}
 .pricing-amount{display:flex;align-items:baseline;gap:4px;margin-bottom:22px}
-.pricing-amount b{font:600 40px/1 'Newsreader',serif;letter-spacing:-1.5px}
+.pricing-amount b{font:600 44px/1 'Newsreader',serif;letter-spacing:-1.5px}
 .pricing-amount span{font-size:13.5px;color:var(--muted)}
 .pricing-card ul{list-style:none;margin:0 0 26px;padding:0;display:flex;flex-direction:column;gap:11px;flex:1}
-.pricing-card li{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.45;color:var(--muted)}
+.pricing-card li{display:flex;align-items:flex-start;gap:10px;font-size:15px;line-height:1.55;color:color-mix(in srgb,var(--text) 76%,var(--muted))}
 .pricing-card li svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--cyan)}
 .pricing-cta{width:100%;height:50px}
 .pricing-cta.current{background:transparent;border:1px solid var(--line);color:var(--muted)}
 
-.pricing-note{margin-top:34px;text-align:center;font-size:13px;color:var(--muted)}
+.pricing-note{margin-top:34px;text-align:center;font-size:14px;line-height:1.65;color:var(--muted);max-width:64ch;margin-inline:auto}
 .pricing-note b{color:var(--text)}
 
 .pricing-faq{max-width:720px;margin:56px auto 0}
 .pricing-faq details{border-top:1px solid var(--line);padding:16px 2px}
-.pricing-faq summary{cursor:pointer;font-weight:600;font-size:15px;list-style:none;display:flex;justify-content:space-between;gap:12px}
+.pricing-faq summary{cursor:pointer;font-weight:600;font-size:16px;list-style:none;display:flex;justify-content:space-between;gap:12px;padding-block:4px}
 .pricing-faq summary::-webkit-details-marker{display:none}
 .pricing-faq summary::after{content:"+";color:var(--muted);font-weight:400}
 .pricing-faq details[open] summary::after{content:"−"}
-.pricing-faq p{margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.65}
+.pricing-faq p{margin:12px 0 0;color:var(--muted);font-size:14.5px;line-height:1.75}
 
 /* Google düğmesi — resmi logo, beyaz zemin, gölge */
 .google-button{width:100%;height:50px;gap:12px;border-radius:12px;background:#fff;color:#1f1f1f;font-weight:600;font-size:14.5px;border:1px solid #dadce0;box-shadow:0 1px 2px #0000001f}
@@ -78,4 +78,47 @@
 @media (prefers-reduced-motion:reduce){
   .hero .primary.large::after{animation:none;display:none}
   .band .steps>div:hover,.preview:hover{transform:none}
+}
+
+
+/* ---------- modern hareket katmanı (yapı değişmez) ---------- */
+/* Hero başlığındaki degrade yavaşça akar */
+.hero h1 span{background-size:220% 100%;animation:hue-slide 9s ease-in-out infinite alternate}
+@keyframes hue-slide{to{background-position:100% 0}}
+
+/* Canlı önizleme kartı nefes alır (hover kaldırıldı, çakışmasın) */
+.preview{animation:card-breathe 8s ease-in-out infinite}
+.preview:hover{transform:none}
+@keyframes card-breathe{50%{transform:translateY(-7px)}}
+
+/* Adım kartları sırayla belirir */
+.steps.reveal>div{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.22,1,.36,1),transform .55s cubic-bezier(.22,1,.36,1)}
+.steps.reveal.seen>div{opacity:1;transform:none}
+.steps.reveal.seen>div:nth-child(2){transition-delay:.09s}
+.steps.reveal.seen>div:nth-child(3){transition-delay:.18s}
+.steps.reveal.seen>div:nth-child(4){transition-delay:.27s}
+
+/* Özellik kartlarında ikon mikro hareketi */
+.feature-strip article svg{transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+.feature-strip article:hover svg{transform:scale(1.15) rotate(-4deg)}
+.feature-strip article{transition:transform .22s cubic-bezier(.22,1,.36,1),border-color .22s ease}
+.feature-strip article:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--cyan) 40%,var(--line))}
+
+/* Kullanım senaryosu kartları */
+.use-grid article{transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease}
+.use-grid article:hover{transform:translateY(-4px);box-shadow:0 24px 50px -34px #000c}
+
+/* Dokunsal düğme tepkisi — tüm sitede */
+.primary:active,.ghost:active,.mic-button:active,.round:active{scale:.965;transition:scale .09s ease}
+
+/* Bağlantı altı çizgisi kayarak gelir */
+nav>a{position:relative}
+nav>a::after{content:"";position:absolute;left:0;right:100%;bottom:-4px;height:2px;background:var(--cyan);transition:right .22s cubic-bezier(.22,1,.36,1)}
+nav>a:hover::after,nav>a.active::after{right:0}
+
+@media (prefers-reduced-motion:reduce){
+  .hero h1 span,.preview{animation:none}
+  .steps.reveal>div{opacity:1;transform:none;transition:none}
+  .feature-strip article:hover svg,.use-grid article:hover{transform:none}
+  .primary:active,.ghost:active,.mic-button:active,.round:active{scale:1}
 }

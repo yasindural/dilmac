@@ -40,6 +40,34 @@ const openRouter = async (env, body, title) => {
   return response;
 };
 
+// Paddle-Signature: "ts=...;h1=..." — govde HMAC-SHA256(secret, `${ts}:${body}`)
+const verifyPaddleSignature = async (secret, header, rawBody) => {
+  try {
+    const parts = Object.fromEntries(header.split(";").map((part) => part.split("=")));
+    if (!parts.ts || !parts.h1) return false;
+    const key = await crypto.subtle.importKey(
+      "raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+    );
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${parts.ts}:${rawBody}`));
+    const hex = [...new Uint8Array(mac)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    return hex === parts.h1;
+  } catch {
+    return false;
+  }
+};
+
+const planFromEvent = (env, event) => {
+  const type = String(event?.event_type || "");
+  if (type === "subscription.canceled" || type === "subscription.paused") return "free";
+  const active = type === "subscription.activated" || type === "subscription.updated"
+    || type === "subscription.resumed" || type === "transaction.completed";
+  if (!active) return null;
+  const priceIds = (event?.data?.items || []).map((item) => item?.price?.id).filter(Boolean);
+  if (env.PADDLE_PRICE_BUSINESS && priceIds.includes(env.PADDLE_PRICE_BUSINESS)) return "business";
+  if (env.PADDLE_PRICE_PRO && priceIds.includes(env.PADDLE_PRICE_PRO)) return "pro";
+  return null;
+};
+
 const clean = (value, max) => String(value ?? "").replace(/sk-or-v1-[a-z0-9]+/gi, "[secret]").slice(0, max);
 const recordError = async (env, entry) => {
   const safe = {
@@ -63,6 +91,37 @@ const recordError = async (env, entry) => {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") || "";
+    const requestPath = new URL(request.url).pathname;
+
+    // Ödeme sağlayıcısının webhook'u: origin kontrolünün DIŞINDA, imza ile
+    // korunur. Plan değişiklikleri buradan D1'e yazılır; uygulama girişte
+    // /plan ucundan doğrular.
+    if (request.method === "POST" && requestPath === "/billing/webhook") {
+      if (!env.PADDLE_WEBHOOK_SECRET) return new Response(JSON.stringify({ error: "not_configured" }), { status: 503 });
+      const rawBody = await request.text();
+      const signature = request.headers.get("Paddle-Signature") || "";
+      const valid = await verifyPaddleSignature(env.PADDLE_WEBHOOK_SECRET, signature, rawBody);
+      if (!valid) {
+        await recordError(env, { area: "billing", code: "webhook_bad_signature", message: "Paddle imzası doğrulanamadı", page: requestPath });
+        return new Response(JSON.stringify({ error: "invalid_signature" }), { status: 401 });
+      }
+      let event;
+      try { event = JSON.parse(rawBody); } catch { return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400 }); }
+      const uid = String(event?.data?.custom_data?.uid || "").trim().slice(0, 128);
+      const plan = planFromEvent(env, event);
+      if (uid && plan) {
+        try {
+          await env.dilmac_logs.prepare(
+            "INSERT INTO user_plans (uid, plan, source) VALUES (?1, ?2, ?3) ON CONFLICT(uid) DO UPDATE SET plan = ?2, source = ?3, updated_at = datetime('now')"
+          ).bind(uid, plan, String(event?.event_type || "paddle")).run();
+        } catch (dbError) {
+          await recordError(env, { area: "billing", code: "plan_write_failed", message: clean(dbError?.message, 200), page: requestPath });
+          return new Response(JSON.stringify({ error: "storage_failed" }), { status: 500 });
+        }
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
     if (request.method === "OPTIONS") {
       if (!allowedOrigins.has(origin)) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: {
@@ -85,6 +144,17 @@ export default {
         "Vary": "Origin",
         "Cache-Control": "no-store",
       }});
+    }
+    if (path === "/plan") {
+      const uid = String(input.uid || "").trim().slice(0, 128);
+      if (!uid) return json({ error: "invalid_request" }, 400, origin);
+      try {
+        const row = await env.dilmac_logs.prepare("SELECT plan FROM user_plans WHERE uid = ?1").bind(uid).first();
+        return json({ plan: row?.plan || null }, 200, origin);
+      } catch {
+        // Tablo yoksa ya da D1 erişilemezse plan bilinmiyor kabul edilir.
+        return json({ plan: null }, 200, origin);
+      }
     }
     if (!env.OPENROUTER_API_KEY) {
       await recordError(env, { area: "backend", code: "service_not_configured", message: "OpenRouter secret is missing", page: path });
