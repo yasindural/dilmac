@@ -53,6 +53,7 @@ import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
 import HeroScene from "./components/HeroScene";
+import BrandMark from "./components/BrandMark";
 // Premium katman en son yüklenir; tüm sayfa stillerinin üstünde kalması gerekir.
 import "./premium.css";
 const langs = [
@@ -95,12 +96,7 @@ function defaultProfile(user: User): MemberProfile {
 function Brand() {
   return (
     <Link className="brand" to="/" aria-label="Dilmaç ana sayfa">
-      <span className="brandmark" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <i />
-      </span>
+      <BrandMark />
       <strong>Dilmaç</strong>
     </Link>
   );

@@ -11,6 +11,7 @@ header {
   height: 68px;
   border-bottom: 1px solid transparent;
   background: color-mix(in srgb, var(--bg) 70%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
   backdrop-filter: blur(20px) saturate(1.4);
   transition: border-color var(--t), background var(--t), height var(--t);
 }
@@ -86,7 +87,11 @@ nav > a:hover::after, nav > a.active::after { right: 0; }
 }
 @keyframes aura-a { to { transform: translate3d(5%, 7%, 0) scale(1.15); } }
 @keyframes aura-b { to { transform: translate3d(-6%, 5%, 0) scale(1.1); } }
-main, footer { position: relative; z-index: 1; }
+/* DİKKAT: burada z-index VERİLMEZ. z-index verilirse <main> yeni bir yığın
+   bağlamı açar ve içindeki tur/modal katmanları (z-index 90-95) footer'ın
+   altında kalır — mobilde tur kartının üstüne footer biniyordu. position
+   tek başına yeterli: konumlanmış kardeşler DOM sırasına göre boyanır. */
+main, footer { position: relative; }
 
 /* ================= HERO ================= */
 .home .hero {
@@ -96,7 +101,7 @@ main, footer { position: relative; z-index: 1; }
   grid-template-columns: 1fr;
   gap: 44px;
   align-items: center;
-  padding: clamp(48px, 8vh, 86px) clamp(18px, 5vw, 72px) clamp(40px, 6vh, 64px);
+  padding: clamp(48px, 7vw, 86px) clamp(18px, 5vw, 72px) clamp(40px, 5vw, 64px);
   text-align: center;
 }
 .home .hero::after { display: none; }
@@ -131,7 +136,7 @@ main, footer { position: relative; z-index: 1; }
   position: relative;
   display: grid;
   place-items: center;
-  min-height: clamp(320px, 46vh, 480px);
+  min-height: clamp(320px, 44vw, 480px);
   perspective: 1200px;
   contain: layout paint;
 }
@@ -777,7 +782,7 @@ header .member-chip { border-radius: var(--r-full); border-color: var(--line); }
 }
 
 /* Hero sahnesi taşmasın; telefon sahne kutusuna sığsın. */
-.scene { contain: layout; min-height: clamp(340px, 50vh, 500px); }
+.scene { contain: layout; min-height: clamp(340px, 46vw, 500px); }
 .scene-phone { width: clamp(158px, 20vw, 205px); aspect-ratio: 9 / 17.4; border-radius: 28px; }
 .scene-phone-screen { border-radius: 21px; padding: 10px 8px; gap: 6px; }
 @media (max-width: 900px) {
@@ -886,3 +891,65 @@ footer .foot-col a { display: block; }
 .gate-actions a.ghost { background: color-mix(in srgb, var(--surface) 60%, transparent); }
 .gate-perk svg { color: var(--emerald); }
 .trial-pill a { background: var(--brand-gradient); }
+
+/* ================= LOGO ================= */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.brand strong {
+  font-family: 'Newsreader', serif;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+/* Eski dört-çubuk işareti sıfırlanır; artık SVG kullanıyoruz. */
+.brandmark {
+  width: 34px;
+  height: 34px;
+  display: block;
+  flex: none;
+  transform: none;
+  border-radius: 11px;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--violet) 80%, transparent);
+  transition: transform var(--t), box-shadow var(--t);
+}
+.brand:hover .brandmark {
+  transform: rotate(-4deg) scale(1.05);
+  box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--violet) 90%, transparent);
+}
+header .brand { font-size: 25px; }
+header .brandmark { width: 32px; height: 32px; }
+.foot-brand .brand { font-size: 24px; }
+.foot-brand .brandmark { width: 30px; height: 30px; }
+@media (max-width: 640px) {
+  header .brand { font-size: 22px; gap: 9px; }
+  header .brandmark { width: 29px; height: 29px; }
+}
+
+/* ================= MOBİL KAYMA ÖNLEMLERİ ================= */
+/* iOS Safari'de adres çubuğu açılıp kapandıkça vh birimleri değişir ve
+   sayfa kayar; bu yüzden yerleşimde vh kullanılmıyor. Aşağıdaki blok
+   telefonda pahalı kompozisyon katmanlarını da hafifletir. */
+@media (max-width: 900px) {
+  .page-aura i { filter: blur(60px); opacity: .3; animation: none; }
+  .scene-glow { filter: blur(22px); }
+  .scene-mic { will-change: auto; }
+}
+/* Yatay kaymayı kesin olarak kapat: marquee ve tablo kendi kutusunda kayar. */
+html, body { overflow-x: clip; }
+.langs-band, .home, main { max-width: 100%; }
+.compare { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+
+/* Tur / modal katmanları her zaman en üstte kalsın. */
+.tour-layer { z-index: 90; }
+.tour-backdrop { z-index: 95; }
+.tour-spot { z-index: 96; }
+.tour-card { z-index: 97; }
+
+/* iOS'ta otomatik metin büyütme satır sarmalarını değiştirip kaymaya yol açar. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Yazı tipi yüklenirken satır yüksekliği sabit kalsın (FOUT kaymasını azaltır). */
+body { line-height: 1.55; }

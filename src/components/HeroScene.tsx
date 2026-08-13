@@ -40,12 +40,23 @@ export default function HeroScene() {
       frame = requestAnimationFrame(paint);
     };
 
+    // iOS Safari'de sayfa kayarken adres çubuğu açılıp kapanır ve
+    // window.innerHeight değişir. Yolu her scroll'da yeniden hesaplasaydık
+    // mikrofon aniden zıplardı; bu yüzden yol bir kez sabitlenir ve yalnızca
+    // gerçek bir yeniden boyutlanmada (genişlik/yön değişimi) güncellenir.
+    let travel = Math.max(240, window.innerHeight * 0.34);
+    let lastWidth = window.innerWidth;
+
     const onScroll = () => {
-      // Dönüşüm sahne hâlâ ekrandayken tamamlansın diye kısa bir yol kullanılır:
-      // yarım ekran kaydırma mikrofonu telefona çevirmeye yeter.
-      const travel = Math.max(240, window.innerHeight * 0.34);
       progress = Math.min(1, Math.max(0, window.scrollY / travel));
       schedule();
+    };
+
+    const onResize = () => {
+      if (window.innerWidth === lastWidth) return; // yalnızca araç çubuğu oynadı
+      lastWidth = window.innerWidth;
+      travel = Math.max(240, window.innerHeight * 0.34);
+      onScroll();
     };
 
     const onPointer = (event: PointerEvent) => {
@@ -70,7 +81,7 @@ export default function HeroScene() {
 
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onResize);
     if (!coarse) {
       node.addEventListener("pointermove", onPointer);
       node.addEventListener("pointerleave", onLeave);
@@ -78,7 +89,7 @@ export default function HeroScene() {
     return () => {
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       node.removeEventListener("pointermove", onPointer);
       node.removeEventListener("pointerleave", onLeave);
     };
