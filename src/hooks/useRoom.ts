@@ -17,7 +17,12 @@ type Envelope =
   | { kind: "message"; message: RoomMessage; protocol?: 2 }
   | { kind: "ack"; id: string }
   | { kind: "voice-ready"; ready: boolean }
-  | { kind: "language"; language: RoomLanguage; protocol?: 2 };
+  | { kind: "language"; language: RoomLanguage; protocol?: 2 }
+  // Sıra bildirimi: karşı taraf o an konuşuyor mu? Canlı ses açıkken iki
+  // cihaz birbirini hoparlörden duyabildiği için, konuşan tarafın sesi
+  // diğerinin mikrofonuna girip yanlış çeviri üretiyordu. Bu sinyalle
+  // dinleyen taraf kendi tanıyıcısının çıktısını yok sayar.
+  | { kind: "speaking"; on: boolean };
 
 function isRoomMessage(value: unknown): value is RoomMessage {
   if (!value || typeof value !== "object") return false;
@@ -55,6 +60,8 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const onRemoteLanguageRef = useRef(onRemoteLanguage);
   const localLanguageRef = useRef<RoomLanguage | null>(null);
   const outboundRef = useRef<RoomMessage[]>([]);
+  const [remoteSpeaking, setRemoteSpeaking] = useState(false);
+  const remoteSpeakingTimerRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
@@ -284,6 +291,20 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
         }
         return;
       }
+      if (envelope.kind === "speaking") {
+        if (remoteSpeakingTimerRef.current !== null) window.clearTimeout(remoteSpeakingTimerRef.current);
+        remoteSpeakingTimerRef.current = null;
+        if (envelope.on) {
+          setRemoteSpeaking(true);
+          // Sinyal kaybolursa mikrofon sonsuza kadar kapalı kalmasın.
+          remoteSpeakingTimerRef.current = window.setTimeout(() => setRemoteSpeaking(false), 6000);
+        } else {
+          // Konuşma bittikten sonra hoparlörden gelen kuyruk da geçsin diye
+          // kısa bir kuyruk payı bırakıyoruz.
+          remoteSpeakingTimerRef.current = window.setTimeout(() => setRemoteSpeaking(false), 700);
+        }
+        return;
+      }
       if (envelope.kind === "language") {
         if (isRoomLanguage(envelope.language)) onRemoteLanguageRef.current?.(envelope.language);
         return;
@@ -398,7 +419,15 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     return true;
   }, []);
 
+  const sendSpeaking = useCallback((on: boolean) => {
+    if (!connectionRef.current?.open) return false;
+    connectionRef.current.send({ kind: "speaking", on } satisfies Envelope);
+    return true;
+  }, []);
+
   return {
+    remoteSpeaking,
+    sendSpeaking,
     connected,
     connecting,
     error,
@@ -416,4 +445,3 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     disableVoice,
   };
 }
-

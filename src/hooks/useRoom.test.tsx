@@ -261,6 +261,28 @@ describe("useRoom voice channel", () => {
     expect(onRemoteLanguage).toHaveBeenCalledWith({ code: "en-US", name: "İngilizce" });
   });
 
+  // Canlı ses açıkken iki cihaz birbirini hoparlörden duyar; konuşan tarafın
+  // sesi diğerinin mikrofonuna girip uydurma cümleler üretiyordu. Sıra
+  // bildirimi bunu engelleyen mekanizma.
+  it("konuşma sinyalini karşı tarafa gönderir ve gelen sinyali durum olarak yansıtır", async () => {
+    const { result } = renderHook(() => useRoom(vi.fn()));
+    act(() => result.current.join("ABC123", "host"));
+    const { dataConnection } = connectHost();
+    dataConnection.send.mockClear();
+
+    act(() => { result.current.sendSpeaking(true); });
+    expect(dataConnection.send).toHaveBeenCalledWith({ kind: "speaking", on: true });
+
+    expect(result.current.remoteSpeaking).toBe(false);
+    act(() => dataConnection.emit("data", { kind: "speaking", on: true }));
+    expect(result.current.remoteSpeaking).toBe(true);
+
+    // Konuşma bitince kuyruk payı kadar bekleyip serbest bırakır.
+    act(() => dataConnection.emit("data", { kind: "speaking", on: false }));
+    expect(result.current.remoteSpeaking).toBe(true);
+    await waitFor(() => expect(result.current.remoteSpeaking).toBe(false), { timeout: 2000 });
+  });
+
   it("boş mesaj paketini konuşmaya eklemez", () => {
     const onMessage = vi.fn();
     const { result } = renderHook(() => useRoom(onMessage));
@@ -277,4 +299,3 @@ describe("useRoom voice channel", () => {
     expect(result.current.error).toContain("geçersiz veya boş");
   });
 });
-

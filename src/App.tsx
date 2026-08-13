@@ -48,6 +48,7 @@ import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
 import { fetchServerPlan } from "./lib/serverPlan";
+import { logClientError } from "./lib/errorLogger";
 import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
@@ -903,11 +904,42 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       setNotice(`${incoming} odasına bağlanılıyor…`);
     }
   }, [connectRoom, navigate, roomId]);
+  // Canlı ses açıkken iki cihaz birbirini hoparlörden duyar. Karşı taraf
+  // konuşurken bizim tanıyıcımız o sesi KENDİ dilimizde çözmeye çalışır ve
+  // ortaya hiç söylenmemiş cümleler çıkar; her uydurma cümle karşı tarafta
+  // seslendirilince döngü büyür ve bir süre sonra sohbet tamamen saçmalar.
+  // Bu yüzden karşı taraf konuşurken kendi tanıyıcı çıktımızı yok sayıyoruz.
+  const remoteSpeakingRef = useRef(false);
+  remoteSpeakingRef.current = roomConnection.remoteSpeaking;
+  const voiceEnabledRef = useRef(false);
+  voiceEnabledRef.current = roomConnection.voiceEnabled;
   const enqueue = useCallback((text: string) => {
+    if (voiceEnabledRef.current && remoteSpeakingRef.current) {
+      logClientError("echo_suppressed", "speech", `Karşı taraf konuşurken gelen ${text.length} karakterlik tanıma yok sayıldı`, "warning");
+      setNotice("Karşı taraf konuşuyor — sıranızı bekleyin.");
+      return;
+    }
     queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
   const speech = useSpeech(source, enqueue);
+  // Konuşmaya başlar başlamaz karşı tarafa haber ver; o da bizim sesimizi
+  // kendi mikrofonundan yakalayıp çevirmeye çalışmasın.
+  const sendSpeaking = roomConnection.sendSpeaking;
+  const speakingSignalRef = useRef(false);
+  useEffect(() => {
+    if (!roomConnection.voiceEnabled) return;
+    const speaking = speech.listening && speech.interimText.trim().length > 0;
+    if (speaking === speakingSignalRef.current) return;
+    speakingSignalRef.current = speaking;
+    sendSpeaking(speaking);
+  }, [speech.listening, speech.interimText, roomConnection.voiceEnabled, sendSpeaking]);
+  useEffect(() => {
+    if (!speech.listening && speakingSignalRef.current) {
+      speakingSignalRef.current = false;
+      sendSpeaking(false);
+    }
+  }, [speech.listening, sendSpeaking]);
   // Bağlantı kurulur kurulmaz canlı sesi otomatik aç: iki taraf da birbirini
   // hemen duysun. iOS'ta konuşma tanımayla mikrofon çakıştığı için orada
   // kullanıcı elle açmaya devam ediyor.
