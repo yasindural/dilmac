@@ -1075,3 +1075,12 @@ header .member-chip > svg { display: none; }
 
 /* Tur katman sırası — tour.css ile aynı, premium katmanı ezmesin diye tekrar. */
 .tour-block { z-index: 94; }
+
+/* ================= GÖRÜŞME EKRANI YÜKSEKLİĞİ ================= */
+/* room.css'teki 76px eski başlık yüksekliğine göre yazılmıştı; premium
+   başlık 68px (mobilde 60px). Fark kadar sayfa kayıyor ve tur sırasında
+   ekran oynuyordu. Tek bir değişkene bağlıyoruz. */
+:root { --header-h: 68px; }
+@media (max-width: 640px) { :root { --header-h: 60px; } }
+.room { height: calc(100dvh - var(--header-h)); }
+body.room-locked .room { height: calc(100dvh - var(--header-h)); }

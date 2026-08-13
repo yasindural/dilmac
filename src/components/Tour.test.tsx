@@ -58,6 +58,15 @@ describe("öğretici tur", () => {
     expect(document.body.classList.contains("tour-open")).toBe(false);
   });
 
+  // iOS'ta sabitlenmiş gövdede getBoundingClientRect eski kaydırma ofsetini
+  // döndürüyor; bu yüzden kilitten ÖNCE sayfa gerçekten en üste alınmalı.
+  it("kilitlemeden önce sayfayı en üste alır", () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    render(<Tour steps={steps} mode="ask" onFinish={() => {}} />);
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
+    scrollTo.mockRestore();
+  });
+
   it("adım kartının arkasına dokunuşu yutan katman koyar", () => {
     const { container } = render(<Tour steps={steps} mode="run" onFinish={() => {}} />);
     expect(container.querySelector(".tour-block")).not.toBeNull();

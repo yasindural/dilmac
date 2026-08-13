@@ -72,11 +72,18 @@ export default function Tour({ steps, mode, onFinish }: Props) {
     const timer = window.setTimeout(sync, 120);
     window.addEventListener("resize", sync);
     window.addEventListener("scroll", sync, true);
+    // iOS'ta araç çubuğu açılıp kapandıkça görsel viewport değişir; spot ışığı
+    // hedefin üstünde kalsın diye orada da yeniden ölçüyoruz.
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", sync);
+    vv?.addEventListener("scroll", sync);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(timer);
       window.removeEventListener("resize", sync);
       window.removeEventListener("scroll", sync, true);
+      vv?.removeEventListener("resize", sync);
+      vv?.removeEventListener("scroll", sync);
     };
   }, [running, done, sync]);
 
@@ -98,6 +105,11 @@ export default function Tour({ steps, mode, onFinish }: Props) {
       width: body.style.width,
       overflow: body.style.overflow,
     };
+    // KRİTİK: gövdeyi sabitlemeden ÖNCE gerçekten en üste al.
+    // iOS Safari'de position:fixed gövdede getBoundingClientRect eski kaydırma
+    // ofsetini döndürmeye devam ediyor; ölçüm doğru çıksa da spot ışığı hedefin
+    // başlık yüksekliği kadar yukarısına düşüyordu.
+    window.scrollTo(0, 0);
     body.style.position = "fixed";
     body.style.top = "0px";
     body.style.left = "0";
@@ -204,10 +216,17 @@ export default function Tour({ steps, mode, onFinish }: Props) {
   };
   // Kart, ışığın altına sığmıyorsa üstüne geçer. Üstteyken "bottom" ile
   // konumlandırıyoruz; böylece kart ne kadar uzun olursa olsun ışığı örtmez.
-  const below = spot.top + spot.height + 230 < window.innerHeight;
-  const cardStyle: React.CSSProperties = below
-    ? { top: spot.top + spot.height + 14 }
-    : { bottom: Math.max(12, window.innerHeight - spot.top + 14) };
+  // Kart, ışığın altına sığmıyorsa üstüne geçer. Işık ekranın dışına taşmışsa
+  // (beklenmedik bir yerleşimde) kartı ekranın altına sabitleyip turu
+  // okunur tutuyoruz.
+  const viewportH = window.visualViewport?.height || window.innerHeight;
+  const spotVisible = spot.top > -spot.height && spot.top < viewportH;
+  const below = spotVisible && spot.top + spot.height + 230 < viewportH;
+  const cardStyle: React.CSSProperties = !spotVisible
+    ? { bottom: 16 }
+    : below
+      ? { top: spot.top + spot.height + 14 }
+      : { bottom: Math.max(12, viewportH - spot.top + 14) };
 
   return (
     <div className="tour-layer" role="dialog" aria-modal="true" aria-label={step.title}>
