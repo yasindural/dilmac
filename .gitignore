@@ -10,3 +10,4 @@ vite.config.d.ts
 .claude-agent-output/
 claude-task.local.json
 .orchestra-output/
+dist-e2e/

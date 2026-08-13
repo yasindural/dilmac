@@ -809,6 +809,19 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   if (!queueRef.current) queueRef.current = new MessageQueue((text, language) => translate(text, language, keyRef.current), (message) => sendRef.current(message));
   const receiveMessage = useCallback((message: RoomMessage) => {
     if (!message.source.trim() || !message.translated.trim()) return;
+    // Karşı tarafın mesajı geldi. Bekletilen tanıma bu mesajın hoparlör
+    // yankısı mı? İçerik karşılaştırmasıyla karar verilir: yankı, karşı
+    // tarafın söyledikleriyle büyük ölçüde aynı kelimeleri içerir. Benzerlik
+    // düşükse bu kullanıcının GERÇEK eş zamanlı sözüdür ve silinmez;
+    // karşı taraf susunca kendiliğinden gönderilir.
+    const pending = suppressedRef.current;
+    if (pending && Date.now() - pending.at < 8000) {
+      const tokenize = (value: string) => value.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter((word) => word.length > 2);
+      const mineWords = tokenize(pending.text);
+      const theirs = new Set([...tokenize(message.source), ...tokenize(message.translated)]);
+      const overlap = mineWords.length ? mineWords.filter((word) => theirs.has(word)).length / mineWords.length : 1;
+      if (overlap >= 0.5) suppressedRef.current = null;
+    }
     setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
     setNotice("Karşı taraftan yeni çeviri geldi.");
     if (!autoSpeakRef.current) return;
@@ -913,16 +926,81 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   remoteSpeakingRef.current = roomConnection.remoteSpeaking;
   const voiceEnabledRef = useRef(false);
   voiceEnabledRef.current = roomConnection.voiceEnabled;
+  // Bastırılan cümle ÇÖPE ATILMAZ, bekletilir. Karşı tarafın mesajı kısa
+  // sürede gelirse bekleyen metin onun yankısıdır ve sessizce silinir; mesaj
+  // gelmezse kullanıcı gerçekten aynı anda konuşmuştur ve cümlesi karşı
+  // taraf susunca otomatik gönderilir. Böylece yankı engellenirken gerçek
+  // eş zamanlı konuşma kaybolmaz.
+  const suppressedRef = useRef<{ text: string; at: number } | null>(null);
+  const flushTimerRef = useRef<number | null>(null);
+  const enqueueRawRef = useRef<(text: string) => void>(() => {});
+  // Yankı ile gerçek eş zamanlı konuşmayı ayıran ölçüt ZAMANLAMADIR:
+  // hoparlör yankısı ancak karşı taraf konuşmaya BAŞLADIKTAN SONRA mikrofona
+  // girebilir. Cümlemizin ilk ön izlemesi, karşı tarafın konuşma sinyalinden
+  // ÖNCE başladıysa bu bizim gerçek sözümüzdür ve asla bekletilmez.
+  const remoteSpeakingSinceRef = useRef(0);
+  const utteranceStartRef = useRef(0);
   const enqueue = useCallback((text: string) => {
     if (voiceEnabledRef.current && remoteSpeakingRef.current) {
-      logClientError("echo_suppressed", "speech", `Karşı taraf konuşurken gelen ${text.length} karakterlik tanıma yok sayıldı`, "warning");
-      setNotice("Karşı taraf konuşuyor — sıranızı bekleyin.");
-      return;
+      // 250 ms pay: iki taraf hemen hemen aynı anda başladıysa sıralama ağ
+      // gecikmesinin rastlantısıdır; gerçek yankının ön izlemesi karşı sesin
+      // ulaşması + tanıma gecikmesi yüzünden en az yarım saniye geç başlar.
+      const mineStartedFirst = utteranceStartRef.current > 0
+        && remoteSpeakingSinceRef.current > 0
+        && utteranceStartRef.current < remoteSpeakingSinceRef.current + 250;
+      if (!mineStartedFirst) {
+        suppressedRef.current = { text, at: Date.now() };
+        logClientError("echo_suppressed", "speech", `Karşı taraf konuşurken gelen ${text.length} karakterlik tanıma bekletildi`, "warning");
+        setNotice("Karşı taraf konuşuyor — cümleniz bekletiliyor.");
+        return;
+      }
+      // Gerçek eş zamanlı konuşma: kaybetme, normal gönder.
     }
     queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
     setNotice("Mesaj sıraya alındı.");
   }, [source, target]);
+  enqueueRawRef.current = (text: string) => {
+    queueRef.current?.enqueue({ source: text, sourceLanguage: langs.find(([code]) => code === source)?.[1] || source, targetLanguage: target });
+  };
+  // Karşı taraf susunca: mesajı geldiyse bekleyen metin yankıdır, sil.
+  // Mesaj gelmediyse kullanıcının gerçek cümlesidir, gönder.
+  const remoteSpeakingNow = roomConnection.remoteSpeaking;
+  useEffect(() => {
+    if (remoteSpeakingNow) {
+      if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+      return;
+    }
+    if (!suppressedRef.current) return;
+    flushTimerRef.current = window.setTimeout(() => {
+      const pending = suppressedRef.current;
+      suppressedRef.current = null;
+      if (!pending) return;
+      enqueueRawRef.current(pending.text);
+      setNotice("Bekletilen cümleniz gönderildi.");
+    }, 2500);
+    return () => {
+      if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    };
+  }, [remoteSpeakingNow]);
   const speech = useSpeech(source, enqueue);
+  // Cümlenin ilk ön izleme anını kaydet (yankı/gerçek söz ayrımı için).
+  const prevInterimRef = useRef("");
+  useEffect(() => {
+    const has = speech.interimText.trim().length > 0;
+    const had = prevInterimRef.current.trim().length > 0;
+    if (has && !had) utteranceStartRef.current = Date.now();
+    if (!has) utteranceStartRef.current = 0;
+    prevInterimRef.current = speech.interimText;
+  }, [speech.interimText]);
+  useEffect(() => {
+    if (roomConnection.remoteSpeaking) {
+      if (!remoteSpeakingSinceRef.current) remoteSpeakingSinceRef.current = Date.now();
+    } else {
+      remoteSpeakingSinceRef.current = 0;
+    }
+  }, [roomConnection.remoteSpeaking]);
   // Konuşmaya başlar başlamaz karşı tarafa haber ver; o da bizim sesimizi
   // kendi mikrofonundan yakalayıp çevirmeye çalışmasın.
   const sendSpeaking = roomConnection.sendSpeaking;
@@ -1261,7 +1339,15 @@ function NotFound() {
   );
 }
 export function App() {
-  const [user, setUser] = useState<User | null>(null);
+  // VITE_E2E yalnızca test derlemesinde 1 olur; üretim derlemesinde bu dal
+  // ölü koddur ve paketten tamamen çıkar. Testlerde giriş ekranını atlamak
+  // için sahte bir kullanıcı sağlar — sunucu tarafı plan doğrulamasını
+  // etkilemez.
+  const [user, setUser] = useState<User | null>(
+    import.meta.env.VITE_E2E === "1"
+      ? ({ uid: "e2e-test", email: "e2e@test.dev", displayName: "E2E Test" } as unknown as User)
+      : null,
+  );
   const [profile, setProfile] = useState<MemberProfile | null>(null);
   const [dark, setDark] = useState(
     localStorage.getItem("dilmac-theme") !== "light",

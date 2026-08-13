@@ -365,9 +365,20 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     roleRef.current = role;
     const hostId = `dilmac-${room.toLowerCase()}-host`;
     hostIdRef.current = hostId;
+    // Test altyapısı: E2E koşumları gerçek PeerJS bulutuna çıkamaz; localStorage
+    // üzerinden yerel bir sinyal sunucusu tanımlanabilir. Üretimde bu anahtar
+    // hiç yazılmadığı için davranış birebir aynı kalır.
+    const peerOptions: ConstructorParameters<typeof Peer>[1] = { debug: 0 };
+    try {
+      const override = localStorage.getItem("dilmac-peer-server");
+      if (override) {
+        const cfg = JSON.parse(override) as { host?: string; port?: number; path?: string; secure?: boolean };
+        if (cfg.host) Object.assign(peerOptions, { host: cfg.host, port: cfg.port ?? 9000, path: cfg.path ?? "/", secure: cfg.secure ?? false });
+      }
+    } catch { /* bozuk değer üretim davranışını etkilemesin */ }
     const peer = role === "host"
-      ? new Peer(hostId, { debug: 0 })
-      : new Peer({ debug: 0 });
+      ? new Peer(hostId, peerOptions)
+      : new Peer(peerOptions);
     peerRef.current = peer;
     let reconnectAttempts = 0;
     const connectGuest = () => {

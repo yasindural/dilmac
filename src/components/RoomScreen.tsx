@@ -304,7 +304,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             {entry.mine ? (
               <>
                 <p className="turn-main">{entry.original}</p>
-                {entry.translated && <p className="turn-sub">{entry.translated}</p>}
+                {entry.translated && entry.translated !== entry.original && <p className="turn-sub">{entry.translated}</p>}
                 <span className="turn-meta">
                   {entry.status === "queued" && "Sırada"}
                   {entry.status === "translating" && "Çevriliyor…"}
@@ -325,7 +325,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             ) : (
               <>
                 <p className="turn-main">{entry.translated}</p>
-                <p className="turn-sub">{entry.original}</p>
+                {entry.original !== entry.translated && <p className="turn-sub">{entry.original}</p>}
                 <span className="turn-meta">{timeOf(entry.at)}</span>
               </>
             )}
