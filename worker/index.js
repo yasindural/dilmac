@@ -101,7 +101,7 @@ export default {
           temperature: 0.2,
           max_tokens: 500,
           messages: [
-            { role: "system", content: `Translate naturally into ${target}. Return only the translation.` },
+            { role: "system", content: `You translate live spoken conversation into ${target}. Write the way a native speaker actually TALKS, not formal written prose: use contractions and everyday wording, keep the speaker's tone (question, joke, urgency), and never add explanations. Return only the translation.` },
             { role: "user", content: text },
           ],
         }, "Dilmaç");
@@ -130,7 +130,7 @@ export default {
         max_tokens: 180,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: `You are a friendly, concise conversation partner for testing live translation. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Return only valid JSON with exactly these string keys: userTranslation, reply, replyTranslation. Keep the reply to one or two sentences. Never add markdown.` },
+          { role: "system", content: `You are a real person having a casual voice chat, not an assistant. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Sound genuinely human: everyday spoken language, contractions, natural reactions ("oh nice", "hmm"), react to what they actually said, and about every other turn ask a short natural follow-up question to keep the chat alive. Never lecture, never list, never sound like a textbook. Keep replies to one or two short spoken sentences. Return only valid JSON with exactly these string keys: userTranslation (their message translated into ${partnerLanguage}), reply (your reply in ${partnerLanguage}), replyTranslation (your reply translated into ${userLanguage}). Never add markdown.` },
           { role: "user", content: JSON.stringify({ previousConversation: history, latestMessage: text }) },
         ],
       }, "Dilmaç AI Deneme");

@@ -57,6 +57,9 @@ export type RoomScreenProps = {
 
 const textSizes = ["Normal", "Büyük", "Çok büyük"];
 
+const timeOf = (ms: number) =>
+  new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
 // Öğretici tur adımları. Hedefler ekranın gerçek düğmeleri; biri yoksa
 // tur o adımı atlar, akış bozulmaz.
 const tourSteps: TourStep[] = [
@@ -139,6 +142,14 @@ export default function RoomScreen(props: RoomScreenProps) {
     localStorage.setItem("dilmac-text-size", String(textSize));
   }, [textSize]);
 
+  // Görüşme sırasında sayfanın kendisi sabitlenir; yalnızca sohbet akışı
+  // kayar. Mobilde adres çubuğu zıplaması ve "sayfayı çekince yenile"
+  // davranışı konuşmayı bölüyordu.
+  useEffect(() => {
+    document.body.classList.add("room-locked");
+    return () => document.body.classList.remove("room-locked");
+  }, []);
+
   // Tek akış: benim ve karşı tarafın cümleleri zaman sırasına göre birleşir.
   // Eski iki panelli düzende göz sürekli sağ-sol gidiyordu; konuşma tek
   // sütunda akınca "kim ne dedi" tek bakışta okunuyor.
@@ -218,6 +229,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             title={autoSpeak ? "Otomatik seslendirme açık" : "Otomatik seslendirme kapalı"}
           >
             {autoSpeak ? <Volume2 /> : <VolumeX />}
+            <small>Oto ses</small>
           </button>
           <button
             type="button"
@@ -227,12 +239,15 @@ export default function RoomScreen(props: RoomScreenProps) {
             title={voiceEnabled ? "Canlı sesi kapat" : "Canlı sesi aç"}
           >
             {voiceEnabled ? <PhoneOff /> : <PhoneCall />}
+            <small>Canlı ses</small>
           </button>
           <button type="button" className="icon" onClick={() => setShowSettings(true)} title="Yazı boyutu">
             <Type />
+            <small>Boyut</small>
           </button>
           <button type="button" className="icon" onClick={() => setTourMode("run")} title="Düğmeleri anlat">
             <HelpCircle />
+            <small>Tur</small>
           </button>
         </div>
       </header>
@@ -277,12 +292,15 @@ export default function RoomScreen(props: RoomScreenProps) {
           </div>
         )}
 
-        {feed.map((entry) => (
+        {feed.map((entry, i) => (
           <article
             key={entry.id}
-            className={`turn ${entry.mine ? "mine" : "theirs"} ${entry.status ? `is-${entry.status}` : ""}`}
+            className={`turn ${entry.mine ? "mine" : "theirs"} ${entry.status ? `is-${entry.status}` : ""} ${i > 0 && feed[i - 1].mine === entry.mine ? "grouped" : "first-of-group"}`}
             onClick={() => setOpenEntry(entry)}
           >
+            {(i === 0 || feed[i - 1].mine !== entry.mine) && (
+              <span className="turn-who">{entry.mine ? "Siz" : peerLanguage ? `Karşı taraf · ${entry.originalLanguage}` : "Karşı taraf"}</span>
+            )}
             {entry.mine ? (
               <>
                 <p className="turn-main">{entry.original}</p>
@@ -291,7 +309,7 @@ export default function RoomScreen(props: RoomScreenProps) {
                   {entry.status === "queued" && "Sırada"}
                   {entry.status === "translating" && "Çevriliyor…"}
                   {entry.status === "sent" && "Gönderildi"}
-                  {entry.status === "delivered" && "Teslim edildi"}
+                  {entry.status === "delivered" && `Teslim edildi · ${timeOf(entry.at)}`}
                   {entry.status === "failed" && "Gönderilemedi"}
                 </span>
                 {entry.status === "failed" && (
@@ -308,7 +326,7 @@ export default function RoomScreen(props: RoomScreenProps) {
               <>
                 <p className="turn-main">{entry.translated}</p>
                 <p className="turn-sub">{entry.original}</p>
-                <span className="turn-meta">{entry.originalLanguage}</span>
+                <span className="turn-meta">{timeOf(entry.at)}</span>
               </>
             )}
           </article>

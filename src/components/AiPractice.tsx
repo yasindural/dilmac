@@ -1,9 +1,10 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Bot, CheckCircle2, Languages, Mic, MicOff, RotateCcw, Sparkles, Volume2 } from "lucide-react";
+import { ArrowLeftRight, ArrowUp, Bot, Keyboard, Mic, MicOff, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { useSpeech } from "../hooks/useSpeech";
 import { practiceWithAi, type PracticeHistoryTurn } from "../lib/aiPractice";
 import { speakText, unlockSpeechOutput } from "../lib/speechOutput";
 import { logClientError } from "../lib/errorLogger";
+import "../room.css";
 import "../ai-practice.css";
 
 const practiceLanguages = [
@@ -21,6 +22,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
   const aiSpeakingRef = useRef(false);
   const ignoreSpeechUntilRef = useRef(0);
@@ -111,6 +113,10 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   // Deneme sayacı ancak gerçekten konuşulurken işlesin: mikrofon açıkken,
   // AI yanıt üretirken veya en az bir tur konuşulmuşken.
   const conversing = speech.listening || busy || turns.length > 0;
+  useEffect(() => {
+    document.body.classList.add("room-locked");
+    return () => document.body.classList.remove("room-locked");
+  }, []);
   useEffect(() => { onConversingChange?.(conversing); }, [conversing, onConversingChange]);
   useEffect(() => () => onConversingChange?.(false), [onConversingChange]);
   useEffect(() => {
@@ -135,41 +141,142 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   };
 
   return (
-    <section className="practice-page">
-      <div className="practice-hero">
-        <div className="practice-kicker"><Sparkles /> KİMSEYİ BEKLEMEDEN TEST EDİN</div>
-        <h1>AI ile konuşun,<br /><em>çeviriyi anlayın.</em></h1>
-        <p>Siz kendi dilinizde konuşun. Dilmaç cümlenizi çevirsin, AI seçtiğiniz dilde yanıtlasın ve cevabın Türkçesini de yanına koysun.</p>
-        <div className="practice-badges"><span><CheckCircle2 /> Gerçek AI çevirisi</span><span><CheckCircle2 /> Sesli yanıt</span><span><CheckCircle2 /> Tek kişilik test</span></div>
+    <section className="room practice-room" aria-label="AI ile pratik">
+      <header className="room-bar">
+        <div className="chip room-chip ai-chip">
+          <Bot />
+          <b>AI PRATİK</b>
+        </div>
+        <div className="chip peer-chip on">
+          <i aria-hidden="true" />
+          <span>{busy ? "AI yazıyor…" : "AI hazır · anında yanıtlar"}</span>
+        </div>
+        <div className="room-bar-actions">
+          <button
+            type="button"
+            className={`icon ${autoSpeak ? "on" : ""}`}
+            onClick={() => setAutoSpeak((value) => !value)}
+            aria-pressed={autoSpeak}
+            title={autoSpeak ? "AI cevabı sesli okunuyor" : "AI cevabı sessiz"}
+          >
+            {autoSpeak ? <Volume2 /> : <VolumeX />}
+            <small>Oto ses</small>
+          </button>
+          {turns.length > 0 && (
+            <button
+              type="button"
+              className="icon"
+              onClick={() => { setTurns([]); turnsRef.current = []; speechQueueRef.current = []; setError(""); }}
+              title="Konuşmayı sıfırla"
+            >
+              <RotateCcw />
+              <small>Sıfırla</small>
+            </button>
+          )}
+        </div>
+      </header>
+
+      <div className="langbar">
+        <label className="langbar-side">
+          <small>SİZ</small>
+          <b>{userLanguageName}</b>
+          <select value={userLanguage} onChange={(event) => { setUserLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }} aria-label="Sizin diliniz">
+            {practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
+        <button className="langbar-swap swap-button" type="button" onClick={swapLanguages} aria-label="Dilleri değiştir"><ArrowLeftRight /></button>
+        <label className="langbar-side">
+          <small>AI</small>
+          <b>{aiLanguageName}</b>
+          <select value={aiLanguage} onChange={(event) => { setAiLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }} aria-label="AI dili">
+            {practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
       </div>
 
-      <div className="practice-shell">
-        <div className="practice-topbar">
-          <label>Sizin diliniz<select value={userLanguage} onChange={(event) => { setUserLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
-          <button className="practice-swap" onClick={swapLanguages} aria-label="Dilleri değiştir"><Languages /></button>
-          <label>AI'ın dili<select value={aiLanguage} onChange={(event) => { setAiLanguage(event.target.value); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}>{practiceLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
-          <label className="voice-toggle"><input type="checkbox" checked={autoSpeak} onChange={(event) => setAutoSpeak(event.target.checked)} /><span>AI cevabını seslendir</span></label>
-        </div>
+      <div className="room-feed" ref={feedRef} aria-live="polite">
+        {!turns.length && !busy && !speech.interimText && (
+          <div className="room-empty">
+            <Bot />
+            <h2>İlk cümlenizi söyleyin</h2>
+            <p>Mikrofona basıp kendi dilinizde konuşun. AI, {aiLanguageName} cevap verir ve çevirisini altına yazar.</p>
+            <div className="practice-starters">
+              {starters.map((starter) => (
+                <button key={starter} type="button" onClick={() => { unlockSpeechOutput(); void send(starter); }}>{starter}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <div className="practice-status"><i className={busy ? "thinking" : ""} /><span>{busy ? "AI düşünüyor ve çeviriyor…" : `Hazır · ${userLanguageName} → ${aiLanguageName}`}</span></div>
+        {turns.map((turn, index) => (
+          <div className="practice-pair" key={`${turn.userText}-${index}`}>
+            <article className="turn mine first-of-group">
+              <span className="turn-who">Siz</span>
+              <p className="turn-main">{turn.userText}</p>
+              <p className="turn-sub">{turn.userTranslation}</p>
+            </article>
+            <article className="turn theirs first-of-group" onClick={() => { unlockSpeechOutput(); speak(turn.reply); }}>
+              <span className="turn-who">AI · {aiLanguageName}</span>
+              <p className="turn-main">{turn.reply}</p>
+              <p className="turn-sub">{turn.replyTranslation}</p>
+              <span className="turn-meta">Dokun, tekrar dinle</span>
+            </article>
+          </div>
+        ))}
 
-        <div className="practice-feed" ref={feedRef} aria-live="polite">
-          {!turns.length && !busy && <div className="practice-empty"><div><Bot /></div><h2>İlk cümlenizi söyleyin</h2><p>Örneklerden birini seçin veya aşağıdaki mikrofona dokunun.</p><div className="practice-starters">{starters.map((text) => <button key={text} onClick={() => { unlockSpeechOutput(); void send(text); }}>{text}<ArrowRight /></button>)}</div></div>}
-          {turns.map((turn, index) => <div className="practice-turn" key={`${turn.userText}-${index}`}>
-            <article className="practice-message mine"><header><span>Siz</span><small>{userLanguageName}</small></header><div className="translation-line"><Languages /><span><small>{aiLanguageName} çevirisi</small>{turn.userTranslation}</span></div><div className="original-line"><small>Orijinal sözünüz · {userLanguageName}</small><p>{turn.userText}</p></div></article>
-            <article className="practice-message ai"><header><span><Bot /> AI konuşma partneri</span><small>{aiLanguageName}</small></header><div className="translation-line"><Languages /><span><small>{userLanguageName} anlamı</small>{turn.replyTranslation}</span></div><div className="original-line"><small>AI yanıtı · {aiLanguageName}</small><p>{turn.reply}</p><button className="speak-reply" onClick={() => { unlockSpeechOutput(); speak(turn.reply); }} aria-label="AI cevabını dinle"><Volume2 /></button></div></article>
-          </div>)}
-          {busy && <div className="practice-thinking"><span /><span /><span /><b>Çeviri hazırlanıyor</b></div>}
-        </div>
+        {speech.interimText && (
+          <article className="turn mine ghost" aria-live="polite">
+            <p className="turn-main">{speech.interimText}<i className="caret" /></p>
+          </article>
+        )}
 
-        <div className="practice-compose">
-          {speech.listening && <div className={`practice-live-preview ${speech.interimText ? "has-text" : ""}`} aria-live="polite"><i /><span><small>CANLI ÖN İZLEME</small>{speech.interimText || "Sizi dinliyorum…"}</span></div>}
-          <form onSubmit={submit}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={`${userLanguageName} yazın…`} aria-label="AI deneme mesajı" /><button className="primary" type="submit" disabled={busy || !draft.trim()}><ArrowRight /> Gönder</button></form>
-          <button className={`practice-mic ${speech.listening ? "listening" : ""}`} onClick={() => { unlockSpeechOutput(); speech.toggle(); }}>{speech.listening ? <MicOff /> : <Mic />}<span>{speech.listening ? "Mikrofon açık · durdur" : "Konuşarak dene"}</span></button>
-          {turns.length > 0 && <button className="practice-reset" onClick={() => { setTurns([]); turnsRef.current = []; speechQueueRef.current = []; setError(""); }}><RotateCcw /> Sohbeti temizle</button>}
-        </div>
-        {(error || speech.error) && <div className="practice-error" role="alert">{error || speech.error}</div>}
+        {busy && (
+          <article className="turn theirs ghost typing">
+            <span className="typing-dots"><span /><span /><span /></span>
+          </article>
+        )}
       </div>
+
+      <p className={`room-status ${error || speech.error ? "error" : ""}`} role="status" aria-live="polite">
+        {error || speech.error || (speech.listening ? "Dinliyorum… konuşun" : busy ? "AI düşünüyor…" : "Mikrofona basıp konuşmaya başlayın")}
+      </p>
+
+      <div className="room-controls">
+        <button type="button" className="round" onClick={() => setShowKeyboard((value) => !value)} title="Klavyeyle yaz">
+          <Keyboard />
+        </button>
+        <button
+          type="button"
+          className={`mic-button ${speech.listening ? "live" : ""}`}
+          onClick={() => { unlockSpeechOutput(); speech.toggle(); }}
+          disabled={!speech.supported}
+          aria-pressed={speech.listening}
+        >
+          {speech.listening ? <MicOff /> : <Mic />}
+          <span>{speech.listening ? "Durdur" : "Konuş"}</span>
+        </button>
+        <button
+          type="button"
+          className={`round ${autoSpeak ? "on" : ""}`}
+          onClick={() => setAutoSpeak((value) => !value)}
+          title={autoSpeak ? "AI sesini kapat" : "AI sesini aç"}
+        >
+          {autoSpeak ? <Volume2 /> : <VolumeX />}
+        </button>
+      </div>
+
+      {showKeyboard && (
+        <form className="room-composer" onSubmit={(event) => { submit(event); setShowKeyboard(false); }}>
+          <input
+            autoFocus
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder={`${userLanguageName} yazın…`}
+            aria-label="AI ile konuşulacak mesaj"
+          />
+          <button className="round send" type="submit" disabled={!draft.trim()}><ArrowUp /></button>
+        </form>
+      )}
     </section>
   );
 }
