@@ -407,7 +407,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       <p className="pricing-note reveal">
         {billingProvider() === "none"
           ? <>Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.</>
-          : <>Ödemeler <b>güvenli sağlayıcı</b> üzerinden alınır; kart bilgileriniz Dilmaç'a hiçbir zaman ulaşmaz. Aboneliğinizi istediğiniz an iptal edebilirsiniz.</>}
+          : <>Ödemeler yetkili satıcımız <b>Paddle</b> (Merchant of Record) üzerinden alınır; kart bilgileriniz Dilmaç'a hiçbir zaman ulaşmaz, fatura ve vergi işlemleri Paddle tarafından yürütülür. Aboneliğinizi istediğiniz an iptal edebilir, 30 gün içinde koşulsuz <Link to="/iade-politikasi">iade</Link> alabilirsiniz.</>}
       </p>
 
       <div className="pricing-faq reveal">
