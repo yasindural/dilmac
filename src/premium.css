@@ -1082,5 +1082,9 @@ header .member-chip > svg { display: none; }
    ekran oynuyordu. Tek bir değişkene bağlıyoruz. */
 :root { --header-h: 68px; }
 @media (max-width: 640px) { :root { --header-h: 60px; } }
+/* svh = araç çubukları AÇIKKEN ki yükseklik (en küçük hâl). dvh kullanınca
+   iOS'ta çubuk açılıp kapandıkça mikrofon düğmesi altta kesiliyordu. */
 .room { height: calc(100dvh - var(--header-h)); }
-body.room-locked .room { height: calc(100dvh - var(--header-h)); }
+@supports (height: 100svh) {
+  .room { height: calc(100svh - var(--header-h)); }
+}

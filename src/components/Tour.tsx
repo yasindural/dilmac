@@ -60,6 +60,22 @@ export default function Tour({ steps, mode, onFinish }: Props) {
 
   const step = steps[index];
 
+  // mode yalnızca ilk render'da useState'e giriyordu; "Tur" düğmesine basıp
+  // mode'u "run" yapmak hiçbir şey yapmıyordu. Prop değişimini state'e taşı.
+  useEffect(() => {
+    if (mode === "run") {
+      setIndex(0);
+      setAsking(false);
+      setDone(false);
+      setRunning(true);
+    } else if (mode === "ask") {
+      setIndex(0);
+      setRunning(false);
+      setDone(false);
+      setAsking(true);
+    }
+  }, [mode]);
+
   const sync = useCallback(() => {
     if (!step) return;
     setRect(measure(step.target));
@@ -87,46 +103,35 @@ export default function Tour({ steps, mode, onFinish }: Props) {
     };
   }, [running, done, sync]);
 
-  // Tur açıkken sayfa gerçekten kilitlenmeli. iOS Safari'de
-  // "body { overflow: hidden }" dokunmatik kaydırmayı durdurmuyor ve düzen
-  // viewport'u değiştiği için sayfa büyümüş gibi görünüyordu. Doğru yöntem
-  // gövdeyi position:fixed ile sabitlemek. Ayrıca tur boyunca sayfayı en
-  // üste alıyoruz; yoksa kullanıcı aşağıdayken hedef düğmeler ekran dışında
-  // kalıp spot ışığı boşluğa düşüyordu.
+  // Tur açıkken sayfa kilitlenir ve en üste alınır; yoksa kullanıcı
+  // aşağıdayken hedef düğmeler ekran dışında kalıyor.
   const locked = asking || running || done;
   useEffect(() => {
     if (!locked) return;
     const body = document.body;
-    const before = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
-    };
-    // KRİTİK: gövdeyi sabitlemeden ÖNCE gerçekten en üste al.
-    // iOS Safari'de position:fixed gövdede getBoundingClientRect eski kaydırma
-    // ofsetini döndürmeye devam ediyor; ölçüm doğru çıksa da spot ışığı hedefin
-    // başlık yüksekliği kadar yukarısına düşüyordu.
+    const before = { overflow: body.style.overflow };
+    // styles.css'te "html { scroll-behavior: smooth }" var; düz scrollTo(0,0)
+    // yumuşak bir animasyon başlatır ve hemen ardından kilitlersek sayfa
+    // animasyonun ortasında donar. Bu yüzden anlık kaydırma yapıyoruz.
+    const root = document.documentElement;
+    const beforeRootOverflow = root.style.overflow;
+    const beforeBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
     window.scrollTo(0, 0);
-    body.style.position = "fixed";
-    body.style.top = "0px";
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
+    root.style.scrollBehavior = beforeBehavior;
+
+    // Gövdeyi position:fixed YAPMIYORUZ. iOS Safari'de araç çubuğu küçülmüşken
+    // düzen viewport'u görsel viewport'tan kayık olur; sabitlenen gövde o kayık
+    // referansa oturup sayfayı üstten ve alttan kırpıyordu (kullanıcının
+    // gördüğü hata buydu). Normal akışta bırakıp kaydırmayı tam ekran
+    // dokunma engelleyici + overflow ile durduruyoruz.
+    root.style.overflow = "hidden";
     body.style.overflow = "hidden";
     body.classList.add("tour-open");
     return () => {
-      body.style.position = before.position;
-      body.style.top = before.top;
-      body.style.left = before.left;
-      body.style.right = before.right;
-      body.style.width = before.width;
+      root.style.overflow = beforeRootOverflow;
       body.style.overflow = before.overflow;
       body.classList.remove("tour-open");
-      // Tur bitince kullanıcı görüşme ekranının başında kalsın.
-      window.scrollTo(0, 0);
     };
   }, [locked]);
 
@@ -151,7 +156,7 @@ export default function Tour({ steps, mode, onFinish }: Props) {
 
   if (asking) {
     return (
-      <div className="tour-backdrop" role="dialog" aria-modal="true" aria-label="Öğretici mod">
+      <div className="tour-backdrop" role="dialog" aria-modal="true" aria-label="Öğretici mod" onTouchMove={(e) => e.preventDefault()}>
         <div className="tour-invite">
           <div className="tour-invite-icon"><GraduationCap /></div>
           <h2>Kısa bir tur atalım mı?</h2>
@@ -172,7 +177,7 @@ export default function Tour({ steps, mode, onFinish }: Props) {
 
   if (done) {
     return (
-      <div className="tour-backdrop" role="dialog" aria-modal="true">
+      <div className="tour-backdrop" role="dialog" aria-modal="true" onTouchMove={(e) => e.preventDefault()}>
         <div className="tour-invite tour-complete">
           <div className="tour-confetti" aria-hidden="true">
             {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ "--i": i } as React.CSSProperties} />)}

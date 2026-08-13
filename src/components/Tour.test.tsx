@@ -44,27 +44,37 @@ describe("öğretici tur", () => {
     expect(screen.getByRole("heading", { name: /görev tamamlandı/i })).toBeInTheDocument();
   });
 
-  // iOS'ta overflow:hidden dokunmatik kaydırmayı durdurmuyor; gövde
-  // position:fixed ile sabitlenmeli ve tur bitince eski haline dönmeli.
+  // Kaydırma html+body overflow ile durdurulur (gövde sabitlenmez);
+  // tur bitince ikisi de eski hâline dönmeli.
   it("tur açıkken sayfayı gerçekten kilitler, kapanınca serbest bırakır", () => {
     const onFinish = vi.fn();
     render(<Tour steps={steps} mode="ask" onFinish={onFinish} />);
-    expect(document.body.style.position).toBe("fixed");
-    expect(document.body.style.top).toBe("0px");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.style.overflow).toBe("hidden");
     expect(document.body.classList.contains("tour-open")).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: /gerek yok/i }));
-    expect(document.body.style.position).toBe("");
+    expect(document.body.style.overflow).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
     expect(document.body.classList.contains("tour-open")).toBe(false);
   });
 
-  // iOS'ta sabitlenmiş gövdede getBoundingClientRect eski kaydırma ofsetini
-  // döndürüyor; bu yüzden kilitten ÖNCE sayfa gerçekten en üste alınmalı.
-  it("kilitlemeden önce sayfayı en üste alır", () => {
-    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  it("kilitlemeden önce sayfayı anlık olarak en üste alır", () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {
+      // scrollTo çağrıldığı anda yumuşak kaydırma kapalı olmalı, yoksa
+      // sayfa animasyonun ortasında kilitlenir.
+      expect(document.documentElement.style.scrollBehavior).toBe("auto");
+    });
     render(<Tour steps={steps} mode="ask" onFinish={() => {}} />);
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
     scrollTo.mockRestore();
+  });
+
+  it("mode prop'u sonradan değişince turu başlatır", () => {
+    const { rerender } = render(<Tour steps={steps} mode="off" onFinish={() => {}} />);
+    expect(screen.queryByText("1 / 2")).toBeNull();
+    rerender(<Tour steps={steps} mode="run" onFinish={() => {}} />);
+    expect(screen.getByText("1 / 2")).toBeInTheDocument();
   });
 
   it("adım kartının arkasına dokunuşu yutan katman koyar", () => {
