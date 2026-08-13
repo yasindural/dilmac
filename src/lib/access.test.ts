@@ -1,17 +1,25 @@
 import { renderHook, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FREE_TRIAL_MS, formatRemaining, readTrialUsed, useAccess } from "./access";
+import { FREE_TRIAL_MS, TRIAL_ENABLED, formatRemaining, readTrialUsed, useAccess } from "./access";
 
 describe("erişim ve deneme süresi", () => {
   beforeEach(() => { localStorage.clear(); vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it("ücretsiz deneme 5 dakikadır", () => {
+  it("ücretsiz deneme 5 dakikadır ve şimdilik kapalıdır", () => {
     expect(FREE_TRIAL_MS).toBe(300_000);
     expect(formatRemaining(FREE_TRIAL_MS)).toBe("5:00");
+    expect(TRIAL_ENABLED).toBe(false);
   });
 
-  it("konuşma başlamadan süre işlemez", () => {
+  it("deneme kapalıyken kayıtlı kullanıcı sınırsızdır, sayaç hiç işlemez", () => {
+    const { result } = renderHook(() => useAccess({ uid: "sinirsiz", plan: "free", active: true, ready: true }));
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(result.current.state).toBe("subscribed");
+    expect(readTrialUsed("sinirsiz")).toBe(0);
+  });
+
+  it.runIf(TRIAL_ENABLED)("konuşma başlamadan süre işlemez", () => {
     const { result } = renderHook(() => useAccess({ uid: "u1", plan: "free", active: false, ready: true }));
     act(() => { vi.advanceTimersByTime(30_000); });
     expect(result.current.remaining).toBe(FREE_TRIAL_MS);
@@ -19,7 +27,7 @@ describe("erişim ve deneme süresi", () => {
     expect(result.current.state).toBe("trial");
   });
 
-  it("konuşma başlayınca süre işler ve kalıcı olarak yazılır", () => {
+  it.runIf(TRIAL_ENABLED)("konuşma başlayınca süre işler ve kalıcı olarak yazılır", () => {
     const { result } = renderHook(() => useAccess({ uid: "u2", plan: "free", active: true, ready: true }));
     act(() => { vi.advanceTimersByTime(10_000); });
     expect(result.current.remaining).toBeLessThan(FREE_TRIAL_MS);
@@ -33,7 +41,7 @@ describe("erişim ve deneme süresi", () => {
     expect(readTrialUsed("u3")).toBe(0);
   });
 
-  it("hak bittiğinde durum expired olur", () => {
+  it.runIf(TRIAL_ENABLED)("hak bittiğinde durum expired olur", () => {
     localStorage.setItem("dilmac-trial-used:u4", String(FREE_TRIAL_MS));
     const { result } = renderHook(() => useAccess({ uid: "u4", plan: "free", active: false, ready: true }));
     expect(result.current.state).toBe("expired");

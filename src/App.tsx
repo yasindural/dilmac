@@ -286,7 +286,7 @@ function SubscriptionPage({ user, profile, onSave, onSaveForUser }: { user: User
       </p>
 
       <div className="pricing-faq reveal">
-        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Hesabınız yoksa AI ile pratikte toplam 5 dakika denersiniz. Ücretsiz kayıt olduğunuzda AI pratik sınırsız açılır ve canlı çeviri için ayrıca 5 dakikalık hakkınız olur. Sayaç yalnızca gerçekten konuşurken işler: odaya girip beklemek, bağlantıyı kurmak veya sekmeyi arka plana almak sürenizi harcamaz.</p></details>
+        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Lansman süresince ücretsiz hesapla hem AI pratik hem canlı çeviri sınırsız. İlerleyen dönemde ücretsiz planda süre sınırı uygulanabilir; aboneler bundan etkilenmez.</p></details>
         <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
         <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi tek tıkla durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz.</p></details>
         <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>

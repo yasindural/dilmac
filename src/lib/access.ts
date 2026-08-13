@@ -7,6 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 //    girmek, karşı tarafı beklemek veya sekmeyi arka plana almak süreyi
 //    harcamaz. Sayaç ancak bağlantı kurulup konuşma başlayınca işler.
 
+// Şimdilik deneme süresi KAPALI: kayıtlı herkes sınırsız kullanır.
+// Tekrar açmak için tek satır: TRIAL_ENABLED = true.
+export const TRIAL_ENABLED = false;
 export const FREE_TRIAL_MS = 300_000;
 
 export type PlanId = "free" | "pro" | "business";
@@ -63,9 +66,9 @@ export function useAccess({ uid, plan, active, ready }: AccessInput) {
     setUsed(uid ? readTrialUsed(uid) : 0);
   }, [uid]);
 
-  const subscribed = isSubscribed(plan);
+  const subscribed = isSubscribed(plan) || !TRIAL_ENABLED;
   const remaining = Math.max(0, FREE_TRIAL_MS - used);
-  const countdownRunning = Boolean(uid) && !subscribed && active && remaining > 0;
+  const countdownRunning = TRIAL_ENABLED && Boolean(uid) && !subscribed && active && remaining > 0;
 
   useEffect(() => {
     if (!countdownRunning || !uid) {
