@@ -174,6 +174,7 @@ function Layout({
         <div>
           <Link to="/gizlilik">{t("footer.privacy")}</Link>
           <Link to="/kullanim-sartlari">{t("footer.terms")}</Link>
+          <Link to="/iade-politikasi">İade Politikası</Link>
         </div>
         <small>© {new Date().getFullYear()} Dilmaç</small>
       </footer>
@@ -297,7 +298,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       <div className="pricing-faq reveal">
         <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Lansman süresince ücretsiz hesapla hem AI pratik hem canlı çeviri sınırsız. İlerleyen dönemde ücretsiz planda süre sınırı uygulanabilir; aboneler bundan etkilenmez.</p></details>
         <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
-        <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi tek tıkla durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz.</p></details>
+        <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi istediğiniz an durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz. Ayrıca tüm ücretli planlarda 30 gün koşulsuz para iade garantisi vardır — soru sormayız.</p></details>
         <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>
       </div>
     </section>
@@ -910,19 +911,62 @@ const pages: {
   terms: {
     title: "Kullanım Şartları",
     intro:
-      "Bu metin yayımlama öncesi hukuk uzmanı tarafından gözden geçirilmesi gereken genel bir taslaktır.",
+      "Dilmaç, bireysel geliştirici Yasin Dural tarafından işletilen bir yazılım hizmetidir (SaaS). Bu sayfayı kullanarak aşağıdaki şartları kabul etmiş olursunuz.",
     sections: [
       [
         "Hizmetin niteliği",
-        "Çeviriler otomatik üretilir; kritik, tıbbi, hukuki veya acil durum iletişiminde tek kaynak olarak kullanılmamalıdır.",
+        "Dilmaç tamamen otomatik çalışan bir yazılım ürünüdür; çeviriler yapay zekâ tarafından üretilir, insan çevirmen veya danışmanlık hizmeti içermez. Çeviriler kritik, tıbbi, hukuki veya acil durum iletişiminde tek kaynak olarak kullanılmamalıdır.",
+      ],
+      [
+        "Abonelik ve yenileme",
+        "Pro ve Ekip planları aylık aboneliktir ve her dönem sonunda otomatik olarak yenilenir. Yenileme tutarı ve tarihi satın alma sırasında ve ödeme makbuzunuzda açıkça gösterilir. Fiyat değişiklikleri bir sonraki dönemden önce e-posta ile bildirilir.",
+      ],
+      [
+        "İptal",
+        "Aboneliğinizi istediğiniz an iptal edebilirsiniz: ödeme makbuzunuzdaki abonelik yönetimi bağlantısından veya destek e-postasına yazarak. İptal sonrası mevcut dönemin sonuna kadar erişiminiz devam eder; bir sonraki dönem ücreti tahsil edilmez.",
+      ],
+      [
+        "İade",
+        "Tüm ücretli planlar 30 gün koşulsuz para iade garantisi kapsamındadır. Ayrıntılar İade Politikası sayfasındadır.",
+      ],
+      [
+        "Ödeme işlemcisi",
+        "Ödemeler yetkili satıcımız (Merchant of Record) Paddle tarafından işlenir. Kart bilgileriniz Dilmaç'a ulaşmaz; fatura ve vergi işlemleri Paddle üzerinden yürütülür.",
       ],
       [
         "Kullanıcı sorumluluğu",
-        "Mikrofon, hesap ve üçüncü taraf API anahtarlarının güvenli kullanımından kullanıcı sorumludur.",
+        "Mikrofon izinlerinin ve hesabınızın güvenli kullanımından siz sorumlusunuz. Hizmetin hukuka aykırı amaçla kullanımı yasaktır.",
       ],
       [
         "Süreklilik",
-        "Tarayıcı veya üçüncü taraf servislerine bağlı özelliklerin kesintisiz çalışacağı garanti edilmez.",
+        "Tarayıcı veya üçüncü taraf servislerine bağlı özelliklerin kesintisiz çalışacağı garanti edilmez; planlı kesintiler makul süre önce duyurulur.",
+      ],
+      [
+        "İletişim",
+        "Sorularınız için: yasdural@gmail.com",
+      ],
+    ],
+  },
+  refund: {
+    title: "İade Politikası",
+    intro:
+      "30 gün koşulsuz para iade garantisi. Soru sormuyoruz.",
+    sections: [
+      [
+        "Kapsam",
+        "Tüm ücretli Dilmaç planları (Pro ve Ekip), ilk satın alma tarihinden itibaren 30 gün boyunca koşulsuz para iade garantisi kapsamındadır. Herhangi bir sebep belirtmeniz gerekmez.",
+      ],
+      [
+        "Nasıl iade alırım?",
+        "Satın almadan sonraki 30 gün içinde yasdural@gmail.com adresine e-posta gönderin veya ödeme makbuzunuzdaki Paddle destek bağlantısını kullanın. İadeniz kesintisiz, tam tutar olarak yapılır.",
+      ],
+      [
+        "Süre",
+        "İade talepleri en geç 5 iş günü içinde işleme alınır. Tutarın kartınıza yansıması bankanıza bağlı olarak 5-10 iş günü sürebilir.",
+      ],
+      [
+        "Yenileme ödemeleri",
+        "Otomatik yenileme sonrasında fark ettiyseniz endişelenmeyin: yenileme tarihinden itibaren 30 gün içinde başvurursanız yenileme ödemesi de tam olarak iade edilir.",
       ],
     ],
   },
@@ -1009,6 +1053,7 @@ export function App() {
           path="/kullanim-sartlari"
           element={<Info data={pages.terms} />}
         />
+        <Route path="/iade-politikasi" element={<Info data={pages.refund} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!authReady && (
