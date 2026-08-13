@@ -4,7 +4,6 @@ import {
   Menu,
   X,
   Mic,
-  Volume2,
   ArrowRight,
   Languages,
   ShieldCheck,
@@ -25,6 +24,16 @@ import {
   CreditCard,
   Mail,
   LockKeyhole,
+  Sparkles,
+  Zap,
+  MessagesSquare,
+  WifiOff,
+  Lock,
+  Gauge,
+  Headphones,
+  Bot,
+  Heart,
+  Star,
 } from "lucide-react";
 import { authReady, loginEmail, loginGoogle, logout, observeUser, registerEmail } from "./lib/auth";
 import type { User } from "firebase/auth";
@@ -43,6 +52,9 @@ import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpee
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
+import HeroScene from "./components/HeroScene";
+// Premium katman en son yüklenir; tüm sayfa stillerinin üstünde kalması gerekir.
+import "./premium.css";
 const langs = [
   ["tr-TR", "Türkçe"],
   ["en-US", "İngilizce"],
@@ -109,11 +121,20 @@ function Layout({
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { lang, setLang, t } = useI18n();
+  // Sayfa kaydırıldığında başlık camlaşır; sınıfı gövdeye yazıyoruz ki
+  // her sayfa aynı davranışı ücretsiz alsın.
+  useEffect(() => {
+    const onScroll = () => document.body.classList.toggle("scrolled", window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   return (
     <>
       <a href="#main" className="skip">
         {t("skip")}
       </a>
+      <div className="page-aura" aria-hidden="true"><i /><i /></div>
       <header>
         <Brand />
         <button
@@ -169,14 +190,36 @@ function Layout({
       </header>
       <main id="main">{children}</main>
       <footer>
-        <Brand />
-        <p>{t("footer.tagline")}</p>
-        <div>
-          <Link to="/gizlilik">{t("footer.privacy")}</Link>
-          <Link to="/kullanim-sartlari">{t("footer.terms")}</Link>
-          <Link to="/iade-politikasi">İade Politikası</Link>
+        <div className="foot-grid">
+          <div className="foot-brand">
+            <Brand />
+            <p>İki kişi kendi dilinde konuşur, Dilmaç aradaki mesafeyi kapatır. Tarayıcıda çalışır, kurulum istemez.</p>
+          </div>
+          <div className="foot-col">
+            <h4>Ürün</h4>
+            <Link to="/uygulama">Canlı çeviri</Link>
+            <Link to="/deneme">AI ile pratik</Link>
+            <Link to="/ozellikler">Özellikler</Link>
+            <Link to="/abonelik">Abonelik</Link>
+          </div>
+          <div className="foot-col">
+            <h4>Kaynaklar</h4>
+            <Link to="/nasil-calisir">Nasıl çalışır</Link>
+            <Link to="/hakkinda">Hakkında</Link>
+            <Link to="/kayit">Kayıt ol</Link>
+            <Link to="/profil">Hesabım</Link>
+          </div>
+          <div className="foot-col">
+            <h4>Yasal</h4>
+            <Link to="/gizlilik">{t("footer.privacy")}</Link>
+            <Link to="/kullanim-sartlari">{t("footer.terms")}</Link>
+            <Link to="/iade-politikasi">İade politikası</Link>
+          </div>
         </div>
-        <small>© {new Date().getFullYear()} Dilmaç</small>
+        <div className="foot-bottom">
+          <span>© {new Date().getFullYear()} Dilmaç</span>
+          <em>Dil farklı. Konuşma aynı.</em>
+        </div>
       </footer>
     </>
   );
@@ -211,18 +254,47 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
     } catch (reason) { setError((reason as Error).message); }
     finally { setBusy(false); }
   };
-  return <section className="auth-page"><div className="auth-shell">
-    <div className="auth-copy"><span>YENİ ÜYELİK</span><h1>Konuşmaya bir adım kaldı.</h1><p>Normal üyelik oluşturun veya Google hesabınızla saniyeler içinde devam edin.</p><ul><li><CheckCircle2 />Profilinizi kişiselleştirin</li><li><CheckCircle2 />Mock planınızı seçin</li><li><CheckCircle2 />Canlı çeviri odanızı açın</li></ul></div>
-    <div className="auth-card"><div className="auth-tabs"><button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Kayıt ol</button><button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Giriş yap</button></div>
+  return <section className="auth-split">
+    <div className="auth-pitch">
+      <span className="eyebrow"><Sparkles /> Ücretsiz hesap</span>
+      <h1>Konuşmaya bir adım kaldı.</h1>
+      <p>Hesabınızı saniyeler içinde açın; canlı çeviri odanız ve AI pratik ekranınız anında hazır olsun.</p>
+      <div className="auth-benefits">
+        <span><CheckCircle2 />Sınırsız AI pratik ve canlı çeviri odası</span>
+        <span><CheckCircle2 />7 dilde çift yönlü konuşma</span>
+        <span><CheckCircle2 />Görüşmeleriniz sunucuda saklanmaz</span>
+        <span><CheckCircle2 />Kredi kartı istemez</span>
+      </div>
+      <div className="auth-mini" aria-hidden="true">
+        <div className="row"><span className="scene-dot" />Oda bağlı · DLM-482</div>
+        <div className="bubble"><b>Merhaba, nasılsın?</b><small>Hello, how are you?</small></div>
+        <div className="bubble"><b>I&apos;m good, thanks!</b><small>İyiyim, teşekkürler!</small></div>
+      </div>
+    </div>
+    <div className="auth-card">
+      <h2>{mode === "register" ? "Hesap oluştur" : "Tekrar hoş geldiniz"}</h2>
+      <p>{mode === "register" ? "30 saniyede kaydolun, hemen konuşmaya başlayın." : "Hesabınıza giriş yapın ve kaldığınız yerden devam edin."}</p>
+      <div className="auth-tabs">
+        <button type="button" className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>Kayıt ol</button>
+        <button type="button" className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>Giriş yap</button>
+      </div>
       <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />Google ile {mode === "register" ? "kayıt ol" : "giriş yap"}</button>
       <div className="auth-divider"><span>veya e-posta ile</span></div>
-      <form onSubmit={submit}>{mode === "register" && <div className="name-row"><label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label><label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label></div>}
+      <form onSubmit={submit}>
+        {mode === "register" && <div className="name-row">
+          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+        </div>}
         <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
         <label><span><LockKeyhole />Şifre</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="En az 6 karakter" /></label>
-        {error && <div className="auth-error"><AlertCircle />{error}</div>}<button className="primary" type="submit" disabled={busy}>{busy ? "Lütfen bekleyin…" : mode === "register" ? "Normal kayıt oluştur" : "Giriş yap"}<ArrowRight /></button>
-      </form><small>Devam ederek <Link to="/kullanim-sartlari">Kullanım Şartları</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiş olursunuz.</small></div>
-  </div></section>;
+        {error && <div className="auth-error"><AlertCircle />{error}</div>}
+        <button className="primary" type="submit" disabled={busy}>{busy ? "Lütfen bekleyin…" : mode === "register" ? "Hesabımı oluştur" : "Giriş yap"}<ArrowRight /></button>
+      </form>
+      <p className="auth-legal">Devam ederek <Link to="/kullanim-sartlari">Kullanım Şartları</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiş olursunuz.</p>
+    </div>
+  </section>;
 }
+
 function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState<PlanId | null>(null);
@@ -257,9 +329,16 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   return (
     <section className="pricing">
       <div className="pricing-head reveal">
-        <span className="pricing-tag"><Crown /> Abonelik</span>
+        <span className="eyebrow"><Crown /> Abonelik</span>
         <h1>Dil engelini <em>tamamen</em> kaldırın.</h1>
         <p>Karşınızdaki kendi dilinde konuşsun, siz kendi dilinizde duyun. Ücretsiz başlayın, ihtiyacınız büyüyünce yükseltin.</p>
+      </div>
+
+      <div className="pricing-assure reveal">
+        <span><ShieldCheck />30 gün koşulsuz iade</span>
+        <span><CheckCircle2 />İstediğiniz an iptal</span>
+        <span><Lock />Kart bilgisi bize ulaşmaz</span>
+        <span><CheckCircle2 />Kurulum gerekmez</span>
       </div>
 
       <div className="pricing-grid">
@@ -289,6 +368,42 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       </div>
 
       {error && <p className="pricing-note" style={{ color: "var(--coral)" }}>{error}</p>}
+
+      <div className="compare reveal">
+        <h3>Planları yan yana görün</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Özellik</th>
+              <th>Başlangıç</th>
+              <th className="col-pro">Pro</th>
+              <th>Ekip</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Canlı çeviri odası", "✓", "✓", "✓"],
+              ["AI ile sesli pratik", "✓", "✓", "✓"],
+              ["Desteklenen dil sayısı", "7", "7", "7"],
+              ["Görüşme süresi", "Sınırlı", "Sınırsız", "Sınırsız"],
+              ["Orijinal ses + çeviri sesi", "✓", "✓", "✓"],
+              ["Öncelikli çeviri hızı", "—", "✓", "✓"],
+              ["Aynı anda birden fazla oda", "—", "—", "✓"],
+              ["Ekip üyesi yönetimi", "—", "—", "✓"],
+              ["Öncelikli destek", "—", "E-posta", "Öncelikli"],
+              ["30 gün koşulsuz iade", "—", "✓", "✓"],
+            ].map(([label, free, pro, team]) => (
+              <tr key={label}>
+                <th scope="row">{label}</th>
+                <td>{free === "✓" ? <CheckCircle2 /> : free}</td>
+                <td className="col-pro">{pro === "✓" ? <CheckCircle2 /> : pro}</td>
+                <td>{team === "✓" ? <CheckCircle2 /> : team}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <p className="pricing-note reveal">
         {billingProvider() === "none"
           ? <>Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.</>
@@ -296,6 +411,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       </p>
 
       <div className="pricing-faq reveal">
+        <h3>Sık sorulanlar</h3>
         <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Lansman süresince ücretsiz hesapla hem AI pratik hem canlı çeviri sınırsız. İlerleyen dönemde ücretsiz planda süre sınırı uygulanabilir; aboneler bundan etkilenmez.</p></details>
         <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
         <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi istediğiniz an durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz. Ayrıca tüm ücretli planlarda 30 gün koşulsuz para iade garantisi vardır — soru sormayız.</p></details>
@@ -310,6 +426,7 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
   const initial = user ? (profile || defaultProfile(user)) : null;
   const [firstName, setFirstName] = useState(initial?.firstName || "");
   const [lastName, setLastName] = useState(initial?.lastName || "");
+  const [saved, setSaved] = useState(false);
   useEffect(() => {
     if (!user) return;
     const next = profile || defaultProfile(user);
@@ -324,24 +441,95 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
       navigate(next.completed ? "/uygulama" : "/profil?welcome=1");
     } catch (error) { alert((error as Error).message); }
   };
-  if (!user || !initial) return <section className="profile-gate"><UserCircle /><h1>Profilinizi oluşturun</h1><p>Önce Google hesabınızla güvenli şekilde kayıt olun.</p><button className="primary" onClick={() => void google()}><LogIn />Google ile kayıt ol</button></section>;
+  if (!user || !initial) {
+    return (
+      <section className="auth-split">
+        <div className="auth-pitch">
+          <span className="eyebrow"><UserCircle /> Üyelik merkezi</span>
+          <h1>Profilinizi oluşturun.</h1>
+          <p>Google hesabınızla saniyeler içinde kaydolun; canlı çeviri odanız ve pratik ekranınız hazır olsun.</p>
+          <div className="auth-benefits">
+            <span><CheckCircle2 />Sınırsız AI pratik</span>
+            <span><CheckCircle2 />Kendi canlı çeviri odanız</span>
+            <span><CheckCircle2 />Kredi kartı istemez</span>
+          </div>
+        </div>
+        <div className="auth-card">
+          <h2>Hemen başlayın</h2>
+          <p>Tek dokunuşla güvenli kayıt.</p>
+          <button className="google-button" onClick={() => void google()}><GoogleLogo />Google ile kayıt ol</button>
+          <div className="auth-divider"><span>veya</span></div>
+          <Link className="ghost" to="/kayit" style={{ width: "100%", justifyContent: "center", height: 52 }}><LogIn />E-posta ile devam et</Link>
+        </div>
+      </section>
+    );
+  }
   const save = (event: React.FormEvent) => {
     event.preventDefault();
     const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), completed: true };
     if (!next.firstName || !next.lastName) return;
-    onSave(next); navigate("/uygulama");
+    onSave(next);
+    setSaved(true);
+    window.setTimeout(() => navigate("/uygulama"), 450);
   };
   const currentPlan = planCatalog.find((plan) => plan.id === initial.plan) || planCatalog[0];
-  return <section className="profile-page">
-    <div className="profile-heading"><span>ÜYELİK MERKEZİ</span><h1>{initial.completed ? "Profilim" : "Kaydınızı tamamlayın"}</h1><p>Hesabınız doğrulandı. Dilmaç deneyiminizi kişiselleştirelim.</p></div>
-    <div className="profile-layout"><form className="profile-card" onSubmit={save}>
-      <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
-      <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
-      <label>E-posta hesabı<input value={user.email || ""} disabled /></label>
-      <button className="primary" type="submit"><CheckCircle2 />Profili kaydet ve devam et</button>
-    </form><aside className="subscription-card"><CreditCard /><small>MOCK ABONELİK</small><h2>{currentPlan.name}</h2><strong>{currentPlan.price}</strong><p>Gerçek ödeme bağlantısı henüz aktif değildir.</p><Link className="ghost" to="/abonelik">Planı görüntüle veya değiştir</Link></aside></div>
-  </section>;
+  const initials = `${firstName || user.email || "D"}`.trim().charAt(0).toUpperCase();
+  return (
+    <section className="dash">
+      <div className="dash-head">
+        <span className="dash-avatar">{initials}</span>
+        <div>
+          <h1>{initial.completed ? `Merhaba, ${firstName || "hoş geldiniz"}` : "Kaydınızı tamamlayın"}</h1>
+          <p>{user.email}</p>
+        </div>
+        <span className={`plan-badge ${initial.plan}`}>
+          {initial.plan === "free" ? <Sparkles /> : <Crown />}
+          {currentPlan.name.toUpperCase()}
+        </span>
+      </div>
+
+      <div className="dash-grid">
+        <form className="dash-card" onSubmit={save}>
+          <h2>Hesap bilgileri</h2>
+          <p className="big">Profilinizi güncelleyin</p>
+          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+          <label>E-posta<input value={user.email || ""} disabled /></label>
+          <div className="dash-actions">
+            <button className="primary" type="submit"><CheckCircle2 />{saved ? "Kaydedildi" : "Kaydet ve devam et"}</button>
+          </div>
+        </form>
+
+        <div className="dash-card">
+          <h2>Aboneliğiniz</h2>
+          <p className="big">{currentPlan.name} · {currentPlan.price}</p>
+          <div className="trust-list" style={{ marginBottom: 18 }}>
+            {currentPlan.features.slice(0, 4).map((feature) => (
+              <span key={feature}><CheckCircle2 />{feature}</span>
+            ))}
+          </div>
+          <div className="dash-actions">
+            <Link className="primary" to="/abonelik"><CreditCard />{initial.plan === "free" ? "Pro'ya yükselt" : "Planı yönet"}</Link>
+          </div>
+        </div>
+
+        <div className="dash-card">
+          <h2>Hızlı başlangıç</h2>
+          <p className="big">Konuşmaya başlayın</p>
+          <div className="trust-list" style={{ marginBottom: 18 }}>
+            <span><Radio />Canlı çeviri odası açın ve bağlantıyı paylaşın.</span>
+            <span><Bot />Karşınızda kimse yoksa AI ile pratik yapın.</span>
+          </div>
+          <div className="dash-actions">
+            <Link className="primary" to="/uygulama"><Mic />Canlı çeviriyi aç</Link>
+            <Link className="ghost" to="/deneme"><Bot />AI ile pratik</Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
+
 function useReveal() {
   useEffect(() => {
     const nodes = Array.from(document.querySelectorAll<HTMLElement>(".reveal:not(.seen)"));
@@ -364,42 +552,59 @@ function useReveal() {
 function Home() {
   useReveal();
   const { t } = useI18n();
+  const marquee = [
+    "Türkçe", "English", "Deutsch", "Français", "Español", "Italiano", "العربية",
+  ];
   return (
-    <>
+    <div className="home">
+      {/* ---------- HERO ---------- */}
       <section className="hero">
         <div>
+          <span className="eyebrow"><Sparkles /> Canlı konuşma çevirisi</span>
           <h1>
             {t("hero.title1")}
             <br />
             <span>{t("hero.title2")}</span>
           </h1>
-          <p>
-            {t("hero.sub")}
-          </p>
-          <Link className="primary large" to="/uygulama">
-            {t("cta.start")}
-            <ArrowRight />
-          </Link>
+          <p>{t("hero.sub")}</p>
+          <div className="hero-actions">
+            <Link className="primary large" to="/uygulama">
+              {t("cta.start")}
+              <ArrowRight />
+            </Link>
+            <Link className="ghost" to="/deneme">
+              <Bot />
+              AI ile ücretsiz dene
+            </Link>
+          </div>
           <div className="trust">
-            <span>
-              <Radio />
-              {t("trust.1")}
-            </span>
-            <span>
-              <ShieldCheck />
-              {t("trust.2")}
-            </span>
-            <span>
-              <Users />
-              {t("trust.3")}
-            </span>
+            <span><Radio />{t("trust.1")}</span>
+            <span><ShieldCheck />{t("trust.2")}</span>
+            <span><Users />{t("trust.3")}</span>
+            <span><WifiOff />Kurulum yok</span>
           </div>
         </div>
-        <LivePreview />
+        <HeroScene />
       </section>
+
+      {/* ---------- DİLLER ŞERİDİ ---------- */}
+      <section className="langs-band reveal">
+        <h2>7 dilde çift yönlü konuşma — herkes kendi dilinde kalır</h2>
+        <div className="langs-track">
+          {[...marquee, ...marquee].map((name, index) => (
+            <span key={`${name}-${index}`}><i />{name}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------- NASIL ÇALIŞIR ---------- */}
       <section className="band reveal">
-        <h2>{t("steps.title")}</h2>
-        <div className="steps reveal">
+        <div className="section-head">
+          <span className="eyebrow"><Zap /> Dört adım</span>
+          <h2>{t("steps.title")}</h2>
+          <p>Hesap açmadan da deneyebilirsiniz. Odayı açın, bağlantıyı paylaşın, konuşmaya başlayın.</p>
+        </div>
+        <div className="steps">
           {[
             ["01", t("step.1")],
             ["02", t("step.2")],
@@ -413,94 +618,98 @@ function Home() {
           ))}
         </div>
       </section>
-      <section className="privacy reveal">
-        <div className="shield">
-          <ShieldCheck />
+
+      {/* ---------- BENTO ÖZELLİKLER ---------- */}
+      <section className="reveal">
+        <div className="section-head">
+          <span className="eyebrow"><Star /> Neden Dilmaç</span>
+          <h2>Konuşmanın hızında çeviri.</h2>
+          <p>Yazışma değil, konuşma için tasarlandı. Ses, metin ve çeviri aynı ekranda akar.</p>
         </div>
-        <div>
-          <h2>{t("privacy.title")}</h2>
-          <p>
-            {t("privacy.text")}
-          </p>
-          <Link to="/gizlilik">
-            {t("privacy.link")} <ArrowRight />
-          </Link>
-        </div>
-      </section>
-      <section className="feature-strip reveal">
-        <article>
-          <Radio />
-          <div>
+        <div className="bento">
+          <article className="wide">
+            <Gauge className="bento-ico" />
             <h3>{t("f1.t")}</h3>
-            <p>{t("f1.p")}</p>
-          </div>
-        </article>
-        <article>
-          <Languages />
-          <div>
+            <p>Siz konuşurken cümle tamamlanır tamamlanmaz çeviri karşı tarafa düşer. Bekleme, tuşa basma, sıra bekleme yok.</p>
+            <div className="bento-demo">
+              <div className="row"><b>Türkçe</b> Yarınki toplantı saat kaçta?</div>
+              <div className="bar"><i /></div>
+              <div className="row"><b>English</b> What time is tomorrow&apos;s meeting?</div>
+            </div>
+          </article>
+          <article className="tall">
+            <Headphones className="bento-ico" />
+            <h3>Orijinal ses + çeviri</h3>
+            <p>Karşınızdakinin gerçek sesini duyarsınız; ton ve duygu kaybolmaz. Çeviri aynı anda hem yazıyla hem sesle gelir.</p>
+          </article>
+          <article>
+            <MessagesSquare className="bento-ico" />
             <h3>{t("f2.t")}</h3>
-            <p>{t("f2.p")}</p>
-          </div>
-        </article>
-        <article>
-          <ShieldCheck />
-          <div>
-            <h3>{t("f3.t")}</h3>
-            <p>{t("f3.p")}</p>
-          </div>
-        </article>
-        <article>
-          <Users />
-          <div>
-            <h3>{t("f4.t")}</h3>
-            <p>{t("f4.p")}</p>
-          </div>
-        </article>
+            <p>Her iki taraf da kendi dilini seçer. Çeviri iki yönlü, tek ekranda akan tek bir sohbet olarak görünür.</p>
+          </article>
+          <article>
+            <Bot className="bento-ico" />
+            <h3>AI ile pratik</h3>
+            <p>Karşınızda kimse yokken yapay zekâ ile sesli pratik yapın. Aynı ekran, aynı deneyim.</p>
+          </article>
+          <article className="wide">
+            <Lock className="bento-ico" />
+            <h3>Görüşmeler saklanmaz</h3>
+            <p>Ses ve metin iki tarayıcı arasında doğrudan taşınır; sunucuda görüşme kaydı tutulmaz. Mikrofon yalnızca siz açtığınızda çalışır.</p>
+          </article>
+          <article>
+            <Languages className="bento-ico" />
+            <h3>7 dil, tek arayüz</h3>
+            <p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça arasında anında geçiş.</p>
+          </article>
+        </div>
       </section>
-      <section className="use-cases">
-        <div className="section-copy">
-          <span><Globe2 /> {t("uc.kicker")}</span>
+
+      {/* ---------- KULLANIM ALANLARI ---------- */}
+      <section className="reveal">
+        <div className="section-head">
+          <span className="eyebrow"><Globe2 /> {t("uc.kicker")}</span>
           <h2>{t("uc.title")}</h2>
           <p>{t("uc.p")}</p>
         </div>
-        <div className="use-grid">
+        <div className="usecases">
           <article><Plane /><b>{t("uc1.t")}</b><p>{t("uc1.p")}</p></article>
           <article><Briefcase /><b>{t("uc2.t")}</b><p>{t("uc2.p")}</p></article>
           <article><GraduationCap /><b>{t("uc3.t")}</b><p>{t("uc3.p")}</p></article>
+          <article><Heart /><b>Ailede</b><p>Farklı ülkelerdeki yakınlarınızla arada tercüman olmadan konuşun.</p></article>
         </div>
       </section>
+
+      {/* ---------- GÜVEN ---------- */}
+      <section className="reveal">
+        <div className="trust-panel">
+          <div>
+            <h2>{t("privacy.title")}</h2>
+            <p>{t("privacy.text")}</p>
+            <Link className="ghost" to="/gizlilik">{t("privacy.link")} <ArrowRight /></Link>
+          </div>
+          <div className="trust-list">
+            <span><ShieldCheck />Görüşme metni ve sesi sunucuda saklanmaz.</span>
+            <span><ShieldCheck />Mikrofon yalnızca siz başlattığınızda açılır.</span>
+            <span><ShieldCheck />Ses bağlantısı iki tarayıcı arasında doğrudan kurulur.</span>
+            <span><ShieldCheck />Ödemeler yetkili satıcı üzerinden alınır; kart bilgisi bize ulaşmaz.</span>
+            <span><ShieldCheck />Tüm ücretli planlarda 30 gün koşulsuz iade.</span>
+          </div>
+        </div>
+      </section>
+
       <HomeExpansion />
-      <section className="home-cta">
-        <div><h2>{t("cta.title")}</h2><p>{t("cta.p")}</p></div>
+
+      {/* ---------- KAPANIŞ ---------- */}
+      <section className="final-cta reveal">
+        <h2>{t("cta.title")}</h2>
+        <p>{t("cta.p")}</p>
         <Link className="primary large" to="/uygulama">{t("cta.open")}<ArrowRight /></Link>
       </section>
-    </>
-  );
-}
-function LivePreview() {
-  const { t } = useI18n();
-  return (
-    <div className="preview" aria-label="Canlı çeviri örneği">
-      <div className="status">
-        <i />
-        {t("preview.status")}
-      </div>
-      <div className="wave">▂▅▃▇▄▆▂▅▇▃▆▄▂▇▅</div>
-      <b>Türkçe</b>
-      <p>Yarınki toplantı saat kaçta başlayacak?</p>
-      <hr />
-      <b>English</b>
-      <p className="accent">What time will tomorrow's meeting start?</p>
-      <div className="preview-controls">
-        <span>
-          <Mic />
-          {t("preview.listening")}
-        </span>
-        <Volume2 />
-      </div>
     </div>
   );
 }
+
 // Sayaç yalnızca ekran gerçekten açıkken işlesin diye sekme görünürlüğünü izler.
 function useVisible() {
   const [visible, setVisible] = useState(() => typeof document === "undefined" || !document.hidden);
@@ -903,8 +1112,8 @@ const pages: {
         "Gerçek AI çevirisinde metin seçtiğiniz sağlayıcıya gönderilir. Sağlayıcının gizlilik koşulları ayrıca geçerlidir.",
       ],
       [
-        "API anahtarı",
-        "Çeviri istekleri sunucu tarafında işlenir; tarayıcınızda hiçbir anahtar saklanmaz.",
+        "Teknik altyapı",
+        "Çeviri istekleri Dilmaç sunucusu üzerinden işlenir; tarayıcınızda hiçbir gizli bilgi saklanmaz.",
       ],
     ],
   },

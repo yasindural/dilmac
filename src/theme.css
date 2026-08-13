@@ -1,0 +1,139 @@
+/* ============================================================
+   DİLMAÇ — TASARIM SİSTEMİ
+   Tek token katmanı. Renk, tipografi, yükselti, yarıçap, hareket.
+   Bileşen dosyaları yalnızca bu değişkenleri kullanır.
+   ============================================================ */
+
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* — yüzeyler — */
+  --bg: #05070f;
+  --bg2: #080b16;
+  --surface: #0c1020;
+  --surface2: #121729;
+  --surface3: #191f36;
+  --line: #232a45;
+  --line-soft: #1a2038;
+
+  /* — metin — */
+  --text: #f4f6fd;
+  --text-soft: #c6cce0;
+  --muted: #8d96b4;
+
+  /* — vurgu — */
+  --violet: #8b5cf6;
+  --violet-soft: #a78bfa;
+  --cyan: #22d3ee;
+  --cyan-soft: #67e8f9;
+  --emerald: #34d399;
+  --coral: #fb7185;
+  --amber: #fbbf24;
+
+  /* eski isimler — geriye dönük uyum */
+  --blue: #6366f1;
+  --green: var(--emerald);
+
+  --accent-ink: #ffffff;
+  --brand-gradient: linear-gradient(115deg, var(--violet) 0%, var(--cyan) 100%);
+  --brand-glow: 0 0 60px -12px color-mix(in srgb, var(--violet) 55%, transparent);
+
+  --shadow-sm: 0 2px 8px -4px #000a;
+  --shadow: 0 20px 45px -28px #000e;
+  --shadow-lg: 0 40px 90px -50px #000f;
+
+  --r-sm: 10px;
+  --r: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+  --r-full: 999px;
+
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --t-fast: .16s var(--ease);
+  --t: .26s var(--ease);
+  --t-slow: .5s var(--ease);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f7f8fc;
+  --bg2: #eef1f9;
+  --surface: #ffffff;
+  --surface2: #f4f6fc;
+  --surface3: #eaeef8;
+  --line: #dde2ef;
+  --line-soft: #e8ecf6;
+  --text: #0a0f1f;
+  --text-soft: #333c55;
+  --muted: #5d6784;
+  --violet: #7c3aed;
+  --cyan: #0891b2;
+  --emerald: #059669;
+  --coral: #e11d48;
+  --blue: #4f46e5;
+  --shadow-sm: 0 2px 8px -4px #1a2b5520;
+  --shadow: 0 20px 45px -28px #1a2b5540;
+  --shadow-lg: 0 40px 90px -50px #1a2b5555;
+  --brand-glow: 0 0 60px -12px color-mix(in srgb, var(--violet) 30%, transparent);
+}
+
+/* ---------- tipografi ---------- */
+body {
+  font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.display,
+.hero h1,
+.pricing-head h1,
+.band h2,
+.use-cases h2,
+.privacy h2,
+.info h1 {
+  font-family: 'Newsreader', ui-serif, Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.02;
+}
+
+/* ---------- ortak yardımcılar ---------- */
+.grad-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 15px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(14px);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+.eyebrow svg { width: 14px; height: 14px; color: var(--violet-soft, var(--violet)); }
+
+/* Odak halkası — tüm sitede tutarlı */
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
