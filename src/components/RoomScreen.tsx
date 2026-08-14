@@ -171,7 +171,7 @@ export default function RoomScreen(props: RoomScreenProps) {
       <Tour steps={tourSteps} mode={tourMode} onFinish={() => setTourMode("off")} />
 
       <header className="room-bar">
-        <button className="chip room-chip" type="button" onClick={share}>
+        <button className="chip room-chip" type="button" onClick={share} data-tour="room">
           <span className="chip-label">{t("room.roomLabel")}</span>
           <b>{roomCode || "—"}</b>
           {copied ? <Check /> : canShare ? <Share2 /> : <Copy />}
@@ -189,6 +189,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             onClick={onToggleAutoSpeak}
             aria-pressed={autoSpeak}
             title={autoSpeak ? t("room.autoOn") : t("room.autoOff")}
+            data-tour="auto"
           >
             {autoSpeak ? <Volume2 /> : <VolumeX />}
             <small>{t("room.autoLabel")}</small>
@@ -199,6 +200,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             onClick={onToggleVoice}
             disabled={voiceConnecting && !voiceEnabled}
             title={voiceEnabled ? t("room.voiceOff") : t("room.voiceOn")}
+            data-tour="voice"
           >
             {voiceEnabled ? <PhoneOff /> : <PhoneCall />}
             <small>{t("room.voiceLabel")}</small>
@@ -307,6 +309,7 @@ export default function RoomScreen(props: RoomScreenProps) {
           className="round"
           onClick={() => setShowKeyboard((value) => !value)}
           title={t("room.keyboard")}
+          data-tour="keyboard"
         >
           <Keyboard />
         </button>
