@@ -7,6 +7,10 @@
 body { background: var(--bg); color: var(--text); }
 
 /* ================= HEADER ================= */
+header.site-header {
+  z-index: 40; /* mobil menü; deneme pili (z20) ve yüzen düğmelerin (z30-32) üstünde kalsın */
+}
+
 header {
   height: 68px;
   border-bottom: 1px solid transparent;
