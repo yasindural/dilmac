@@ -171,15 +171,27 @@ export default {
           model,
           // Gemini gibi "dusunen" modellerde akil yurutme tokenlari cikti
           // butcesinden yenir ve ceviri yarida kesilir; ceviri icin dusunmeye
-          // gerek yok - kapatmak hem keser hem hizlandirir.
-          reasoning: { enabled: false },
+          // neredeyse hic gerek yok.
+          //
+          // DIKKAT: burada eskiden `reasoning: { enabled: false }` vardi ve her
+          // istek OpenRouter'dan 400 donuyordu (100% basarisizlik; her ceviri
+          // sessizce yedek modele dusuyordu). Sebep: Gemini 3.x ailesi eski
+          // `thinkingBudget` yerine Google'in `thinkingLevel` API'sini kullanir.
+          // OpenRouter `reasoning.effort` -> `thinkingLevel` esler; thinkingLevel'in
+          // "kapali" karsiligi YOKTUR, en dusuk seviye "minimal"dir. Dolayisiyla
+          // dusunmeyi tamamen kapatma istegi gecersiz sayiliyordu.
+          // "minimal" pratikte en yakin karsilik: hizli, ucuz, uydurma yapmaz.
+          reasoning: { effort: "minimal" },
           // temperature 0: canli ceviride yaraticilik istemiyoruz. Onceki
           // prompt "bir yerlinin konustugu gibi yaz" diyordu; konusma tanima
           // bozuk/kisa bir parca urettiginde model bunu duzeltmek yerine
           // kulaga dogru gelen YENI bir cumle uyduruyordu. Kullanicinin
           // "hic soylemedigim seyleri yazdi" sikayeti buydu.
           temperature: 0,
-          max_tokens: 500,
+          // Dusunme tokenlari da bu butceden yenir. 500 ile ceviri yarida
+          // kesilebiliyordu; tavan yukseltmek maliyeti artirmaz (yalnizca
+          // gercekten uretilen token faturalanir), sadece kesilmeyi onler.
+          max_tokens: 2000,
           messages: [
             {
               role: "system",
@@ -202,7 +214,14 @@ export default {
       try {
         response = await translateWith(primaryModel);
         if (!response.ok && primaryModel !== fallbackModel) {
-          await recordError(env, { area: "translation", code: `model_fallback_${response.status}`, message: `${primaryModel} basarisiz, ${fallbackModel} denenecek`, page: path });
+          // Ust akisin GERCEK hata metnini de kaydet. Onceki surumde yalnizca
+          // "basarisiz, yedek denenecek" yaziliyordu; bu yuzden 15 dakikada 42
+          // kez tekrarlayan 400'un sebebi loglardan hic anlasilamadi.
+          const reason = await response.text().then(
+            (raw) => clean(raw, 300),
+            () => "govde okunamadi",
+          );
+          await recordError(env, { area: "translation", code: `model_fallback_${response.status}`, message: `${primaryModel} basarisiz (${reason}), ${fallbackModel} denenecek`, page: path });
           response = await translateWith(fallbackModel);
         }
       } catch (requestError) {
@@ -224,7 +243,20 @@ export default {
         return json({ error: "upstream_error" }, response.status, origin);
       }
       const payload = await response.json();
-      return json({ text: payload.choices?.[0]?.message?.content || "" }, 200, origin);
+      const translated = payload.choices?.[0]?.message?.content || "";
+      // 200 dondugu halde icerik bos kalabilir: dusunme tokenlari cikti
+      // butcesini bitirirse finish_reason "length" olur ve content bos gelir.
+      // Bos ceviri kullaniciya bos balon olarak dusmesin - yedek modelle bir
+      // kez daha dene.
+      if (!translated.trim() && primaryModel !== fallbackModel) {
+        await recordError(env, { area: "translation", code: "empty_completion", message: `${primaryModel} bos icerik dondurdu (finish_reason=${clean(payload.choices?.[0]?.finish_reason, 40)}), ${fallbackModel} denenecek`, page: path, level: "warning" });
+        const retry = await translateWith(fallbackModel);
+        if (retry.ok) {
+          const retryPayload = await retry.json();
+          return json({ text: retryPayload.choices?.[0]?.message?.content || "" }, 200, origin);
+        }
+      }
+      return json({ text: translated }, 200, origin);
     }
 
     if (path === "/practice") {
@@ -235,9 +267,14 @@ export default {
       if (!text || !userLanguage || !partnerLanguage) return json({ error: "invalid_request" }, 400, origin);
       const makeRequest = (model) => openRouter(env, {
         model,
-        reasoning: { enabled: false },
+        // /translate ile ayni sebep: Gemini 3.x thinkingLevel kullanir ve
+        // "kapali" seviyesi yoktur, en dusugu "minimal". `enabled: false`
+        // OpenRouter'dan 400 donduruyordu.
+        reasoning: { effort: "minimal" },
         temperature: 0.45,
-        max_tokens: 260,
+        // Dusunme tokenlari da bu butceden yeniyor; ustelik cikti bir JSON
+        // nesnesi (3 alan). 260 fazlasiyla dardi.
+        max_tokens: 1200,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: `You are a real person having a casual voice chat, not an assistant. The human speaks ${userLanguage}; you speak ${partnerLanguage}. Sound genuinely human: everyday spoken language, contractions, natural reactions ("oh nice", "hmm"), react to what they actually said, and about every other turn ask a short natural follow-up question to keep the chat alive. Never lecture, never list, never sound like a textbook. Keep replies to one or two short spoken sentences. Return only valid JSON with exactly these string keys: userTranslation (their message translated into ${partnerLanguage}), reply (your reply in ${partnerLanguage}), replyTranslation (your reply translated into ${userLanguage}). Never add markdown.` },
