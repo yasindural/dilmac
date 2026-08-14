@@ -151,7 +151,7 @@ function Layout({
         {t("skip")}
       </a>
       <div className="page-aura" aria-hidden="true"><i /><i /></div>
-      <header>
+      <header className="site-header">
         <Brand />
         <button
           className="mobile-menu"

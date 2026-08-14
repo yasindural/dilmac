@@ -150,7 +150,7 @@
 
 /* Oda ekranı açıkken sayfanın kendisi kaymaz; yalnızca sohbet akışı kayar. */
 body.room-locked{overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
-body.room-locked header{position:static}
+body.room-locked header.site-header{position:relative}
 
 /* ---------- AI pratik = ayni oda gorunumu ---------- */
 .ai-chip{gap:7px}
