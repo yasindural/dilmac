@@ -260,7 +260,219 @@ export const de = {
   "plan.free.f1": "Unbegrenzte KI-Ãœbung",
   "plan.free.f2": "Live-Ãœbersetzung â€” wÃ¤hrend der EinfÃ¼hrungsphase unbegrenzt",
   "plan.free.f3": "Alle Sprachpaare",
-  "plan.pro.namëkh‘éì¶»§q«^tˆ‘Ù\Ü°éÚİ™\›]Yˆ‹ˆœ[‹œ›Ë™ˆ™]›ÜYİH0ç™\œÙ][™ÜÙÙ\ØÚÚ[™YÚÙZ]‹ˆœ[‹˜\Ú[™\ÜË›˜[YHˆ•X[H‹ˆœ[‹˜\Ú[™\ÜË››İHˆ‘°ïˆÛZ[™HX[\È‹ˆœ[‹˜\Ú[™\ÜË™ŒHˆš\ÈHH\œÛÛ™[ˆ‹ˆœ[‹˜\Ú[™\ÜË™Œˆˆ‘Ù[YZ[œØ[Y\ˆ\˜™Z]Ø™\™ZXÚ‹ˆœ[‹˜\Ú[™\ÜË™ŒÈˆ“][™ÜØ™\šXÚH‹ˆœ[‹˜\Ú[™\ÜË™ˆ™]›ÜYİ\ˆİ\Ü‹ˆœ[‹›Y[X™\ˆˆ“Z]ÛYY‹ˆ˜š[[™Ë››İÛÛ™šYİ\™Yˆ‘YH˜Z[™ÜØ[˜š[™[™ÈİZ›ØÚ]\Ëˆ‹ˆ˜š[[™Ë›Z\ÜÚ[™ÔšXÙHˆ‘°ïˆY\Ù[ˆ[ˆ\İÙZ[ˆ™Z\È[\›Yİˆ‹ˆ˜š[[™ËœØÜš\˜Z[Yˆ‘YH˜Z[™ÜØšX›[İZÈÛÛ›HšXÚÙ[Y[ˆÙ\™[‹ˆYHYHÙZ]H™]H[™™\œİXÚH\È\›™]]ˆ‹ˆ˜š[[™Ëš[š]˜Z[Yˆ‘YH˜Z[™ÜØšX›[İZÈÛÛ›HšXÚİ\[‹ˆ‹ˆ˜š[[™Ë[œ™XXÚX›Hˆ‘\ˆ˜Z[™ÜØ[˜šY]\ˆØ\ˆšXÚ\œ™ZXÚ˜\‹ˆ°ï™HZ[™H[\›™]™\˜š[™[™Ëˆ‹ˆ˜š[[™Ë[Y[İ]ˆ‘YH˜Z[™ÜÜÙZ]H]šXÚ™XÚ™Z]YÈÙX[ÛÜ]ˆ™\œİXÚH\È\›™]]ˆ‹ˆ˜š[[™Ë›Ü[‘˜Z[Yˆ‘YH˜Z[™ÜÜÙZ]HÛÛ›HšXÚÙpí™™›™]Ù\™[‹ˆš]H™\œİXÚH\È\›™]]ˆ‹ˆ˜š[[™Ë˜˜Y\›ˆ‘\ˆ˜Z[™ÜØ[˜šY]\ˆ]ÙZ[™HğïYÙHY™\ÜÙH\°ïÚÙÙYÙX™[‹ˆ‹ˆ˜š[[™Ë™˜Z[Yˆ‘\ˆ›Ü™Ø[™ÈÛÛ›HšXÚX™Ù\ØÚÜÜÙ[ˆÙ\™[‹ˆ‹ˆ˜]]™^YXœ›İÈˆ’ÛÜİ[›ÜÙ\ÈÛÛÈ‹ˆ˜]]šHˆ“\ˆ›ØÚZ[ˆØÚš]š\È[HÙ\Ü°éÚˆ‹ˆ˜]]œİXˆˆ‘\œİ[HZ[ˆÛÛÈ[ˆÙZİ[™[ˆ8 %Z[ˆ]™Kpç™\œÙ][™ÜÜ˜][H[™YHÒKpç[™ÈÚ[™ÛÙ›Ü™\™Z]ˆ‹ˆ˜]]˜ŒHˆ•[˜™YÜ™[HÒKpç[™È[™Z[ˆ]™Kpç™\œÙ][™ÜÜ˜][H‹ˆ˜]]˜Œˆˆ‘Ù\Ü°éÚH[ˆ™ZYHšXÚ[™Ù[ˆ[ˆØÛİ[HÜ˜XÚ[ˆ‹ˆ˜]]˜ŒÈˆ‘Z[™HÙ\Ü°éÚHÙ\™[ˆšYH]YˆZ[™[HÙ\™\ˆÙ\ÜZXÚ\‹ˆ˜]]˜ˆ’ÙZ[™HÜ™Y]Ø\H°íYÈ‹ˆ˜]]X”™YÚ\İ\ˆˆ”™YÚ\İšY\™[ˆ‹ˆ˜]]X“ÙÚ[ˆˆ[›Y[[ˆ‹ˆ˜]]˜Ü™X]U]Hˆ’ÛÛÈ\œİ[[ˆ‹ˆ˜]]˜Ü™X]TİXˆˆ“Y[HXÚ[ˆÌÙZİ[™[ˆ[ˆ[™YÈ\™ZİÜËˆ‹ˆ˜]]Ù[ÛÛYU]Hˆ•Ú[ÛÛ[Y[ˆ\°ïÚÈ‹ˆ˜]]Ù[ÛÛYTİXˆˆ“Y[HXÚ[ˆ[™XXÚHÙZ]\‹ÛÈH]Y™ÙZ0íœ\İˆ‹ˆ˜]]™ÛÛÙÛT™YÚ\İ\ˆˆ“Z]ÛÛÙÛH™YÚ\İšY\™[ˆ‹ˆ˜]]™ÛÛÙÛSÙÚ[ˆˆ“Z]ÛÛÙÛH[›Y[[ˆ‹ˆ˜]]›Üˆˆ›Ù\ˆ\ˆKSXZ[‹ˆ˜]]™š\œİˆ•›Ü›˜[YH‹ˆ˜]]›\İˆ“˜XÚ˜[YH‹ˆ˜]]™[XZ[ˆ‘KSXZ[‹ˆ˜]]™[XZ[ˆ›˜[YP™Z\ÜY[™H‹ˆ˜]]œ\ÜİÛÜ™ˆ”\ÜİÛÜ‹ˆ˜]]œ\ÜİÛÜ™ˆ“Z[™\İ[œÈˆ™ZXÚ[ˆ‹ˆ˜]]œİX›Z]™YÚ\İ\ˆˆ“YZ[ˆÛÛÈ\œİ[[ˆ‹ˆ˜]]œİX›Z]ÙÚ[ˆˆ[›Y[[ˆ‹ˆ˜]]˜\ŞHˆš]HØ\[¸ )ˆ‹ˆ˜]]™\œ›Üˆˆ‘\ˆ›Ü™Ø[™ÈÛÛ›HšXÚX™Ù\ØÚÜÜÙ[ˆÙ\™[‹ˆ°ï™HZ[™H[™ØX™[ˆ[™™\œİXÚH\È\›™]]ˆ‹ˆ˜]]™š\™X˜\ÙSZ\ÜÚ[™Èˆ‘°ïˆYHÛÛÙÛKP[›Y[[™È™Z[ˆ›ØÚYHš\™X˜\ÙKU[YÙX[™Üİ˜\šXX›[‹ˆ‹ˆ˜]]›YØ[™Y›Ü™Hˆ“Z][H›Ü˜Z™[ˆZŞ™\Y\œİH[œÙ\™H‹ˆ˜]]›YØ[ZYHˆˆ[™‹ˆ˜]]›YØ[Y\ˆˆ‹ˆ‹ˆ˜]]›Z[šT›İÈˆ”˜][H™\˜[™[ˆ‹ˆœİX‹™^YXœ›İÈˆX›È‹ˆœİX‹šXHˆ™\ÙZ]YÙHYHÜ˜XÚ˜\œšY\™H‹ˆœİX‹šY[Hˆ›Ûİ0é™YÈ‹ˆœİX‹šXˆˆ‹ˆ‹ˆœİX‹œİXˆˆ‘YH[™\™H\œÛÛˆÜšXÚZ™HÜ˜XÚKH0íœœİÚYH[ˆZ[™\‹ˆİ\HÛÜİ[›ÜÈ[™ÙXÚÛH™ZH™Y\™ˆHZ[™[H0íš\™[ˆ[‹ˆ‹ˆœİX‹˜\Üİ\™LHˆŒÌYÙHÙ[\°ïÚËÚ™H˜XÚœ˜YÙ[ˆ‹ˆœİX‹˜\Üİ\™Lˆˆ’™Y\™Z]ğï™˜\ˆ‹ˆœİX‹˜\Üİ\™LÈˆ’Ø\[™][ˆ\œ™ZXÚ[ˆ[œÈšYH‹ˆœİX‹˜\Üİ\™Mˆ’ÙZ[™HZ[œšXÚ[™È°íYÈ‹ˆœİX‹œÜ[\ˆˆSH‘SQP•TÕSˆ‹ˆœİX‹˜İ\œ™[ˆ‘Z[ˆZİY[\ˆ[ˆ‹ˆœİX‹™œ™YPİHˆ’ÛÜİ[›ÜÈÙZ]\›XXÚ[ˆ‹ˆœİX‹œİÚ]ÚÈˆ–HÜ[ŸHÙXÚÙ[ˆ‹ˆœİX‹™ÛÛÙÛTİ\ˆ“Z]ÛÛÙÛHİ\[ˆ‹ˆœİX‹œ›ØÙ\ÜÚ[™Èˆ•Ú\™™\˜\˜™Z]]8 )ˆ‹ˆœİX‹˜ÛÛ›™Xİ[™Èˆ•™\˜š[™x )ˆ‹ˆœİX‹˜ÛÛ\\™U]Hˆ”0é™H[H\™Zİ[ˆ™\™ÛZXÚ‹ˆœİX‹˜ÛÛ™X]\™Hˆ‘[šİ[Ûˆ‹ˆœİX‹œŒHˆ“]™Kpç™\œÙ][™ÜÜ˜][H‹ˆœİX‹œŒˆˆ”Ü˜XÚ0ï[™ÈZ]\ˆÒH‹ˆœİX‹œŒÈˆ•[\œİ0ïHÜ˜XÚ[ˆ‹ˆœİX‹œˆ‘Ù\Ü°éÚŞ™Z]‹ˆœİX‹œHˆ“ÜšYÚ[˜[Ûˆ
-È0ï™\œÙ]Hİ[[YH‹ˆœİX‹œˆˆ™]›ÜYİH0ç™\œÙ][™ÜÙÙ\ØÚÚ[™YÚÙZ]‹ˆœİX‹œÈˆ“YZ™\™H°é[YHÛZXÚ™Z]YÈ‹ˆœİX‹œˆ•X[]™\Ø[[™È‹ˆœİX‹œHˆ™]›ÜYİ\ˆİ\Ü‹ˆœİX‹œŒLˆŒÌYÙHÙ[\°ïÚËÚ™H˜XÚœ˜YÙ[ˆ‹ˆœİX‹›[Z]Yˆ™YÜ™[‹ˆœİX‹[›[Z]Yˆ•[˜™YÜ™[‹ˆœİX‹™[XZ[İ\Üˆ‘KSXZ[‹ˆœİX‹œš[Üš]Tİ\Üˆ™]›ÜYİ‹ˆœİX‹››İS›Û™PHˆZİY[‹ˆœİX‹››İS›Û™PˆˆÙ\™[ˆÙZ[™H˜Z[™Ù[ˆZ[™Ù^›ÙÙ[ˆ‹ˆœİX‹››İS›Û™PÈˆ‹ˆZ[™H[ØZÚ\™[HÛÛÈÙ\ÜZXÚ\ÈÛØ˜[Z[ˆ˜Z[™ÜØ[˜šY]\ˆ™\˜[™[ˆ\İÙZ\È]Yˆ[\Ù[™[ˆš[ØÚ\›HÙZ]\‹ˆ‹ˆœİX‹››İTZYHˆ–˜Z[™Ù[ˆÙ\™[ˆ›Ûˆ[œÙ\™[HY\˜Ú[Ùˆ™XÛÜ™‹ˆœİX‹››İTZYˆˆˆX™Ù]ÚXÚÙ[ÈZ[™HØ\[™][ˆ\œ™ZXÚ[ˆ[XpéÈšYK™XÚ[™È[™İ]Y\ˆ0ï™\›š[[]YKˆHØ[›œİ™Y\™Z]ğï™YÙ[ˆ[™[›™\š[ˆ›ÛˆÌYÙ[ˆ™Y[™İ[™ÜÛÜÈZ[™H‹ˆœİX‹››İTZY[šÈˆ”°ïÚÙ\œİ][™È‹ˆœİX‹››İTZYÈˆˆ\š[[‹ˆ‹ˆœİX‹™˜\U]Hˆ’0éYšYÙHœ˜YÙ[ˆ‹ˆœİX‹™˜\L\Hˆ•ÚYH[™ÙHØ[›ˆXÚ[HÛÜİ[›ÜÙ[ˆ[ˆÜ™XÚ[È‹ˆœİX‹™˜\LXHˆ•ğé™[™\ˆZ[™°ï[™ÜÜ\ÙH™ZÛÛ[\İHZ]Z[™[HÛÜİ[›ÜÙ[ˆÛÛÈ[˜™YÜ™[HÒKpç[™È[™]™Kpç™\œÙ][™ËˆÜ0é\ˆØ[›ˆ[HÛÜİ[›ÜÙ[ˆ[ˆZ[ˆ™Z][Z]Ù[[ÈX›Û›šY\HÚ[™]›ÛˆšXÚ™]›Ù™™[‹ˆ‹ˆœİX‹™˜\LœHˆ•Ù\™[ˆYZ[™HÙ\Ü°éÚH]Y™Ù^™ZXÚ™]È‹ˆœİX‹™˜\L˜Hˆ“™Z[‹ˆÙ\Ü°éÚH]Y™[ˆ\™ZİÚ\ØÚ[ˆ[ˆ™ZY[ˆœ›İÜÙ\›È^[™ÛˆÙ\™[ˆšXÚ]YˆZ[™[HÙ\™\ˆÙ\ÜZXÚ\ˆ\ˆXÚš\ØÚH™Z\œ›İÚÛÛHÙ\™[ˆ\ˆ™Z\œİXÚH]Y˜™]ØZˆ‹ˆœİX‹™˜\LÜHˆ’Ø[›ˆXÚ™Y\™Z]ğï™YÙ[È‹ˆœİX‹™˜\LØHˆ’˜KˆHØ[›œİZ[ˆX›È™Y\™Z]İÜ[ˆ[™\Èš\È[H[™H\ˆ\š[ÙHÙZ]\›]™[‹ˆ]pçÙ\™[HÚ[°ïˆ[H™^˜Z0é™HZ[™HÌ]0éÚYÙHÙ[^\°ïÚËQØ\˜[YHÚ™H˜XÚœ˜YÙ[‹ˆ‹ˆœİX‹™˜\MHˆ•Ù[ÚHÜ˜XÚ[ˆÙ\™[ˆ[\œİ0ïÈ‹ˆœİX‹™˜\MHˆØÛİ[HÜ˜XÚ[ˆÙ\™[ˆ[\œİ0ï›Ûˆ0ïšÚ\ØÚš\È˜\[š\ØÚˆ™YHÙZ]HğéZ™HZYÙ[™HÜ˜XÚKYH0ç™\œÙ][™È0éY[ˆ™ZYHšXÚ[™Ù[‹ˆ‹ˆœ›Ù‹™^YXœ›İÈˆ’ÛÛØ™\™ZXÚ‹ˆœ›Ù‹›^T›Ùš[Hˆ“YZ[ˆ›Ùš[‹ˆœ›Ù‹™Ø]RHˆ‘\œİ[HZ[ˆ›Ùš[ˆ‹ˆœ›Ù‹™Ø]TİXˆˆ“Y[HXÚ[ˆÙZİ[™[ˆZ]Z[™[HÛÛÙÛKRÛÛÈ[ˆ8 %Z[ˆ]™Kpç™\œÙ][™ÜÜ˜][H[™YH0ç[™ÈÚ[™™\™Z]ˆ‹ˆœ›Ù‹™Ø]PŒHˆ•[˜™YÜ™[HÒKpç[™È‹ˆœ›Ù‹™Ø]PŒˆˆ‘Z[ˆZYÙ[™\ˆ]™Kpç™\œÙ][™ÜÜ˜][H‹ˆœ›Ù‹™Ø]PŒÈˆ’ÙZ[™HÜ™Y]Ø\H°íYÈ‹ˆœ›Ù‹™Ø]PØ\™ˆ’™]ÜÛYÙ[ˆ‹ˆœ›Ù‹™Ø]PØ\™İXˆˆ”ÚXÚ\™H[›Y[[™ÈZ]Z[™[H\[‹ˆ‹ˆœ›Ù‹™Ø]QÛÛÙÛHˆ“Z]ÛÛÙÛH™YÚ\İšY\™[ˆ‹ˆœ›Ù‹™Ø]Q[XZ[ˆ“Z]KSXZ[›Ü˜Z™[ˆ‹ˆœ›Ù‹›Üˆˆ›Ù\ˆ‹ˆœ›Ù‹š[Èˆ’[ËÛ˜[Y_H‹ˆœ›Ù‹Ù[ÛÛYHˆÚ[ÛÛ[Y[ˆ‹ˆœ›Ù‹˜ÛÛ\]U]Hˆ”ØÚYpçÙHZ[™H[›Y[[™ÈXˆ‹ˆœ›Ù‹˜XØÛİ[]Hˆ’ÛÛÙ][ˆ‹ˆœ›Ù‹˜XØÛİ[šYÈˆZİX[\ÚY\™HZ[ˆ›Ùš[‹ˆœ›Ù‹œØ]™Hˆ”ÜZXÚ\›ˆ[™ÙZ]\ˆ‹ˆœ›Ù‹œØ]™Yˆ‘Ù\ÜZXÚ\‹ˆœ›Ù‹œİX•]Hˆ‘Z[ˆX›È‹ˆœ›Ù‹\Ü˜YHˆ–H›ÈÙXÚÙ[ˆ‹ˆœ›Ù‹›X[˜YÙHˆ”[ˆ™\Ø[[ˆ‹ˆœ›Ù‹œ]ZXÚÕ]Hˆ”ØÚ™[İ\‹ˆœ›Ù‹œ]ZXÚĞšYÈˆ‘˜[™È[ˆHÜ™XÚ[ˆ‹ˆœ›Ù‹œ]ZXÚÌHˆ°å™™›™HZ[™[ˆ]™Kpç™\œÙ][™ÜÜ˜][H[™Z[H[ˆ[šËˆ‹ˆœ›Ù‹œ]ZXÚÌˆˆ“šY[X[™OÈ0ç™HZ]\ˆÒKˆ‹ˆœ›Ù‹›Ü[“]™Hˆ“]™Kpç™\œÙ][™È0í™™›™[ˆ‹ˆœ›Ù‹›Ü[ZHˆ“Z]\ˆÒH0ï™[ˆ‹ˆ›™‹]Hˆ”ÙZ]HšXÚÙY[™[ˆ‹ˆ›™‹^ˆ‘YHÙ\İXÚHÙZ]Hİ\™HšY[ZXÚ™\œØÚØ™[ˆÙ\ˆØXˆ\ÈšYKˆ‹ˆ›™‹šÛYHˆ–\°ïÚÈ\ˆİ\ÙZ]H‹ˆ›œÙX\˜Úˆ”Ü˜XÚHİXÚ[ˆ‹ˆ›˜ÛÜÙHˆ”ØÚYpçÙ[ˆ‹ˆ›™[\Hˆ’ÙZ[ˆ™Y™™\ˆ‹ˆ››İXÙKœ™XYHˆ™\™Z]‹ˆ››İXÙK˜ÛÛ›™Xİ[™Èˆ•™\˜š[™HZ]˜][HÜ›ÛÛ_x )ˆ‹ˆ››İXÙKœ]Y]YY\ÙÈˆ“˜XÚšXÚ[ˆ\ˆØ\\ØÚ[™ÙKˆ‹ˆ››İXÙK›™]Õ˜[œÛ][Ûˆˆ‘Z[™H™]YH0ç™\œÙ][™È\İZ[™Ù]›Ù™™[‹ˆ‹ˆ››İXÙKœY\\ŞHˆ‘YH[™\™H\œÛÛˆÜšXÚ8 %Z[ˆØ]ˆØ\]ˆ‹ˆ››İXÙKš[Ù[ˆ‘Z[ˆ\°ïÚÙÙZ[[™\ˆØ]ˆİ\™HÙ\Ù[™]ˆ‹ˆ››İXÙK›ÚXÙSÙ™ˆˆ“ÜšYÚ[˜[Ûˆ]\ÙÙ\ØÚ[]ˆ‹ˆ››İXÙK›ÚXÙUØZ][™Èˆ‘Z[ˆZZÜ›Ù›Ûˆ\İ[‹ˆØ\[ˆ]YˆYHÛ™\˜š[™[™È\ˆ[™\™[ˆ\œÛÛ‹ˆ‹ˆ››İXÙK›ÚXÙT™XYHˆ“ÜšYÚ[˜[Ûˆ™\˜[™[‹ˆHØ[›œİYH[™\™H\œÛÛˆ™]0íœ™[‹ˆ‹ˆ››İXÙKš[ÜÓZXÈˆ]Yˆ[HTÛ™H\İ\È0ç™\œÙ][™ÜÛZZÜ›Ù›Ûˆ[‹ˆ[ˆÜšYÚ[˜[ÛˆØ[›œİHÙ\\˜]Z[œØÚ[[‹ˆ‹ˆ››İXÙKœÛİ\˜ÙPÚ[™ÙYˆ‘Z[™HÜ™XÚÜ˜XÚH\İ™]Û[™İXYÙ_Kˆ‹ˆ››İXÙKœY\“[™İXYÙHˆ‘YH[™\™H\œÛÛˆÜšXÚÛ[™İXYÙ_NÈYH0ç™\œÙ][™ÜÜÜ˜XÚHİ\™H]]ÛX]\ØÚ[™Ù\\Üİˆ‹ˆ››İXÙKš[˜[Y\ÙÈˆ•›Ûˆ\ˆ[™\™[ˆ\œÛÛˆØ[HZ[™H[™ğïYÙHÙ\ˆY\™H˜XÚšXÚˆYH™ZYHÙZ][ˆ™]Kˆ‹ˆ™\œ›Ü‹œ›ÛÛHˆ‘YH˜][]™\˜š[™[™È\İ™ZÙ\ØÚYÙ[‹ˆ°ï™HZ[™H[\›™]™\˜š[™[™È[™™\œİXÚH\È\›™]]ˆ‹ˆ™\œ›Ü‹›ÚXÙHˆ‘\ˆ]™KUÛˆÛÛ›HšXÚ™\˜[™[ˆÙ\™[‹ˆ°ï™HZZÜ›Ù›ÛYÜšY™ˆ[™[\›™]™\˜š[™[™Ëˆ‹ˆ™\œ›Ü‹›ZXÈˆ‘\ÈZZÜ›Ù›Ûˆ\İšXÚ™\™°ïØ˜\‹ˆ°ï™HYHœ›İÜÙ\‹P™\™XÚYİ[™È[™™\œİXÚH\È\›™]]ˆ‹ˆš[™›Ë˜X›İ]]Hˆ°ç™\ˆ[œÈ‹ˆš[™›Ë˜X›İ]š[›Èˆ‘[XpéÈXXÚÙ\Ü°éÚHÚ\ØÚ[ˆÙZHY[œØÚ[‹YH[\œØÚYYXÚHÜ˜XÚ[ˆÜ™XÚ[‹˜]0ï›XÚ\‹ˆ‹ˆš[™›Ë˜X›İ]œÌ]ˆ•Ø\[H[XpéÏÈ‹ˆš[™›Ë˜X›İ]œÌXˆˆ‘YHÜ˜XÚ˜\œšY\™HZ]\ˆZ[™˜XÚİ[ˆpí™ÛXÚ[ˆØ™\™›0éÚHÙ[šÙ[ˆ[™™\œİ0é™Yİ[™È\›pí™ÛXÚ[‹Ú™H\ÈÙ\Ü°éÚH[\˜œ™XÚ[‹ˆ‹ˆš[™›Ë˜X›İ]œÌˆ•[œÙ\ˆ[œØ]ˆ‹ˆš[™›Ë˜X›İ]œÌ˜ˆˆ‘\œİ[šİ[ÛšY\™[™HÛÛ[][šZØ][Û‹[›ˆØÚY™‹ˆ™\™XÚYİ[™Ù[‹™Z\™°éH[™š]˜]Ü0é™HÙ\™[ˆÛ\ˆ\šÛ0éˆ‹ˆš[™›ËšİË]Hˆ”ÛÈ[šİ[ÛšY\\È‹ˆš[™›ËšİËš[›Èˆ”İ\H[ˆšY\ˆİ\™[ˆØÚš][ˆZ[ˆ]™KQÙ\Ü°éÚˆ‹ˆš[™›ËšİËœÌ]ˆŒKˆÜ˜XÚ[ˆğé[ˆ‹ˆš[™›ËšİËœÌXˆˆ“YÙH™\İÙ[ÚHÜ˜XÚHHÜšXÚİ[™Ù[ÚHH0íœ™[ˆpí˜Ú\İˆ‹ˆš[™›ËšİËœÌˆŒ‹ˆ˜][H\œİ[[ˆ‹ˆš[™›ËšİËœÌ˜ˆˆ•Z[H[ˆÙXÚÜİ[YÙ[ˆ˜][XÛÙHÙ\ˆ[ˆZ[›Y[™ÜÛ[šÈZ]\ˆ[™\™[ˆ\œÛÛ‹ˆ‹ˆš[™›ËšİËœÌİˆŒËˆÜ˜XÚÙ\Ü°éÚİ\[ˆ‹ˆš[™›ËšİËœÌØˆˆ“˜XÚ\ˆœ›İÜÙ\‹P™\™XÚYİ[™È\œ™ZXÚZ[™HÜšYÚ[˜[İ[[YHYH[™\™HÙZ]Kğé™[™Z[™HÜ˜XÚHÛZXÚ™Z]YÈ™\œØÚšYXÚÚ\™ˆ‹ˆš[™›ËšİËœÍˆˆ0ç™\œÙ][™È\š[[ˆ‹ˆš[™›ËšİËœÍˆˆ‘\ˆ^Ú\™[ˆYHÙ]ğéHÜ˜XÚH0ï™\œÙ][™]Yˆİ[œØÚ›Ü™Ù[\Ù[‹ˆ‹ˆš[™›Ë™™X]\™\Ë]Hˆ‘[šİ[Û™[ˆ‹ˆš[™›Ë™™X]\™\Ëš[›Èˆ[\ÈÚXÚYÙH°ïˆ]™KRÛÛ[][šZØ][Ûˆ[ˆZ[™[HÜˆ‹ˆš[™›Ë™™X]\™\ËœÌ]ˆ‘Ù\Ü°éÚZ]ÜšYÚ[˜[Ûˆ‹ˆš[™›Ë™™X]\™\ËœÌXˆˆ–ÙZH\œÛÛ™[ˆ0íœ™[ˆ0ï™\ˆÙX”•ÈYHXÚHİ[[YH\ÈÙYÙ[°ï™\œÈ[™™\™›ÛÙ[ˆ[\][[™0ç™\œÙ][™È]Yˆ[\Ù[™[ˆš[ØÚ\›Kˆ‹ˆš[™›Ë™™X]\™\ËœÌˆ“]™KTÜ˜XÚ\šÙ[›[™È‹ˆš[™›Ë™™X]\™\ËœÌ˜ˆˆ•Ø[™[Ü˜XÚH[ˆ[\œİ0ï[ˆœ›İÜÙ\›ˆZ]\ˆÙXˆÜYXÚTHÛÙ›Ü[ˆ^[Kˆ‹ˆš[™›Ë™™X]\™\ËœÌİˆ“˜]0ï›XÚH0ç™\œÙ][™È‹ˆš[™›Ë™™X]\™\ËœÌØˆˆ“]Z[ˆZİY[\ÈÒKS[Ù[\È˜]0ï›XÚKÛÛ^™]İ\ÜİH0ç™\œÙ][™Ù[ˆYY™\ˆ‹ˆš[™›Ë™™X]\™\ËœÍˆ•›Ü›\Ù[ˆ‹ˆš[™›Ë™™X]\™\ËœÍˆˆ‘HØ[›œİ[ˆ0ï™\œÙ][ˆØ]ˆZ]\ˆÜ˜XÚ]\ÙØX™HZ[™\ÈÙ\°éÈ[š0íœ™[‹ˆ‹ˆš[™›Ë™™X]\™\ËœÍ]ˆ˜\œšY\™Yœ™ZY\È\ÚYÛˆ‹ˆš[™›Ë™™X]\™\ËœÍXˆˆ•[Y˜\Üİ\İ]\˜™YY[[™ËÚXÚ˜\™[ˆ›Úİ\ËÚ[ˆÛÛ˜\İ[™[\œİ0ï[™È°ïˆ™Y^šY\H™]ÙYİ[™Ëˆ‹ˆš[™›Ëœš]˜XŞK]Hˆ‘][œØÚ]™\šÛ0é[™È‹ˆš[™›Ëœš]˜XŞKš[›Èˆ‘Y\Ù\ˆ^\İZ[ˆ[Ù[YZ[™\ˆ[™›Ü›X][ÛœÙ[İ\™ˆ[™ÙZ[™H™XÚØ™\˜][™Ëˆ‹ˆš[™›Ëœš]˜XŞKœÌ]ˆ“ZZÜ›Ù›Ûˆ‹ˆš[™›Ëœš]˜XŞKœÌXˆˆ‘\ÈZZÜ›Ù›Ûˆİ\]\ˆ\˜ÚZ[™H]\Ù°ïÚÛXÚH[™[™ËˆYHœ›İÜÙ\‹P™\™XÚYİ[™ÈØ[›œİH™Y\™Z][šYZ[‹ˆ‹ˆš[™›Ëœš]˜XŞKœÌˆ°ç™\œÙ][™ÜÙ][ˆ‹ˆš[™›Ëœš]˜XŞKœÌ˜ˆˆ‘°ïˆYHZYÙ[XÚHÒKpç™\œÙ][™ÈÚ\™\ˆ^[ˆ[ˆÙ[][ˆ[˜šY]\ˆÙ\Ù[™]ˆ\ÜÙ[ˆ][œØÚ]˜™\İ[[][™Ù[ˆÙ[[ˆ\ğé›XÚˆ‹ˆš[™›Ëœš]˜XŞKœÌİˆ•XÚš\ØÚH[™œ˜\İZİ\ˆ‹ˆš[™›Ëœš]˜XŞKœÌØˆˆ°ç™\œÙ][™ÜØ[™œ˜YÙ[ˆ]Y™[ˆ0ï™\ˆ[ˆ[XpéËTÙ\™\È[ˆZ[™[Hœ›İÜÙ\ˆÙ\™[ˆÙZ[™HÙZZ[Y[ˆYØ[™ÜÙ][ˆÙ\ÜZXÚ\ˆ‹ˆš[™›Ë\›\Ë]Hˆ“][™ÜØ™Y[™İ[™Ù[ˆ‹ˆš[™›Ë\›\Ëš[›Èˆ‘[XpéÈ\İZ[ˆÛÙØ\™KQY[œİ
-ØXTÊK™]šYX™[ˆ›ÛHZ[™[[ÚXÚÛ\ˆX\Ú[ˆ\˜[ˆZ]\ˆ][™ÈY\Ù\ˆÙZ]HZŞ™\Y\œİHYH›ÛÙ[™[ˆ™Y[™İ[™Ù[‹ˆ‹ˆš[™›Ë\›\ËœÌ]ˆ\\ÈY[œİ\È‹ˆš[™›Ë\›\ËœÌXˆˆ‘[XpéÈ\İZ[ˆ›Ûİ0é™YÈ]]ÛX]\ÚY\\ÈÛÙØ\™\›ÙZİÈ0ç™\œÙ][™Ù[ˆÙ\™[ˆ›ÛˆğïœİXÚ\ˆ[[YÙ[ˆ\™]Yİ[™[Y˜\ÜÙ[ˆÙZ[™HY[œØÚXÚH0ç™\œÙ][™ÈÙ\ˆ™\˜][™Ëˆ0ç™\œÙ][™Ù[ˆ0ï™™[ˆ[ˆÜš]\ØÚ\‹YY^š[š\ØÚ\‹™XÚXÚ\ˆÙ\ˆ›İ˜[ÛÛ[][šZØ][ÛˆšXÚ[È[Z[šYÙH]Y[HY[™[‹ˆ‹ˆš[™›Ë\›\ËœÌˆX›È[™™\›0é™Ù\[™È‹ˆš[™›Ë\›\ËœÌ˜ˆˆ‘YH›ËH[™X[KT0é™HÚ[™[Û˜]ØX›ÜÈ[™™\›0é™Ù\›ˆÚXÚ[H[™H™Y\ˆ\š[ÙH]]ÛX]\ØÚˆ™]˜YÈ[™][H\ˆ™\›0é™Ù\[™ÈÙ\™[ˆ™Z[HØ]Yˆ[™]YˆZ[™[H˜Z[™ÜØ™[YÈÛ\ˆ[™Ù^™ZYİˆ™Z\ğé™\[™Ù[ˆÙ\™[ˆ›Üˆ\ˆ°éÚİ[ˆ\š[ÙH\ˆKSXZ[Z]Ù]Z[ˆ‹ˆš[™›Ë\›\ËœÌİˆ’ğï™Yİ[™È‹ˆš[™›Ë\›\ËœÌØˆˆ‘HØ[›œİZ[ˆX›È™Y\™Z]ğï™YÙ[ˆ0ï™\ˆ[ˆ[šÈ\ˆX›İ™\Ø[[™È]YˆZ[™[H˜Z[™ÜØ™[YÈÙ\ˆ\ˆKSXZ[[ˆ[ˆİ\Üˆ˜XÚ\ˆğï™Yİ[™È›ZXZ[ˆYØ[™Èš\È[H[™H\ˆ]Y™[™[ˆ\š[ÙH™\İZ[ÈYH°éÚİH\š[ÙHÚ\™šXÚ™\™XÚ™]ˆ‹ˆš[™›Ë\›\ËœÍˆ”°ïÚÙ\œİ][™È‹ˆš[™›Ë\›\ËœÍˆˆ‘°ïˆ[H™^˜Z0é™HÚ[Z[™HÌ]0éÚYÙHÙ[^\°ïÚËQØ\˜[YHÚ™H˜XÚœ˜YÙ[‹ˆZ[™[Z][ˆİZ[ˆ]Yˆ\ˆÙZ]H\ˆ\œİ][™ÜÜšXÚ[šYKˆ‹ˆš[™›Ë\›\ËœÍ]ˆ–˜Z[™ÜØXÚXÚÛ\ˆ‹ˆš[™›Ë\›\ËœÍXˆˆ–˜Z[™Ù[ˆÙ\™[ˆ›ÛˆYK[œÙ\™[HY\˜Ú[Ùˆ™XÛÜ™X™Ù]ÚXÚÙ[ˆZ[™HØ\[™][ˆ\œ™ZXÚ[ˆ[XpéÈšXÚÈ™XÚ[™È[™İ]Y\ˆ]Y™[ˆ0ï™\ˆYKˆ‹ˆš[™›Ë\›\ËœÍˆ•™\˜[ÛÜ[™È\ˆ]™[™[ˆ‹ˆš[™›Ë\›\ËœÍ˜ˆˆ‘Hš\İ°ïˆ[ˆÚXÚ\™[ˆ[YØ[™ÈZ]ZZÜ›Ù›Û˜™\™XÚYİ[™Ù[ˆ[™Z[™[HÛÛÈ™\˜[ÛÜXÚˆYH][™È\ÈY[œİ\ÈH™XÚİÚYšYÙ[ˆÙXÚÙ[ˆ\İ[\œØYİˆ‹ˆš[™›Ë\›\ËœÍİˆ•™\™°ïØ˜\šÙZ]‹ˆš[™›Ë\›\ËœÍØˆˆ‘°ïˆ[šİ[Û™[‹YH›ÛHœ›İÜÙ\ˆÙ\ˆ›Ûˆš][˜šY]\›ˆXš0é™Ù[‹Ú\™ÙZ[ˆ[\˜œ™XÚ[™ÜÙœ™ZY\ˆ™]šYXˆØ\˜[Y\ÈÙ\[H]\Ù°éHÙ\™[ˆ™XÚ™Z]YÈ[™ÙZğï™Yİˆ‹ˆš[™›Ë\›\ËœÎˆ’ÛÛZİ‹ˆš[™›Ë\›\ËœÎˆˆ™ZHœ˜YÙ[ˆX\Ù\˜[ÛXZ[˜ÛÛH‹ˆš[™›Ëœ™Y[™]Hˆ‘\œİ][™ÜÜšXÚ[šYH‹ˆš[™›Ëœ™Y[™š[›ÈˆŒÌYÙH™Y[™İ[™ÜÛÜÙHÙ[^\°ïÚËQØ\˜[YKˆÚ\ˆİ[[ˆÙZ[™Hœ˜YÙ[‹ˆ‹ˆš[™›Ëœ™Y[™œÌ]ˆ‘Ù[[™ÜØ™\™ZXÚ‹ˆš[™›Ëœ™Y[™œÌXˆˆ[H™^˜Z0é™H›Ûˆ[XpéÈ
-›È[™X[JHÚ[™Xˆ[H\œİ[ˆØ]Y™][HÌYÙH[™È\˜ÚZ[™H™Y[™İ[™ÜÛÜÙHÙ[^\°ïÚËQØ\˜[YHX™ÙYXÚİˆH]\ÜİÙZ[™[ˆÜ[™[™ÙX™[‹ˆ‹ˆš[™›Ëœ™Y[™œÌˆ•ÚYH™ZÛÛ[YHXÚYZ[ˆÙ[\°ïÚÏÈ‹ˆš[™›Ëœ™Y[™œÌ˜ˆˆ”ØÚ™ZX™H[›™\š[ˆ›ÛˆÌYÙ[ˆ˜XÚ[HØ]Yˆ[ˆX\Ù\˜[ÛXZ[˜ÛÛHÙ\ˆ]™H[ˆYKTİ\ÜS[šÈ]YˆZ[™[H˜Z[™ÜØ™[YËˆYH\œİ][™È\™›Ûİ›Ûİ0é™YÈ[™Ú™HX°ïÙKˆ‹ˆš[™›Ëœ™Y[™œÌİˆ‘]Y\ˆ‹ˆš[™›Ëœ™Y[™œÌØˆˆ‘\œİ][™ÜØ[™œ˜YÙ[ˆÙ\™[ˆÜ0é\İ[œÈ[›™\š[ˆ›ÛˆHÙ\šİYÙ[ˆ™X\˜™Z]]ˆ™H˜XÚ˜[šÈØ[›ˆ\Èx $ÌLÙ\šİYÙH]Y\›‹š\È\ˆ™]˜YÈ]YˆZ[™\ˆØ\H\œØÚZ[ˆ‹ˆš[™›Ëœ™Y[™œÍˆ•™\›0é™Ù\[™ÜŞ˜Z[™Ù[ˆ‹ˆš[™›Ëœ™Y[™œÍˆˆ‘˜[ÈH\È\œİ˜XÚZ[™\ˆ]]ÛX]\ØÚ[ˆ™\›0é™Ù\[™È™[Y\šÜİÙZ[™HÛÜ™ÙNˆÙ[›ˆHXÚ[›™\š[ˆ›ÛˆÌYÙ[ˆXˆ[H™\›0é™Ù\[™ÜÙ][HY[\İÚ\™]XÚYH™\›0é™Ù\[™ÜŞ˜Z[™È›Ûİ0é™YÈ\œİ]]ˆ‹ŸHØ]\ÙšY\ÈXİ[Û˜\NÂ
+  "plan.pro.name": "Pro",
+  "plan.pro.note": "FÃ¼r regelmÃ¤ÃŸige GesprÃ¤che",
+  "plan.pro.f1": "Unbegrenzte Live-Ãœbersetzung",
+  "plan.pro.f2": "SprachgesprÃ¤che in beide Richtungen",
+  "plan.pro.f3": "GesprÃ¤chsverlauf",
+  "plan.pro.f4": "Bevorzugte Ãœbersetzungsgeschwindigkeit",
+  "plan.business.name": "Team",
+  "plan.business.note": "FÃ¼r kleine Teams",
+  "plan.business.f1": "Bis zu 5 Personen",
+  "plan.business.f2": "Gemeinsamer Arbeitsbereich",
+  "plan.business.f3": "Nutzungsberichte",
+  "plan.business.f4": "Bevorzugter Support",
+  "plan.member": "Mitglied",
+  "billing.notConfigured": "Die Zahlungsanbindung steht noch aus.",
+  "billing.missingPrice": "FÃ¼r diesen Plan ist kein Preis hinterlegt.",
+  "billing.scriptFailed": "Die Zahlungsbibliothek konnte nicht geladen werden. Lade die Seite neu und versuche es erneut.",
+  "billing.initFailed": "Die Zahlungsbibliothek konnte nicht starten.",
+  "billing.unreachable": "Der Zahlungsanbieter war nicht erreichbar. PrÃ¼fe deine Internetverbindung.",
+  "billing.timeout": "Die Zahlungsseite hat nicht rechtzeitig geantwortet. Versuche es erneut.",
+  "billing.openFailed": "Die Zahlungsseite konnte nicht geÃ¶ffnet werden. Bitte versuche es erneut.",
+  "billing.badUrl": "Der Zahlungsanbieter hat keine gÃ¼ltige Adresse zurÃ¼ckgegeben.",
+  "billing.failed": "Der Vorgang konnte nicht abgeschlossen werden.",
+  "auth.eyebrow": "Kostenloses Konto",
+  "auth.h1": "Nur noch ein Schritt bis zum GesprÃ¤ch.",
+  "auth.sub": "Erstelle dein Konto in Sekunden â€” dein Live-Ãœbersetzungsraum und die KI-Ãœbung sind sofort bereit.",
+  "auth.b1": "Unbegrenzte KI-Ãœbung und ein Live-Ãœbersetzungsraum",
+  "auth.b2": "GesprÃ¤che in beide Richtungen in {count} Sprachen",
+  "auth.b3": "Deine GesprÃ¤che werden nie auf einem Server gespeichert",
+  "auth.b4": "Keine Kreditkarte nÃ¶tig",
+  "auth.tabRegister": "Registrieren",
+  "auth.tabLogin": "Anmelden",
+  "auth.createTitle": "Konto erstellen",
+  "auth.createSub": "Melde dich in 30 Sekunden an und leg direkt los.",
+  "auth.welcomeTitle": "Willkommen zurÃ¼ck",
+  "auth.welcomeSub": "Melde dich an und mach da weiter, wo du aufgehÃ¶rt hast.",
+  "auth.googleRegister": "Mit Google registrieren",
+  "auth.googleLogin": "Mit Google anmelden",
+  "auth.or": "oder per E-Mail",
+  "auth.first": "Vorname",
+  "auth.last": "Nachname",
+  "auth.email": "E-Mail",
+  "auth.emailPh": "name@beispiel.de",
+  "auth.password": "Passwort",
+  "auth.passwordPh": "Mindestens 6 Zeichen",
+  "auth.submitRegister": "Mein Konto erstellen",
+  "auth.submitLogin": "Anmelden",
+  "auth.busy": "Bitte wartenâ€¦",
+  "auth.error": "Der Vorgang konnte nicht abgeschlossen werden. PrÃ¼fe deine Angaben und versuche es erneut.",
+  "auth.firebaseMissing": "FÃ¼r die Google-Anmeldung fehlen noch die Firebase-Umgebungsvariablen.",
+  "auth.legalBefore": "Mit dem Fortfahren akzeptierst du unsere ",
+  "auth.legalMiddle": " und ",
+  "auth.legalAfter": ".",
+  "auth.miniRow": "Raum verbunden",
+  "sub.eyebrow": "Abo",
+  "sub.h1a": "Beseitige die Sprachbarriere ",
+  "sub.h1em": "vollstÃ¤ndig",
+  "sub.h1b": ".",
+  "sub.sub": "Die andere Person spricht ihre Sprache, du hÃ¶rst sie in deiner. Starte kostenlos und wechsle bei Bedarf zu einem hÃ¶heren Plan.",
+  "sub.assure1": "30 Tage Geld zurÃ¼ck, ohne Nachfragen",
+  "sub.assure2": "Jederzeit kÃ¼ndbar",
+  "sub.assure3": "Kartendaten erreichen uns nie",
+  "sub.assure4": "Keine Einrichtung nÃ¶tig",
+  "sub.popular": "AM BELIEBTESTEN",
+  "sub.current": "Dein aktueller Plan",
+  "sub.freeCta": "Kostenlos weitermachen",
+  "sub.switchTo": "Zu {plan} wechseln",
+  "sub.googleStart": "Mit Google starten",
+  "sub.processing": "Wird verarbeitetâ€¦",
+  "sub.connecting": "Verbindeâ€¦",
+  "sub.compareTitle": "PlÃ¤ne im direkten Vergleich",
+  "sub.colFeature": "Funktion",
+  "sub.r1": "Live-Ãœbersetzungsraum",
+  "sub.r2": "SprachÃ¼bung mit der KI",
+  "sub.r3": "UnterstÃ¼tzte Sprachen",
+  "sub.r4": "GesprÃ¤chszeit",
+  "sub.r5": "Originalton + Ã¼bersetzte Stimme",
+  "sub.r6": "Bevorzugte Ãœbersetzungsgeschwindigkeit",
+  "sub.r7": "Mehrere RÃ¤ume gleichzeitig",
+  "sub.r8": "Teamverwaltung",
+  "sub.r9": "Bevorzugter Support",
+  "sub.r10": "30 Tage Geld zurÃ¼ck, ohne Nachfragen",
+  "sub.limited": "Begrenzt",
+  "sub.unlimited": "Unbegrenzt",
+  "sub.emailSupport": "E-Mail",
+  "sub.prioritySupport": "Bevorzugt",
+  "sub.noteNoneA": "Aktuell ",
+  "sub.noteNoneB": "werden keine Zahlungen eingezogen",
+  "sub.noteNoneC": ". Deine Planwahl wird im Konto gespeichert; sobald ein Zahlungsanbieter verbunden ist, geht es auf demselben Bildschirm weiter.",
+  "sub.notePaidA": "Zahlungen werden von unserem Merchant of Record ",
+  "sub.notePaidB": " abgewickelt; deine Kartendaten erreichen DilmaÃ§ nie, Rechnung und Steuer Ã¼bernimmt Paddle. Du kannst jederzeit kÃ¼ndigen und innerhalb von 30 Tagen bedingungslos eine ",
+  "sub.notePaidLink": "RÃ¼ckerstattung",
+  "sub.notePaidC": " erhalten.",
+  "sub.faqTitle": "HÃ¤ufige Fragen",
+  "sub.faq1q": "Wie lange kann ich im kostenlosen Plan sprechen?",
+  "sub.faq1a": "WÃ¤hrend der EinfÃ¼hrungsphase bekommst du mit einem kostenlosen Konto unbegrenzte KI-Ãœbung und Live-Ãœbersetzung. SpÃ¤ter kann im kostenlosen Plan ein Zeitlimit gelten; Abonnierte sind davon nicht betroffen.",
+  "sub.faq2q": "Werden meine GesprÃ¤che aufgezeichnet?",
+  "sub.faq2a": "Nein. GesprÃ¤che laufen direkt zwischen den beiden Browsern; Text und Ton werden nicht auf einem Server gespeichert. Nur technische Fehlerprotokolle werden zur Fehlersuche aufbewahrt.",
+  "sub.faq3q": "Kann ich jederzeit kÃ¼ndigen?",
+  "sub.faq3a": "Ja. Du kannst dein Abo jederzeit stoppen und es bis zum Ende der Periode weiternutzen. AuÃŸerdem gilt fÃ¼r alle BezahlplÃ¤ne eine 30-tÃ¤gige Geld-zurÃ¼ck-Garantie ohne Nachfragen.",
+  "sub.faq4q": "Welche Sprachen werden unterstÃ¼tzt?",
+  "sub.faq4a": "{count} Sprachen werden unterstÃ¼tzt, von TÃ¼rkisch bis Japanisch. Jede Seite wÃ¤hlt ihre eigene Sprache, die Ãœbersetzung lÃ¤uft in beide Richtungen.",
+  "prof.eyebrow": "Kontobereich",
+  "prof.myProfile": "Mein Profil",
+  "prof.gateH1": "Erstelle dein Profil.",
+  "prof.gateSub": "Melde dich in Sekunden mit deinem Google-Konto an â€” dein Live-Ãœbersetzungsraum und die Ãœbung sind bereit.",
+  "prof.gateB1": "Unbegrenzte KI-Ãœbung",
+  "prof.gateB2": "Dein eigener Live-Ãœbersetzungsraum",
+  "prof.gateB3": "Keine Kreditkarte nÃ¶tig",
+  "prof.gateCard": "Jetzt loslegen",
+  "prof.gateCardSub": "Sichere Anmeldung mit einem Tippen.",
+  "prof.gateGoogle": "Mit Google registrieren",
+  "prof.gateEmail": "Mit E-Mail fortfahren",
+  "prof.or": "oder",
+  "prof.hello": "Hallo, {name}",
+  "prof.welcome": "willkommen",
+  "prof.completeTitle": "SchlieÃŸe deine Anmeldung ab",
+  "prof.accountTitle": "Kontodaten",
+  "prof.accountBig": "Aktualisiere dein Profil",
+  "prof.save": "Speichern und weiter",
+  "prof.saved": "Gespeichert",
+  "prof.subTitle": "Dein Abo",
+  "prof.upgrade": "Zu Pro wechseln",
+  "prof.manage": "Plan verwalten",
+  "prof.quickTitle": "Schnellstart",
+  "prof.quickBig": "Fang an zu sprechen",
+  "prof.quick1": "Ã–ffne einen Live-Ãœbersetzungsraum und teile den Link.",
+  "prof.quick2": "Niemand da? Ãœbe mit der KI.",
+  "prof.openLive": "Live-Ãœbersetzung Ã¶ffnen",
+  "prof.openAi": "Mit der KI Ã¼ben",
+  "nf.title": "Seite nicht gefunden",
+  "nf.text": "Die gesuchte Seite wurde vielleicht verschoben oder gab es nie.",
+  "nf.home": "ZurÃ¼ck zur Startseite",
+  "lp.search": "Sprache suchen",
+  "lp.close": "SchlieÃŸen",
+  "lp.empty": "Kein Treffer",
+  "notice.ready": "Bereit",
+  "notice.connecting": "Verbinde mit Raum {room}â€¦",
+  "notice.queuedMsg": "Nachricht in der Warteschlange.",
+  "notice.newTranslation": "Eine neue Ãœbersetzung ist eingetroffen.",
+  "notice.peerBusy": "Die andere Person spricht â€” dein Satz wartet.",
+  "notice.heldSent": "Dein zurÃ¼ckgehaltener Satz wurde gesendet.",
+  "notice.voiceOff": "Originalton ausgeschaltet.",
+  "notice.voiceWaiting": "Dein Mikrofon ist an. Warten auf die Tonverbindung der anderen Person.",
+  "notice.voiceReady": "Originalton verbunden. Du kannst die andere Person jetzt hÃ¶ren.",
+  "notice.iosMic": "Auf dem iPhone ist das Ãœbersetzungsmikrofon an. Den Originalton kannst du separat einschalten.",
+  "notice.sourceChanged": "Deine Sprechsprache ist jetzt {language}.",
+  "notice.peerLanguage": "Die andere Person spricht {language}; die Ãœbersetzungssprache wurde automatisch angepasst.",
+  "notice.invalidMsg": "Von der anderen Person kam eine ungÃ¼ltige oder leere Nachricht. Lade beide Seiten neu.",
+  "error.room": "Die Raumverbindung ist fehlgeschlagen. PrÃ¼fe deine Internetverbindung und versuche es erneut.",
+  "error.voice": "Der Live-Ton konnte nicht verbunden werden. PrÃ¼fe Mikrofonzugriff und Internetverbindung.",
+  "error.mic": "Das Mikrofon ist nicht verfÃ¼gbar. PrÃ¼fe die Browser-Berechtigung und versuche es erneut.",
+  "info.about.title": "Ãœber uns",
+  "info.about.intro": "DilmaÃ§ macht GesprÃ¤che zwischen zwei Menschen, die unterschiedliche Sprachen sprechen, natÃ¼rlicher.",
+  "info.about.s1t": "Warum DilmaÃ§?",
+  "info.about.s1b": "Die Sprachbarriere mit der einfachsten mÃ¶glichen OberflÃ¤che senken und VerstÃ¤ndigung ermÃ¶glichen, ohne das GesprÃ¤ch zu unterbrechen.",
+  "info.about.s2t": "Unser Ansatz",
+  "info.about.s2b": "Erst funktionierende Kommunikation, dann Schliff. Berechtigungen, FehlerfÃ¤lle und PrivatsphÃ¤re werden klar erklÃ¤rt.",
+  "info.how.title": "So funktioniert es",
+  "info.how.intro": "Starte in vier kurzen Schritten ein Live-GesprÃ¤ch.",
+  "info.how.s1t": "1. Sprachen wÃ¤hlen",
+  "info.how.s1b": "Lege fest, welche Sprache du sprichst und welche du hÃ¶ren mÃ¶chtest.",
+  "info.how.s2t": "2. Raum erstellen",
+  "info.how.s2b": "Teile den sechsstelligen Raumcode oder den Einladungslink mit der anderen Person.",
+  "info.how.s3t": "3. SprachgesprÃ¤ch starten",
+  "info.how.s3b": "Nach der Browser-Berechtigung erreicht deine Originalstimme die andere Seite, wÃ¤hrend deine Sprache gleichzeitig verschriftlicht wird.",
+  "info.how.s4t": "4. Ãœbersetzung erhalten",
+  "info.how.s4b": "Der Text wird in die gewÃ¤hlte Sprache Ã¼bersetzt und auf Wunsch vorgelesen.",
+  "info.features.title": "Funktionen",
+  "info.features.intro": "Alles Wichtige fÃ¼r Live-Kommunikation an einem Ort.",
+  "info.features.s1t": "GesprÃ¤ch mit Originalton",
+  "info.features.s1b": "Zwei Personen hÃ¶ren Ã¼ber WebRTC die echte Stimme des GegenÃ¼bers und verfolgen Untertitel und Ãœbersetzung auf demselben Bildschirm.",
+  "info.features.s2t": "Live-Spracherkennung",
+  "info.features.s2b": "Wandelt Sprache in unterstÃ¼tzten Browsern mit der Web Speech API sofort in Text um.",
+  "info.features.s3t": "NatÃ¼rliche Ãœbersetzung",
+  "info.features.s3b": "Nutzt ein aktuelles KI-Modell, das natÃ¼rliche, kontextbewusste Ãœbersetzungen liefert.",
+  "info.features.s4t": "Vorlesen",
+  "info.features.s4b": "Du kannst den Ã¼bersetzten Satz mit der Sprachausgabe deines GerÃ¤ts anhÃ¶ren.",
+  "info.features.s5t": "Barrierefreies Design",
+  "info.features.s5b": "Umfasst Tastaturbedienung, sichtbaren Fokus, hohen Kontrast und UnterstÃ¼tzung fÃ¼r reduzierte Bewegung.",
+  "info.privacy.title": "DatenschutzerklÃ¤rung",
+  "info.privacy.intro": "Dieser Text ist ein allgemeiner Informationsentwurf und keine Rechtsberatung.",
+  "info.privacy.s1t": "Mikrofon",
+  "info.privacy.s1b": "Das Mikrofon startet nur durch deine ausdrÃ¼ckliche Handlung. Die Browser-Berechtigung kannst du jederzeit entziehen.",
+  "info.privacy.s2t": "Ãœbersetzungsdaten",
+  "info.privacy.s2b": "FÃ¼r die eigentliche KI-Ãœbersetzung wird der Text an den genutzten Anbieter gesendet. Dessen Datenschutzbestimmungen gelten zusÃ¤tzlich.",
+  "info.privacy.s3t": "Technische Infrastruktur",
+  "info.privacy.s3b": "Ãœbersetzungsanfragen laufen Ã¼ber den DilmaÃ§-Server; in deinem Browser werden keine geheimen Zugangsdaten gespeichert.",
+  "info.terms.title": "Nutzungsbedingungen",
+  "info.terms.intro": "DilmaÃ§ ist ein Software-Dienst (SaaS), betrieben vom Einzelentwickler Yasin Dural. Mit der Nutzung dieser Seite akzeptierst du die folgenden Bedingungen.",
+  "info.terms.s1t": "Art des Dienstes",
+  "info.terms.s1b": "DilmaÃ§ ist ein vollstÃ¤ndig automatisiertes Softwareprodukt; Ãœbersetzungen werden von kÃ¼nstlicher Intelligenz erzeugt und umfassen keine menschliche Ãœbersetzung oder Beratung. Ãœbersetzungen dÃ¼rfen in kritischer, medizinischer, rechtlicher oder Notfallkommunikation nicht als alleinige Quelle dienen.",
+  "info.terms.s2t": "Abo und VerlÃ¤ngerung",
+  "info.terms.s2b": "Die Pro- und Team-PlÃ¤ne sind Monatsabos und verlÃ¤ngern sich am Ende jeder Periode automatisch. Betrag und Datum der VerlÃ¤ngerung werden beim Kauf und auf deinem Zahlungsbeleg klar angezeigt. PreisÃ¤nderungen werden vor der nÃ¤chsten Periode per E-Mail mitgeteilt.",
+  "info.terms.s3t": "KÃ¼ndigung",
+  "info.terms.s3b": "Du kannst dein Abo jederzeit kÃ¼ndigen: Ã¼ber den Link zur Aboverwaltung auf deinem Zahlungsbeleg oder per E-Mail an den Support. Nach der KÃ¼ndigung bleibt dein Zugang bis zum Ende der laufenden Periode bestehen; die nÃ¤chste Periode wird nicht berechnet.",
+  "info.terms.s4t": "RÃ¼ckerstattung",
+  "info.terms.s4b": "FÃ¼r alle BezahlplÃ¤ne gilt eine 30-tÃ¤gige Geld-zurÃ¼ck-Garantie ohne Nachfragen. Einzelheiten stehen auf der Seite zur Erstattungsrichtlinie.",
+  "info.terms.s5t": "Zahlungsabwickler",
+  "info.terms.s5b": "Zahlungen werden von Paddle, unserem Merchant of Record, abgewickelt. Deine Kartendaten erreichen DilmaÃ§ nicht; Rechnung und Steuer laufen Ã¼ber Paddle.",
+  "info.terms.s6t": "Verantwortung der Nutzenden",
+  "info.terms.s6b": "Du bist fÃ¼r den sicheren Umgang mit Mikrofonberechtigungen und deinem Konto verantwortlich. Die Nutzung des Dienstes zu rechtswidrigen Zwecken ist untersagt.",
+  "info.terms.s7t": "VerfÃ¼gbarkeit",
+  "info.terms.s7b": "FÃ¼r Funktionen, die vom Browser oder von Drittanbietern abhÃ¤ngen, wird kein unterbrechungsfreier Betrieb garantiert; geplante AusfÃ¤lle werden rechtzeitig angekÃ¼ndigt.",
+  "info.terms.s8t": "Kontakt",
+  "info.terms.s8b": "Bei Fragen: yasdural@gmail.com",
+  "info.refund.title": "Erstattungsrichtlinie",
+  "info.refund.intro": "30 Tage bedingungslose Geld-zurÃ¼ck-Garantie. Wir stellen keine Fragen.",
+  "info.refund.s1t": "Geltungsbereich",
+  "info.refund.s1b": "Alle BezahlplÃ¤ne von DilmaÃ§ (Pro und Team) sind ab dem ersten Kaufdatum 30 Tage lang durch eine bedingungslose Geld-zurÃ¼ck-Garantie abgedeckt. Du musst keinen Grund angeben.",
+  "info.refund.s2t": "Wie bekomme ich mein Geld zurÃ¼ck?",
+  "info.refund.s2b": "Schreibe innerhalb von 30 Tagen nach dem Kauf an yasdural@gmail.com oder nutze den Paddle-Support-Link auf deinem Zahlungsbeleg. Die Erstattung erfolgt vollstÃ¤ndig und ohne AbzÃ¼ge.",
+  "info.refund.s3t": "Dauer",
+  "info.refund.s3b": "Erstattungsanfragen werden spÃ¤testens innerhalb von 5 Werktagen bearbeitet. Je nach Bank kann es 5â€“10 Werktage dauern, bis der Betrag auf deiner Karte erscheint.",
+  "info.refund.s4t": "VerlÃ¤ngerungszahlungen",
+  "info.refund.s4b": "Falls du es erst nach einer automatischen VerlÃ¤ngerung bemerkst, keine Sorge: Wenn du dich innerhalb von 30 Tagen ab dem VerlÃ¤ngerungsdatum meldest, wird auch die VerlÃ¤ngerungszahlung vollstÃ¤ndig erstattet.",
+} satisfies Dictionary;
