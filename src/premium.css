@@ -1450,3 +1450,97 @@ header .member-chip { min-height:42px; align-self:center; }
   .lp-panel { max-height:min(78svh,620px); padding-bottom:env(safe-area-inset-bottom); }
   .home .steps { grid-template-columns:1fr; }
 }
+
+/* ================= ÜYE ROZETİ — GÖRSEL İNCE AYAR ================= */
+/* Yalnızca cila. Hiçbir ölçü değişmiyor: padding, avatar 32px, min-height 42px
+   ve metin bloğu aynı — bu yüzden başlıkta kayma riski yok. Dosyanın en sonunda
+   duruyor (premium.css en son import edilen stil), önceki kuralları güvenle ezer. */
+
+header .member-chip {
+  /* Düz tek renk yerine ince bir dikey geçiş: rozet başlığın içinde
+     "yüzen bir kontrol" gibi okunuyor, düz bir etiket gibi değil. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface2) 92%, transparent),
+    color-mix(in srgb, var(--surface) 76%, transparent)
+  ) !important;
+  border-color: color-mix(in srgb, var(--line) 86%, var(--violet));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent),
+    0 1px 2px -1px #0006,
+    0 8px 20px -14px #000a;
+  transition:
+    border-color var(--t),
+    transform var(--t),
+    box-shadow var(--t),
+    background var(--t);
+}
+
+/* Açık temada içteki beyaz parlama işe yaramaz; gölgeyi maviye çalan
+   yumuşak bir tona çeviriyoruz ki kart beyaz üstünde de ayrışsın. */
+html[data-theme="light"] header .member-chip {
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 2px -1px #1a2b5518,
+    0 8px 20px -14px #1a2b5545;
+}
+
+header .member-chip:hover {
+  /* Eski hâlde kenarlık tam doygun mora atlıyordu; yumuşattık ve
+     altına hafif bir mor hâle ekledik. */
+  border-color: color-mix(in srgb, var(--violet) 42%, var(--line));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface3) 95%, transparent),
+    color-mix(in srgb, var(--surface2) 86%, transparent)
+  ) !important;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent),
+    0 2px 5px -3px #0007,
+    0 12px 28px -16px color-mix(in srgb, var(--violet) 65%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Dokunma geri bildirimi: eskiden basınca hiçbir şey olmuyordu. */
+header .member-chip:active {
+  transform: translateY(0) scale(.985);
+  box-shadow:
+    inset 0 1px 2px #0005,
+    0 1px 2px -1px #0006;
+}
+
+/* Avatar hover'da minik büyür — rozetin tıklanabilir olduğu belli olur. */
+.chip-avatar { transition: transform var(--t), box-shadow var(--t), background var(--t); }
+header .member-chip:hover .chip-avatar { transform: scale(1.05); }
+
+/* Ücretsiz planın avatarı düz gri bir daireydi; artık çok hafif marka
+   tonu taşıyor. Pro/Ekip'in tam gradyanının belirgin şekilde altında
+   kalıyor, yani plan hiyerarşisi bozulmuyor. */
+.member-chip.plan-free .chip-avatar {
+  background: radial-gradient(
+    125% 125% at 30% 16%,
+    color-mix(in srgb, var(--violet) 24%, var(--surface3)),
+    color-mix(in srgb, var(--cyan) 12%, var(--surface2)) 68%,
+    var(--surface2)
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--violet) 24%, var(--line)),
+    0 4px 10px -7px color-mix(in srgb, var(--violet) 60%, transparent);
+}
+
+/* Plan etiketi (BAŞLANGIÇ) düz gri yerine hafif camgöbeği kırık gri —
+   okunurluk artar, yine de isim ön planda kalır. */
+.member-chip.plan-free .chip-text small {
+  color: color-mix(in srgb, var(--cyan) 20%, var(--muted));
+}
+
+/* İsim: bir tık sıkı harf aralığı, rozet içinde daha derli toplu durur. */
+.member-chip .chip-text strong { letter-spacing: -.15px; }
+
+@media (prefers-reduced-motion: reduce) {
+  header .member-chip,
+  header .member-chip:hover,
+  header .member-chip:active,
+  header .member-chip:hover .chip-avatar { transform: none; }
+  header .member-chip, .chip-avatar { transition: none; }
+}
