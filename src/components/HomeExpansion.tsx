@@ -32,7 +32,7 @@ export default function HomeExpansion() {
           <p>
             {t("vs.p")}
           </p>
-          <ul aria-label="Canlı görüşme özellikleri">
+          <ul aria-label={t("a11y.callFeatures")}>
             <li>
               <Mic2 />
               <span>
@@ -57,7 +57,7 @@ export default function HomeExpansion() {
           </ul>
         </div>
 
-        <div className="voice-stage" aria-label="İki dil arasındaki canlı ses ve çeviri akışı">
+        <div className="voice-stage" aria-label={t("a11y.voiceStage")}>
           <div className="voice-stage__topline">
             <span>
               <i aria-hidden="true" /> {t("vs.live")}
@@ -97,8 +97,8 @@ export default function HomeExpansion() {
 
           <div className="voice-caption">
             <span>{t("vs.caption")}</span>
-            <p>Yarınki toplantıya saat kaçta başlayalım?</p>
-            <strong>What time should we start tomorrow's meeting?</strong>
+            <p>Yarınki toplantı saat kaçta?</p>
+            <strong>What time is tomorrow's meeting?</strong>
           </div>
         </div>
       </section>

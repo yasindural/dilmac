@@ -22,6 +22,7 @@
 // yalnızca cihaza yazılır, ödeme alınmaz.
 
 import type { PlanId } from "./access";
+import type { TranslationKey } from "./i18n";
 import { logClientError } from "./errorLogger";
 
 export type Plan = {
@@ -34,33 +35,38 @@ export type Plan = {
   highlight?: boolean;
 };
 
-export const plans: Plan[] = [
-  {
-    id: "free",
-    name: "Başlangıç",
-    price: "Ücretsiz",
-    period: "",
-    note: "Dilmaç'ı denemek için",
-    features: ["AI ile pratik sınırsız", "Canlı çeviri — lansman süresince sınırsız", "Tüm dil çiftleri"],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "₺149",
-    period: "/ ay",
-    note: "Düzenli görüşmeler için",
-    features: ["Sınırsız canlı çeviri", "Karşılıklı sesli görüşme", "Görüşme geçmişi", "Öncelikli çeviri hızı"],
-    highlight: true,
-  },
-  {
-    id: "business",
-    name: "Ekip",
-    price: "₺399",
-    period: "/ ay",
-    note: "Küçük ekipler için",
-    features: ["5 kullanıcıya kadar", "Ortak çalışma alanı", "Kullanım raporları", "Öncelikli destek"],
-  },
+// İŞ MANTIĞI ile GÖRÜNEN METİN ayrıdır. Kimlikler, fiyatlar ve Paddle fiyat
+// kimlikleri burada sabittir; kullanıcıya gösterilen ad/açıklama/özellikler
+// sözlükten gelir (bkz. localizedPlans). Böylece plan hakları hiçbir dilde
+// değişmez.
+export type PlanShape = {
+  id: PlanId;
+  price: string;
+  featureCount: number;
+  highlight?: boolean;
+};
+
+export const planShapes: PlanShape[] = [
+  { id: "free", price: "Ücretsiz", featureCount: 3 },
+  { id: "pro", price: "₺149", featureCount: 4, highlight: true },
+  { id: "business", price: "₺399", featureCount: 4 },
 ];
+
+// Tip-only import: çalışma zamanında döngü oluşmaz.
+type PlanTranslate = (key: TranslationKey) => string;
+
+/** Plan listesini seçili site diliyle üretir. Kimlik ve fiyat değişmez. */
+export function localizedPlans(t: PlanTranslate): Plan[] {
+  return planShapes.map((shape) => ({
+    id: shape.id,
+    name: t(`plan.${shape.id}.name` as TranslationKey),
+    price: shape.id === "free" ? t("plan.free.price") : shape.price,
+    period: shape.id === "free" ? "" : t("plan.period"),
+    note: t(`plan.${shape.id}.note` as TranslationKey),
+    features: Array.from({ length: shape.featureCount }, (_, index) => t(`plan.${shape.id}.f${index + 1}` as TranslationKey)),
+    highlight: shape.highlight,
+  }));
+}
 
 export type BillingProvider = "none" | "endpoint" | "paddle";
 
@@ -80,9 +86,17 @@ export function billingProvider(): BillingProvider {
 
 export const billingConfigured = billingProvider() !== "none";
 
+/** Mesajı bir çeviri anahtarıdır; arayüz t() ile yerelleştirir. */
+export class BillingError extends Error {
+  constructor(public readonly translationKey: string) {
+    super(translationKey);
+    this.name = "BillingError";
+  }
+}
+
 export class BillingNotConfiguredError extends Error {
   constructor() {
-    super("Ödeme altyapısı henüz bağlanmadı.");
+    super("billing.notConfigured");
     this.name = "BillingNotConfiguredError";
   }
 }
@@ -112,7 +126,7 @@ function loadPaddle(): Promise<PaddleJS> {
       script.async = true;
       script.onload = () => {
         const paddle = window.Paddle;
-        if (!paddle) { fail("Ödeme kitaplığı yüklenemedi. Sayfayı yenileyip tekrar deneyin."); return; }
+        if (!paddle) { fail("billing.scriptFailed"); return; }
         try {
           if (paddleSandbox) paddle.Environment.set("sandbox");
           paddle.Initialize({
@@ -132,10 +146,10 @@ function loadPaddle(): Promise<PaddleJS> {
           });
           resolve(paddle);
         } catch {
-          fail("Ödeme kitaplığı başlatılamadı. Anahtar ayarlarını kontrol edin.");
+          fail("billing.initFailed");
         }
       };
-      script.onerror = () => fail("Ödeme sağlayıcısına ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+      script.onerror = () => fail("billing.unreachable");
       document.head.appendChild(script);
     });
   }
@@ -149,31 +163,41 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms = 15_000): Pr
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (requestError) {
     if (requestError instanceof Error && requestError.name === "AbortError") {
-      throw new Error("Ödeme sayfası zamanında yanıt vermedi. Tekrar deneyin.");
+      throw new BillingError("billing.timeout");
     }
-    throw new Error("Ödeme sağlayıcısına ulaşılamadı. İnternet bağlantınızı kontrol edin.");
+    throw new BillingError("billing.unreachable");
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
-export type CheckoutRequest = { planId: PlanId; uid: string; email: string | null };
+export type CheckoutRequest = { planId: PlanId; uid: string; email: string | null; locale?: string };
+
+// Paddle Checkout'un desteklediği yerel ayarlar. Listede olmayan bir değer
+// gönderilirse Paddle hata verebilir; bu yüzden bilinmeyen dil "en"e düşer.
+// Checkout item, fiyat kimliği, customData ve kullanıcı kimliği DEĞİŞMEZ.
+const paddleLocales = new Set(["en", "de", "es", "fr", "it", "nl", "pl", "pt", "ru", "sv", "tr", "zh", "ja", "ko", "da", "no", "fi", "cs", "el", "he", "id", "th", "uk", "ar"]);
+
+function safePaddleLocale(locale?: string) {
+  const base = (locale || "").slice(0, 2).toLowerCase();
+  return paddleLocales.has(base) ? base : "en";
+}
 
 /** Seçilen plan için ödeme akışını başlatır. */
-export async function startCheckout({ planId, uid, email }: CheckoutRequest): Promise<void> {
+export async function startCheckout({ planId, uid, email, locale }: CheckoutRequest): Promise<void> {
   const provider = billingProvider();
   if (provider === "none") throw new BillingNotConfiguredError();
 
   if (provider === "paddle") {
     const priceId = paddlePrices[planId];
-    if (!priceId) throw new Error("Bu plan için fiyat tanımı eksik. (VITE_PADDLE_PRICE_* ayarlanmalı)");
+    if (!priceId) throw new BillingError("billing.missingPrice");
     const paddle = await loadPaddle();
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
       // Webhook bu uid ile planı sunucuya yazar; uygulama girişte doğrular.
       customData: { uid, planId },
       customer: email ? { email } : undefined,
-      settings: { displayMode: "overlay", locale: "tr", theme: "dark" },
+      settings: { displayMode: "overlay", locale: safePaddleLocale(locale), theme: "dark" },
     });
     return;
   }
@@ -183,9 +207,9 @@ export async function startCheckout({ planId, uid, email }: CheckoutRequest): Pr
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ planId, uid, email, returnTo: `${location.origin}${import.meta.env.BASE_URL}abonelik` }),
   });
-  if (!response.ok) throw new Error("Ödeme sayfası açılamadı. Lütfen tekrar deneyin.");
+  if (!response.ok) throw new BillingError("billing.openFailed");
   const payload = await response.json() as { url?: string };
-  if (!payload.url) throw new Error("Ödeme sağlayıcısı geçerli bir adres döndürmedi.");
+  if (!payload.url) throw new BillingError("billing.badUrl");
   location.assign(payload.url);
 }
 

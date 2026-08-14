@@ -8,12 +8,18 @@ import "../room.css";
 import "../ai-practice.css";
 import LanguagePicker from "./LanguagePicker";
 import { detectConversationLanguage, languageByCode } from "../lib/languages";
+import { useI18n } from "../lib/i18n";
 
 
 
-const starters = ["Merhaba, bugün nasılsın?", "Bana kendinden biraz bahseder misin?", "Yarın için bir plan yapalım."];
+
 
 export default function AiPractice({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
+  const { t } = useI18n();
+  // send/uyarı geri çağrıları sabit kimlikte kalmalı (mikrofon oturumunu
+  // yeniden başlatmamak için); çeviriciyi ref'ten okuyoruz.
+  const tRef = useRef(t);
+  tRef.current = t;
   const [userLanguage, setUserLanguage] = useState(() => detectConversationLanguage().code);
   const [aiLanguage, setAiLanguage] = useState(() => detectConversationLanguage().code.startsWith("en") ? "tr-TR" : "en-US");
   const [draft, setDraft] = useState("");
@@ -65,7 +71,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
       if (autoSpeak) speak(result.reply);
     } catch (requestError) {
       logClientError("turn_failed", "practice_ui", requestError instanceof Error ? requestError.message : requestError);
-      setError(requestError instanceof Error ? requestError.message : "AI cevabı alınamadı.");
+      setError(tRef.current("ai.error"));
     } finally {
       setBusy(false);
       if (restartMobileSpeechRef.current) {
@@ -122,7 +128,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   useEffect(() => {
     if (!speech.listening) return;
     const warning = window.setTimeout(() => {
-      speakText("Mikrofon açık. Konuşmaya devam edebilirsiniz.", userLanguage, {
+      speakText(tRef.current("ai.micOpen"), userLanguage, {
         onStart: () => { aiSpeakingRef.current = true; ignoreSpeechUntilRef.current = Number.POSITIVE_INFINITY; },
         onEnd: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 1800; },
         onError: () => { aiSpeakingRef.current = false; ignoreSpeechUntilRef.current = Date.now() + 800; },
@@ -141,15 +147,15 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
   };
 
   return (
-    <section className="room practice-room" aria-label="AI ile pratik">
+    <section className="room practice-room" aria-label={t("ai.aria")}>
       <header className="room-bar">
         <div className="chip room-chip ai-chip">
           <Bot />
-          <b>AI PRATİK</b>
+          <b>{t("ai.badge")}</b>
         </div>
         <div className="chip peer-chip on">
           <i aria-hidden="true" />
-          <span>{busy ? "AI yazıyor…" : "AI hazır · anında yanıtlar"}</span>
+          <span>{busy ? t("ai.typing") : t("ai.ready")}</span>
         </div>
         <div className="room-bar-actions">
           <button
@@ -157,20 +163,20 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
             className={`icon ${autoSpeak ? "on" : ""}`}
             onClick={() => setAutoSpeak((value) => !value)}
             aria-pressed={autoSpeak}
-            title={autoSpeak ? "AI cevabı sesli okunuyor" : "AI cevabı sessiz"}
+            title={autoSpeak ? t("ai.voiceOn") : t("ai.voiceOff")}
           >
             {autoSpeak ? <Volume2 /> : <VolumeX />}
-            <small>Oto ses</small>
+            <small>{t("room.autoLabel")}</small>
           </button>
           {turns.length > 0 && (
             <button
               type="button"
               className="icon"
               onClick={() => { setTurns([]); turnsRef.current = []; speechQueueRef.current = []; setError(""); }}
-              title="Konuşmayı sıfırla"
+              title={t("ai.resetAria")}
             >
               <RotateCcw />
-              <small>Sıfırla</small>
+              <small>{t("ai.reset")}</small>
             </button>
           )}
         </div>
@@ -180,13 +186,13 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
         <LanguagePicker
           value={userLanguage}
           onChange={(code) => { setUserLanguage(code); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}
-          label="SİZ"
+          label={t("room.you")}
         />
-        <button className="langbar-swap swap-button" type="button" onClick={swapLanguages} aria-label="Dilleri değiştir"><ArrowLeftRight /></button>
+        <button className="langbar-swap swap-button" type="button" onClick={swapLanguages} aria-label={t("ai.swap")}><ArrowLeftRight /></button>
         <LanguagePicker
           value={aiLanguage}
           onChange={(code) => { setAiLanguage(code); setTurns([]); turnsRef.current = []; speechQueueRef.current = []; }}
-          label="AI"
+          label={t("ai.aiSide")}
           align="end"
         />
       </div>
@@ -195,10 +201,10 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
         {!turns.length && !busy && !speech.interimText && (
           <div className="room-empty">
             <Bot />
-            <h2>İlk cümlenizi söyleyin</h2>
-            <p>Mikrofona basıp kendi dilinizde konuşun. AI, {aiLanguageName} cevap verir ve çevirisini altına yazar.</p>
+            <h2>{t("ai.emptyTitle")}</h2>
+            <p>{t("ai.emptyText", { language: aiLanguageName })}</p>
             <div className="practice-starters">
-              {starters.map((starter) => (
+              {[t("ai.starter1"), t("ai.starter2"), t("ai.starter3")].map((starter) => (
                 <button key={starter} type="button" onClick={() => { unlockSpeechOutput(); void send(starter); }}>{starter}</button>
               ))}
             </div>
@@ -208,15 +214,15 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
         {turns.map((turn, index) => (
           <div className="practice-pair" key={`${turn.userText}-${index}`}>
             <article className="turn mine first-of-group">
-              <span className="turn-who">Siz</span>
+              <span className="turn-who">{t("room.mine")}</span>
               <p className="turn-main">{turn.userText}</p>
               <p className="turn-sub">{turn.userTranslation}</p>
             </article>
             <article className="turn theirs first-of-group" onClick={() => { unlockSpeechOutput(); speak(turn.reply); }}>
-              <span className="turn-who">AI · {aiLanguageName}</span>
+              <span className="turn-who">{t("ai.aiSide")} · {aiLanguageName}</span>
               <p className="turn-main">{turn.reply}</p>
               <p className="turn-sub">{turn.replyTranslation}</p>
-              <span className="turn-meta">Dokun, tekrar dinle</span>
+              <span className="turn-meta">{t("ai.replayHint")}</span>
             </article>
           </div>
         ))}
@@ -235,11 +241,11 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
       </div>
 
       <p className={`room-status ${error || speech.error ? "error" : ""}`} role="status" aria-live="polite">
-        {error || speech.error || (speech.listening ? "Dinliyorum… konuşun" : busy ? "AI düşünüyor…" : "Mikrofona basıp konuşmaya başlayın")}
+        {error || (speech.error ? t("error.mic") : "") || (speech.listening ? t("ai.listening") : busy ? t("ai.thinking") : t("ai.startHint"))}
       </p>
 
       <div className="room-controls">
-        <button type="button" className="round" onClick={() => setShowKeyboard((value) => !value)} title="Klavyeyle yaz">
+        <button type="button" className="round" onClick={() => setShowKeyboard((value) => !value)} title={t("room.keyboard")}>
           <Keyboard />
         </button>
         <button
@@ -250,13 +256,13 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
           aria-pressed={speech.listening}
         >
           {speech.listening ? <MicOff /> : <Mic />}
-          <span>{speech.listening ? "Durdur" : "Konuş"}</span>
+          <span>{speech.listening ? t("room.stop") : t("room.speak")}</span>
         </button>
         <button
           type="button"
           className={`round ${autoSpeak ? "on" : ""}`}
           onClick={() => setAutoSpeak((value) => !value)}
-          title={autoSpeak ? "AI sesini kapat" : "AI sesini aç"}
+          title={autoSpeak ? t("ai.voiceOffAria") : t("ai.voiceAria")}
         >
           {autoSpeak ? <Volume2 /> : <VolumeX />}
         </button>
@@ -268,8 +274,8 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
             autoFocus
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder={`${userLanguageName} yazın…`}
-            aria-label="AI ile konuşulacak mesaj"
+            placeholder={t("ai.composePh", { language: userLanguageName })}
+            aria-label={t("ai.composeAria")}
           />
           <button className="round send" type="submit" disabled={!draft.trim()}><ArrowUp /></button>
         </form>

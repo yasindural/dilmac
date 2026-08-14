@@ -43,7 +43,7 @@ import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import RoomScreen from "./components/RoomScreen";
 import GoogleLogo from "./components/GoogleLogo";
-import { billingProvider, plans as planCatalog, startCheckout } from "./lib/billing";
+import { BillingError, billingProvider, localizedPlans, startCheckout } from "./lib/billing";
 import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
@@ -88,8 +88,10 @@ function defaultProfile(user: User): MemberProfile {
   return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), plan: "free", completed: false };
 }
 function Brand() {
+  const { t } = useI18n();
+  const ariaBrand = t("a11y.brand");
   return (
-    <Link className="brand" to="/" aria-label="DilmaÃ§ ana sayfa">
+    <Link className="brand" to="/" aria-label={ariaBrand}>
       <BrandMark />
       <strong>DilmaÃ§</strong>
     </Link>
@@ -112,6 +114,7 @@ function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { lang, setLang, t } = useI18n();
+  const planCatalog = localizedPlans(t);
   // Mobil menÃ¼, hangi Ã¶ÄŸeye basÄ±lÄ±rsa basÄ±lsÄ±n adres deÄŸiÅŸince kapanmalÄ±.
   // Tek tek onClick eklemek yerine rotayÄ± dinliyoruz; bÃ¶ylece "CanlÄ± Ã§eviriyi
   // baÅŸlat" gibi navigate() kullanan dÃ¼ÄŸmelerde de menÃ¼ aÃ§Ä±k kalmÄ±yor.
@@ -141,13 +144,13 @@ function Layout({
         <Brand />
         <button
           className="mobile-menu"
-          aria-label={t("menu.open")}
+          aria-label={open ? t("a11y.menuClose") : t("menu.open")}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
           {open ? <X /> : <Menu />}
         </button>
-        <nav className={open ? "open" : ""} aria-label="Ana menÃ¼">
+        <nav className={open ? "open" : ""} aria-label={t("a11y.mainNav")}>
           {[
             ["/", t("nav.home")],
             ["/nasil-calisir", t("nav.how")],
@@ -174,9 +177,9 @@ function Layout({
             {dark ? <Sun /> : <Moon />}
           </button>
           {user && (() => {
-            const shownName = profile?.firstName || user.displayName || "Profilim";
+            const shownName = profile?.firstName || user.displayName || t("prof.myProfile");
             const plan = profile?.plan || "free";
-            const planName = planCatalog.find((p) => p.id === plan)?.name || "Ãœye";
+            const planName = planCatalog.find((candidate) => candidate.id === plan)?.name || t("plan.member");
             // Avatar: Google fotoÄŸrafÄ± varsa o, yoksa baÅŸ harf. Ãœcretli planlarda
             // halka marka gradyanÄ±na dÃ¶ner â€” rozet aramadan planÄ± gÃ¶sterir.
             return (
@@ -199,8 +202,11 @@ function Layout({
           ) : (
             <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />{t("auth.signup")}</Link>
           )}
+          {/* BaÅŸlÄ±ktaki buton dar alanda durur; uzun dillerde (de/fr/es) tam
+              cÃ¼mle Ã¼Ã§ satÄ±ra kÄ±rÄ±lÄ±p logonun Ã¼stÃ¼ne biniyordu. KÄ±sa varyant
+              kullanÄ±lÄ±yor, tam cÃ¼mle sayfa iÃ§i CTA'da kalÄ±yor. */}
           <button className="primary" onClick={() => { setOpen(false); navigate("/uygulama"); }}>
-            {t("cta.start")}
+            {t("cta.headerStart")}
             <ArrowRight />
           </button>
         </nav>
@@ -243,6 +249,7 @@ function Layout({
 }
 function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [mode, setMode] = useState<"register" | "login">("register");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -257,7 +264,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
       const existing = readProfile(result.user);
       if (!existing) onRegistered(result.user, defaultProfile(result.user));
       navigate(existing?.completed ? "/uygulama" : "/profil?welcome=1");
-    } catch (reason) { setError((reason as Error).message); }
+    } catch { setError(t("auth.error")); }
     finally { setBusy(false); }
   };
   const submit = async (event: React.FormEvent) => {
@@ -268,46 +275,46 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
         onRegistered(result.user, { firstName: firstName.trim(), lastName: lastName.trim(), plan: "free", completed: true });
       } else await loginEmail(email.trim(), password);
       navigate("/uygulama");
-    } catch (reason) { setError((reason as Error).message); }
+    } catch { setError(t("auth.error")); }
     finally { setBusy(false); }
   };
   return <section className="auth-split">
     <div className="auth-pitch">
-      <span className="eyebrow"><Sparkles /> Ãœcretsiz hesap</span>
-      <h1>KonuÅŸmaya bir adÄ±m kaldÄ±.</h1>
-      <p>HesabÄ±nÄ±zÄ± saniyeler iÃ§inde aÃ§Ä±n; canlÄ± Ã§eviri odanÄ±z ve AI pratik ekranÄ±nÄ±z anÄ±nda hazÄ±r olsun.</p>
+      <span className="eyebrow"><Sparkles /> {t("auth.eyebrow")}</span>
+      <h1>{t("auth.h1")}</h1>
+      <p>{t("auth.sub")}</p>
       <div className="auth-benefits">
-        <span><CheckCircle2 />SÄ±nÄ±rsÄ±z AI pratik ve canlÄ± Ã§eviri odasÄ±</span>
-        <span><CheckCircle2 />7 dilde Ã§ift yÃ¶nlÃ¼ konuÅŸma</span>
-        <span><CheckCircle2 />GÃ¶rÃ¼ÅŸmeleriniz sunucuda saklanmaz</span>
-        <span><CheckCircle2 />Kredi kartÄ± istemez</span>
+        <span><CheckCircle2 />{t("auth.b1")}</span>
+        <span><CheckCircle2 />{t("auth.b2", { count: conversationLanguages.length })}</span>
+        <span><CheckCircle2 />{t("auth.b3")}</span>
+        <span><CheckCircle2 />{t("auth.b4")}</span>
       </div>
       <div className="auth-mini" aria-hidden="true">
-        <div className="row"><span className="scene-dot" />Oda baÄŸlÄ± Â· DLM-482</div>
-        <div className="bubble"><b>Merhaba, nasÄ±lsÄ±n?</b><small>Hello, how are you?</small></div>
-        <div className="bubble"><b>I&apos;m good, thanks!</b><small>Ä°yiyim, teÅŸekkÃ¼rler!</small></div>
+        <div className="row"><span className="scene-dot" />{t("auth.miniRow")} Â· DLM-482</div>
+        <div className="bubble"><b>YarÄ±nki toplantÄ± saat kaÃ§ta?</b><small>What time is tomorrow&apos;s meeting?</small></div>
+        <div className="bubble"><b>It starts at ten.</b><small>Saat onda baÅŸlÄ±yor.</small></div>
       </div>
     </div>
     <div className="auth-card">
-      <h2>{mode === "register" ? "Hesap oluÅŸtur" : "Tekrar hoÅŸ geldiniz"}</h2>
-      <p>{mode === "register" ? "30 saniyede kaydolun, hemen konuÅŸmaya baÅŸlayÄ±n." : "HesabÄ±nÄ±za giriÅŸ yapÄ±n ve kaldÄ±ÄŸÄ±nÄ±z yerden devam edin."}</p>
+      <h2>{mode === "register" ? t("auth.createTitle") : t("auth.welcomeTitle")}</h2>
+      <p>{mode === "register" ? t("auth.createSub") : t("auth.welcomeSub")}</p>
       <div className="auth-tabs">
-        <button type="button" className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>KayÄ±t ol</button>
-        <button type="button" className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>GiriÅŸ yap</button>
+        <button type="button" className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>{t("auth.tabRegister")}</button>
+        <button type="button" className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>{t("auth.tabLogin")}</button>
       </div>
-      <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />Google ile {mode === "register" ? "kayÄ±t ol" : "giriÅŸ yap"}</button>
-      <div className="auth-divider"><span>veya e-posta ile</span></div>
+      <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />{mode === "register" ? t("auth.googleRegister") : t("auth.googleLogin")}</button>
+      <div className="auth-divider"><span>{t("auth.or")}</span></div>
       <form onSubmit={submit}>
         {mode === "register" && <div className="name-row">
-          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
-          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+          <label>{t("auth.first")}<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+          <label>{t("auth.last")}<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
         </div>}
-        <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
-        <label><span><LockKeyhole />Åifre</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="En az 6 karakter" /></label>
+        <label><span><Mail />{t("auth.email")}</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder={t("auth.emailPh")} /></label>
+        <label><span><LockKeyhole />{t("auth.password")}</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder={t("auth.passwordPh")} /></label>
         {error && <div className="auth-error"><AlertCircle />{error}</div>}
-        <button className="primary" type="submit" disabled={busy}>{busy ? "LÃ¼tfen bekleyinâ€¦" : mode === "register" ? "HesabÄ±mÄ± oluÅŸtur" : "GiriÅŸ yap"}<ArrowRight /></button>
+        <button className="primary" type="submit" disabled={busy}>{busy ? t("auth.busy") : mode === "register" ? t("auth.submitRegister") : t("auth.submitLogin")}<ArrowRight /></button>
       </form>
-      <p className="auth-legal">Devam ederek <Link to="/kullanim-sartlari">KullanÄ±m ÅartlarÄ±</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiÅŸ olursunuz.</p>
+      <p className="auth-legal">{t("auth.legalBefore")}<Link to="/kullanim-sartlari">{t("footer.terms")}</Link>{t("auth.legalMiddle")}<Link to="/gizlilik">{t("footer.privacy")}</Link>{t("auth.legalAfter")}</p>
     </div>
   </section>;
 }
@@ -316,6 +323,9 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   const navigate = useNavigate();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState("");
+  const { t, lang } = useI18n();
+  const planCatalog = localizedPlans(t);
+  const languageCount = String(conversationLanguages.length);
   useReveal();
   const choose = async (plan: PlanId) => {
     setError("");
@@ -330,1094 +340,4 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       // Ã–deme saÄŸlayÄ±cÄ±sÄ± baÄŸlÄ±ysa Ã¼cretli planlar gerÃ§ek checkout'a gider;
       // plan, Ã¶deme onaylanÄ±nca webhook Ã¼zerinden sunucuya yazÄ±lÄ±r.
       if (plan !== "free" && billingProvider() !== "none") {
-        await startCheckout({ planId: plan, uid: activeUser.uid, email: activeUser.email });
-        setBusy(null);
-        return;
-      }
-      const next = { ...(readProfile(activeUser) || defaultProfile(activeUser)), plan };
-      onSaveForUser(activeUser, next);
-      navigate(next.completed ? "/profil" : "/profil?welcome=1");
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Ä°ÅŸlem tamamlanamadÄ±.");
-    } finally {
-      setBusy(null);
-    }
-  };
-  return (
-    <section className="pricing">
-      <div className="pricing-head reveal">
-        <span className="eyebrow"><Crown /> Abonelik</span>
-        <h1>Dil engelini <em>tamamen</em> kaldÄ±rÄ±n.</h1>
-        <p>KarÅŸÄ±nÄ±zdaki kendi dilinde konuÅŸsun, siz kendi dilinizde duyun. Ãœcretsiz baÅŸlayÄ±n, ihtiyacÄ±nÄ±z bÃ¼yÃ¼yÃ¼nce yÃ¼kseltin.</p>
-      </div>
-
-      <div className="pricing-assure reveal">
-        <span><ShieldCheck />30 gÃ¼n koÅŸulsuz iade</span>
-        <span><CheckCircle2 />Ä°stediÄŸiniz an iptal</span>
-        <span><Lock />Kart bilgisi bize ulaÅŸmaz</span>
-        <span><CheckCircle2 />Kurulum gerekmez</span>
-      </div>
-
-      <div className="pricing-grid">
-        {planCatalog.map((plan) => {
-          const current = profile?.plan === plan.id;
-          return (
-            <article key={plan.id} className={`pricing-card reveal ${plan.highlight ? "featured" : ""}`}>
-              {plan.highlight && <b className="pricing-badge">EN POPÃœLER</b>}
-              <h2>{plan.name}</h2>
-              <p className="note">{plan.note}</p>
-              <div className="pricing-amount"><b>{plan.price}</b><span>{plan.period}</span></div>
-              <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
-              {current ? (
-                <button className="pricing-cta current" type="button" disabled>Mevcut planÄ±nÄ±z</button>
-              ) : user ? (
-                <button className="primary pricing-cta" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
-                  {busy === plan.id ? "Ä°ÅŸleniyorâ€¦" : plan.id === "free" ? "Ãœcretsiz devam et" : `${plan.name}'a geÃ§`}
-                </button>
-              ) : (
-                <button className="google-button" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
-                  <GoogleLogo />{busy === plan.id ? "BaÄŸlanÄ±yorâ€¦" : "Google ile baÅŸla"}
-                </button>
-              )}
-            </article>
-          );
-        })}
-      </div>
-
-      {error && <p className="pricing-note" style={{ color: "var(--coral)" }}>{error}</p>}
-
-      <div className="compare reveal">
-        <h3>PlanlarÄ± yan yana gÃ¶rÃ¼n</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Ã–zellik</th>
-              <th>BaÅŸlangÄ±Ã§</th>
-              <th className="col-pro">Pro</th>
-              <th>Ekip</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["CanlÄ± Ã§eviri odasÄ±", "âœ“", "âœ“", "âœ“"],
-              ["AI ile sesli pratik", "âœ“", "âœ“", "âœ“"],
-              ["Desteklenen dil sayÄ±sÄ±", "7", "7", "7"],
-              ["GÃ¶rÃ¼ÅŸme sÃ¼resi", "SÄ±nÄ±rlÄ±", "SÄ±nÄ±rsÄ±z", "SÄ±nÄ±rsÄ±z"],
-              ["Orijinal ses + Ã§eviri sesi", "âœ“", "âœ“", "âœ“"],
-              ["Ã–ncelikli Ã§eviri hÄ±zÄ±", "â€”", "âœ“", "âœ“"],
-              ["AynÄ± anda birden fazla oda", "â€”", "â€”", "âœ“"],
-              ["Ekip Ã¼yesi yÃ¶netimi", "â€”", "â€”", "âœ“"],
-              ["Ã–ncelikli destek", "â€”", "E-posta", "Ã–ncelikli"],
-              ["30 gÃ¼n koÅŸulsuz iade", "â€”", "âœ“", "âœ“"],
-            ].map(([label, free, pro, team]) => (
-              <tr key={label}>
-                <th scope="row">{label}</th>
-                <td>{free === "âœ“" ? <CheckCircle2 /> : free}</td>
-                <td className="col-pro">{pro === "âœ“" ? <CheckCircle2 /> : pro}</td>
-                <td>{team === "âœ“" ? <CheckCircle2 /> : team}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="pricing-note reveal">
-        {billingProvider() === "none"
-          ? <>Åu an <b>Ã¶deme alÄ±nmÄ±yor</b>. Plan seÃ§iminiz hesabÄ±nÄ±za iÅŸlenir; Ã¶deme saÄŸlayÄ±cÄ±sÄ± baÄŸlandÄ±ÄŸÄ±nda aynÄ± ekrandan devam edeceksiniz.</>
-          : <>Ã–demeler yetkili satÄ±cÄ±mÄ±z <b>Paddle</b> (Merchant of Record) Ã¼zerinden alÄ±nÄ±r; kart bilgileriniz DilmaÃ§'a hiÃ§bir zaman ulaÅŸmaz, fatura ve vergi iÅŸlemleri Paddle tarafÄ±ndan yÃ¼rÃ¼tÃ¼lÃ¼r. AboneliÄŸinizi istediÄŸiniz an iptal edebilir, 30 gÃ¼n iÃ§inde koÅŸulsuz <Link to="/iade-politikasi">iade</Link> alabilirsiniz.</>}
-      </p>
-
-      <div className="pricing-faq reveal">
-        <h3>SÄ±k sorulanlar</h3>
-        <details><summary>Ãœcretsiz planda ne kadar konuÅŸabilirim?</summary><p>Lansman sÃ¼resince Ã¼cretsiz hesapla hem AI pratik hem canlÄ± Ã§eviri sÄ±nÄ±rsÄ±z. Ä°lerleyen dÃ¶nemde Ã¼cretsiz planda sÃ¼re sÄ±nÄ±rÄ± uygulanabilir; aboneler bundan etkilenmez.</p></details>
-        <details><summary>GÃ¶rÃ¼ÅŸmelerim kaydediliyor mu?</summary><p>HayÄ±r. KonuÅŸmalar iki tarayÄ±cÄ± arasÄ±nda doÄŸrudan kurulur; metin ve ses sunucuda saklanmaz. YalnÄ±zca hata ayÄ±klama iÃ§in teknik hata kayÄ±tlarÄ± tutulur.</p></details>
-        <details><summary>Ä°stediÄŸim zaman iptal edebilir miyim?</summary><p>Evet. AboneliÄŸinizi istediÄŸiniz an durdurabilirsiniz; dÃ¶nem sonuna kadar kullanmaya devam edersiniz. AyrÄ±ca tÃ¼m Ã¼cretli planlarda 30 gÃ¼n koÅŸulsuz para iade garantisi vardÄ±r â€” soru sormayÄ±z.</p></details>
-        <details><summary>Hangi diller destekleniyor?</summary><p>TÃ¼rkÃ§e, Ä°ngilizce, Almanca, FransÄ±zca, Ä°spanyolca, Ä°talyanca ve ArapÃ§a. Her iki taraf kendi dilini seÃ§er, Ã§eviri iki yÃ¶nlÃ¼ Ã§alÄ±ÅŸÄ±r.</p></details>
-      </div>
-    </section>
-  );
-}
-
-function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
-  const navigate = useNavigate();
-  const initial = user ? (profile || defaultProfile(user)) : null;
-  const [firstName, setFirstName] = useState(initial?.firstName || "");
-  const [lastName, setLastName] = useState(initial?.lastName || "");
-  const [saved, setSaved] = useState(false);
-  useEffect(() => {
-    if (!user) return;
-    const next = profile || defaultProfile(user);
-    setFirstName(next.firstName);
-    setLastName(next.lastName);
-  }, [user, profile]);
-  const google = async () => {
-    try {
-      const result = await loginGoogle();
-      const next = readProfile(result.user) || defaultProfile(result.user);
-      onSaveForUser(result.user, next);
-      navigate(next.completed ? "/uygulama" : "/profil?welcome=1");
-    } catch (error) { alert((error as Error).message); }
-  };
-  if (!user || !initial) {
-    return (
-      <section className="auth-split">
-        <div className="auth-pitch">
-          <span className="eyebrow"><UserCircle /> Ãœyelik merkezi</span>
-          <h1>Profilinizi oluÅŸturun.</h1>
-          <p>Google hesabÄ±nÄ±zla saniyeler iÃ§inde kaydolun; canlÄ± Ã§eviri odanÄ±z ve pratik ekranÄ±nÄ±z hazÄ±r olsun.</p>
-          <div className="auth-benefits">
-            <span><CheckCircle2 />SÄ±nÄ±rsÄ±z AI pratik</span>
-            <span><CheckCircle2 />Kendi canlÄ± Ã§eviri odanÄ±z</span>
-            <span><CheckCircle2 />Kredi kartÄ± istemez</span>
-          </div>
-        </div>
-        <div className="auth-card">
-          <h2>Hemen baÅŸlayÄ±n</h2>
-          <p>Tek dokunuÅŸla gÃ¼venli kayÄ±t.</p>
-          <button className="google-button" onClick={() => void google()}><GoogleLogo />Google ile kayÄ±t ol</button>
-          <div className="auth-divider"><span>veya</span></div>
-          <Link className="ghost" to="/kayit" style={{ width: "100%", justifyContent: "center", height: 52 }}><LogIn />E-posta ile devam et</Link>
-        </div>
-      </section>
-    );
-  }
-  const save = (event: React.FormEvent) => {
-    event.preventDefault();
-    const next = { ...initial, firstName: firstName.trim(), lastName: lastName.trim(), completed: true };
-    if (!next.firstName || !next.lastName) return;
-    onSave(next);
-    setSaved(true);
-    window.setTimeout(() => navigate("/uygulama"), 450);
-  };
-  const currentPlan = planCatalog.find((plan) => plan.id === initial.plan) || planCatalog[0];
-  const initials = `${firstName || user.email || "D"}`.trim().charAt(0).toUpperCase();
-  return (
-    <section className="dash">
-      <div className="dash-head">
-        <span className="dash-avatar">{initials}</span>
-        <div>
-          <h1>{initial.completed ? `Merhaba, ${firstName || "hoÅŸ geldiniz"}` : "KaydÄ±nÄ±zÄ± tamamlayÄ±n"}</h1>
-          <p>{user.email}</p>
-        </div>
-        <span className={`plan-badge ${initial.plan}`}>
-          {initial.plan === "free" ? <Sparkles /> : <Crown />}
-          {currentPlan.name.toUpperCase()}
-        </span>
-      </div>
-
-      <div className="dash-grid">
-        <form className="dash-card" onSubmit={save}>
-          <h2>Hesap bilgileri</h2>
-          <p className="big">Profilinizi gÃ¼ncelleyin</p>
-          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
-          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
-          <label>E-posta<input value={user.email || ""} disabled /></label>
-          <div className="dash-actions">
-            <button className="primary" type="submit"><CheckCircle2 />{saved ? "Kaydedildi" : "Kaydet ve devam et"}</button>
-          </div>
-        </form>
-
-        <div className="dash-card">
-          <h2>AboneliÄŸiniz</h2>
-          <p className="big">{currentPlan.name} Â· {currentPlan.price}</p>
-          <div className="trust-list" style={{ marginBottom: 18 }}>
-            {currentPlan.features.slice(0, 4).map((feature) => (
-              <span key={feature}><CheckCircle2 />{feature}</span>
-            ))}
-          </div>
-          <div className="dash-actions">
-            <Link className="primary" to="/abonelik"><CreditCard />{initial.plan === "free" ? "Pro'ya yÃ¼kselt" : "PlanÄ± yÃ¶net"}</Link>
-          </div>
-        </div>
-
-        <div className="dash-card">
-          <h2>HÄ±zlÄ± baÅŸlangÄ±Ã§</h2>
-          <p className="big">KonuÅŸmaya baÅŸlayÄ±n</p>
-          <div className="trust-list" style={{ marginBottom: 18 }}>
-            <span><Radio />CanlÄ± Ã§eviri odasÄ± aÃ§Ä±n ve baÄŸlantÄ±yÄ± paylaÅŸÄ±n.</span>
-            <span><Bot />KarÅŸÄ±nÄ±zda kimse yoksa AI ile pratik yapÄ±n.</span>
-          </div>
-          <div className="dash-actions">
-            <Link className="primary" to="/uygulama"><Mic />CanlÄ± Ã§eviriyi aÃ§</Link>
-            <Link className="ghost" to="/deneme"><Bot />AI ile pratik</Link>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function useReveal() {
-  useEffect(() => {
-    const nodes = Array.from(document.querySelectorAll<HTMLElement>(".reveal:not(.seen)"));
-    if (!nodes.length) return;
-    if (!("IntersectionObserver" in window)) {
-      nodes.forEach((node) => node.classList.add("seen"));
-      return;
-    }
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        (entry.target as HTMLElement).classList.add("seen");
-        observer.unobserve(entry.target);
-      }
-    }, { rootMargin: "0px 0px -12% 0px", threshold: 0.08 });
-    nodes.forEach((node, index) => { node.style.transitionDelay = `${Math.min(index, 5) * 60}ms`; observer.observe(node); });
-    return () => observer.disconnect();
-  }, []);
-}
-function Home() {
-  useReveal();
-  const { t } = useI18n();
-  const marquee = conversationLanguages.map((language) => `${language.flag} ${language.name}`);
-  return (
-    <div className="home">
-      {/* ---------- HERO ---------- */}
-      <section className="hero">
-        <div>
-          <span className="eyebrow"><Sparkles /> {t("hero.eyebrow")}</span>
-          <h1>
-            {t("hero.title1")}
-            <br />
-            <span>{t("hero.title2")}</span>
-          </h1>
-          <p>{t("hero.sub")}</p>
-          <div className="hero-actions">
-            <Link className="primary large" to="/uygulama">
-              {t("cta.start")}
-              <ArrowRight />
-            </Link>
-            <Link className="ghost" to="/deneme">
-              <Bot />
-              {t("hero.tryai")}
-            </Link>
-          </div>
-          <div className="trust">
-            <span><Radio />{t("trust.1")}</span>
-            <span><ShieldCheck />{t("trust.2")}</span>
-            <span><Users />{t("trust.3")}</span>
-            <span><WifiOff />{t("trust.4")}</span>
-          </div>
-        </div>
-        <HeroScene />
-      </section>
-
-      {/* ---------- DÄ°LLER ÅERÄ°DÄ° ---------- */}
-      <section className="langs-band reveal">
-        <h2>{t("band.title")}</h2>
-        <div className="langs-track">
-          {[...marquee, ...marquee].map((name, index) => (
-            <span key={`${name}-${index}`}><i />{name}</span>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------- NASIL Ã‡ALIÅIR ---------- */}
-      <section className="band reveal">
-        <div className="section-head">
-          <span className="eyebrow"><Zap /> {t("steps.eyebrow")}</span>
-          <h2>{t("steps.title")}</h2>
-          <p>{t("steps.sub")}</p>
-        </div>
-        <div className="steps">
-          {[
-            ["01", t("step.1")],
-            ["02", t("step.2")],
-            ["03", t("step.3")],
-            ["04", t("step.4")],
-          ].map(([n, text]) => (
-            <div key={n}>
-              <b>{n}</b>
-              <h3>{text}</h3>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------- BENTO Ã–ZELLÄ°KLER ---------- */}
-      <section className="reveal">
-        <div className="section-head">
-          <span className="eyebrow"><Star /> {t("why.kicker")}</span>
-          <h2>{t("why.title")}</h2>
-          <p>{t("why.sub")}</p>
-        </div>
-        <div className="bento">
-          <article className="wide">
-            <Gauge className="bento-ico" />
-            <h3>{t("f1.t")}</h3>
-            <p>{t("b1.p")}</p>
-            <div className="bento-demo">
-              <div className="row"><b>TÃ¼rkÃ§e</b> YarÄ±nki toplantÄ± saat kaÃ§ta?</div>
-              <div className="bar"><i /></div>
-              <div className="row"><b>English</b> What time is tomorrow&apos;s meeting?</div>
-            </div>
-          </article>
-          <article className="tall">
-            <Headphones className="bento-ico" />
-            <h3>{t("b2.t")}</h3>
-            <p>{t("b2.p")}</p>
-          </article>
-          <article>
-            <MessagesSquare className="bento-ico" />
-            <h3>{t("f2.t")}</h3>
-            <p>{t("b3.p")}</p>
-          </article>
-          <article>
-            <Bot className="bento-ico" />
-            <h3>{t("b4.t")}</h3>
-            <p>{t("b4.p")}</p>
-          </article>
-          <article className="wide">
-            <Lock className="bento-ico" />
-            <h3>{t("b5.t")}</h3>
-            <p>{t("b5.p")}</p>
-          </article>
-          <article>
-            <Languages className="bento-ico" />
-            <h3>{t("b6.t")}</h3>
-            <p>{t("b6.p")}</p>
-          </article>
-        </div>
-      </section>
-
-      {/* ---------- KULLANIM ALANLARI ---------- */}
-      <section className="reveal">
-        <div className="section-head">
-          <span className="eyebrow"><Globe2 /> {t("uc.kicker")}</span>
-          <h2>{t("uc.title")}</h2>
-          <p>{t("uc.p")}</p>
-        </div>
-        <div className="usecases">
-          <article><Plane /><b>{t("uc1.t")}</b><p>{t("uc1.p")}</p></article>
-          <article><Briefcase /><b>{t("uc2.t")}</b><p>{t("uc2.p")}</p></article>
-          <article><GraduationCap /><b>{t("uc3.t")}</b><p>{t("uc3.p")}</p></article>
-          <article><Heart /><b>{t("uc4.t")}</b><p>{t("uc4.p")}</p></article>
-        </div>
-      </section>
-
-      {/* ---------- GÃœVEN ---------- */}
-      <section className="reveal">
-        <div className="trust-panel">
-          <div>
-            <h2>{t("privacy.title")}</h2>
-            <p>{t("privacy.text")}</p>
-            <Link className="ghost" to="/gizlilik">{t("privacy.link")} <ArrowRight /></Link>
-          </div>
-          <div className="trust-list">
-            <span><ShieldCheck />{t("tl.1")}</span>
-            <span><ShieldCheck />{t("tl.2")}</span>
-            <span><ShieldCheck />{t("tl.3")}</span>
-            <span><ShieldCheck />{t("tl.4")}</span>
-            <span><ShieldCheck />{t("tl.5")}</span>
-          </div>
-        </div>
-      </section>
-
-      <HomeExpansion />
-
-      {/* ---------- KAPANIÅ ---------- */}
-      <section className="final-cta reveal">
-        <h2>{t("cta.title")}</h2>
-        <p>{t("cta.p")}</p>
-        <Link className="primary large" to="/uygulama">{t("cta.open")}<ArrowRight /></Link>
-      </section>
-    </div>
-  );
-}
-
-// SayaÃ§ yalnÄ±zca ekran gerÃ§ekten aÃ§Ä±kken iÅŸlesin diye sekme gÃ¶rÃ¼nÃ¼rlÃ¼ÄŸÃ¼nÃ¼ izler.
-function useVisible() {
-  const [visible, setVisible] = useState(() => typeof document === "undefined" || !document.hidden);
-  useEffect(() => {
-    const onVisibility = () => setVisible(!document.hidden);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
-  return visible;
-}
-// AI pratik kayÄ±tsÄ±z kullanÄ±cÄ±ya 2 dakika aÃ§Ä±ktÄ±r; hesabÄ± olan sÄ±nÄ±rsÄ±z kullanÄ±r.
-function AiPracticePage({ user, authChecked }: { user: User | null; authChecked: boolean }) {
-  const visible = useVisible();
-  const [conversing, setConversing] = useState(false);
-  const access = useAccess({
-    uid: user ? null : "anon",
-    plan: "free",
-    active: visible && conversing,
-    ready: authChecked,
-  });
-  if (user) return <AiPractice />;
-  return (
-    <AccessGate state={access.state} remaining={access.remaining} variant="ai" paused={!conversing}>
-      <AiPractice onConversingChange={setConversing} />
-    </AccessGate>
-  );
-}
-function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
-  const visible = useVisible();
-  // SayaÃ§ yalnÄ±zca gerÃ§ekten konuÅŸulurken iÅŸler. OdayÄ± aÃ§Ä±p karÅŸÄ± tarafÄ±
-  // beklemek, baÄŸlantÄ± kurulmadan durmak veya sekmeyi arka plana almak
-  // kullanÄ±cÄ±nÄ±n hakkÄ±nÄ± yakmaz.
-  const [conversing, setConversing] = useState(false);
-  const access = useAccess({
-    uid: user?.uid || null,
-    plan: profile?.plan || "free",
-    active: visible && conversing,
-    ready: authChecked,
-  });
-  return (
-    <AccessGate state={access.state} remaining={access.remaining} paused={!conversing}>
-      <Translator onConversingChange={setConversing} />
-    </AccessGate>
-  );
-}
-function Translator({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
-  const navigate = useNavigate();
-  const { roomId } = useParams();
-  // Kaynak dil ilk giriÅŸte tarayÄ±cÄ±nÄ±n dilinden gelir; kullanÄ±cÄ±nÄ±n seÃ§imi
-  // cihazda saklanÄ±r. Hedef dil karÅŸÄ± taraf odaya girince onunkine kilitlenir.
-  const [source, setSource] = useState(() => {
-    try {
-      const saved = localStorage.getItem("dilmac-source-lang");
-      if (saved && languageByCode(saved)) return saved;
-    } catch { /* gizli mod */ }
-    return detectConversationLanguage().code;
-  }),
-    [target, setTarget] = useState(() => {
-      const mine = (() => {
-        try { return localStorage.getItem("dilmac-source-lang"); } catch { return null; }
-      })() || detectConversationLanguage().code;
-      // VarsayÄ±lan hedef: kullanÄ±cÄ±nÄ±n dili Ä°ngilizce deÄŸilse Ä°ngilizce,
-      // Ä°ngilizceyse TÃ¼rkÃ§e â€” kendi diline Ã§eviri anlamsÄ±z.
-      return mine.startsWith("en") ? "Turkish" : "English";
-    }),
-    [localMessages, setLocalMessages] = useState<QueueItem[]>([]),
-    [remoteMessages, setRemoteMessages] = useState<RoomMessage[]>([]),
-    [room, setRoom] = useState(""),
-    [active, setActive] = useState(""),
-    [key] = useState(sessionStorage.getItem("dilmac-key") || "backend"),
-    [notice, setNotice] = useState("HazÄ±r"),
-    [, setRole] = useState<"host" | "guest" | null>(null),
-    [draft, setDraft] = useState(""),
-    [remoteMuted, setRemoteMuted] = useState(false),
-    [playbackBlocked, setPlaybackBlocked] = useState(false);
-  const [remoteLanguage, setRemoteLanguage] = useState<RoomLanguage | null>(null);
-  // Oto ses giriÅŸte kapalÄ±: odaya girer girmez karÅŸÄ± tarafÄ±n GERÃ‡EK sesi
-  // otomatik baÄŸlandÄ±ÄŸÄ± iÃ§in Ã§eviri sesi ancak istenirse aÃ§Ä±lÄ±r.
-  const [autoSpeak, setAutoSpeak] = useState(() => localStorage.getItem("dilmac-autospeak") === "1");
-  const autoSpeakRef = useRef(autoSpeak);
-  autoSpeakRef.current = autoSpeak;
-  const speechRef = useRef<{ listening: boolean; stop: () => void; toggle: () => void } | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const keyRef = useRef(key);
-  keyRef.current = key;
-  const sendRef = useRef<(message: RoomMessage) => boolean>(() => false);
-  const queueRef = useRef<MessageQueue | null>(null);
-  if (!queueRef.current) queueRef.current = new MessageQueue((text, language) => translate(text, language, keyRef.current), (message) => sendRef.current(message));
-  const receiveMessage = useCallback((message: RoomMessage) => {
-    if (!message.source.trim() || !message.translated.trim()) return;
-    // KarÅŸÄ± tarafÄ±n mesajÄ± geldi. Bekletilen tanÄ±ma bu mesajÄ±n hoparlÃ¶r
-    // yankÄ±sÄ± mÄ±? Ä°Ã§erik karÅŸÄ±laÅŸtÄ±rmasÄ±yla karar verilir: yankÄ±, karÅŸÄ±
-    // tarafÄ±n sÃ¶yledikleriyle bÃ¼yÃ¼k Ã¶lÃ§Ã¼de aynÄ± kelimeleri iÃ§erir. Benzerlik
-    // dÃ¼ÅŸÃ¼kse bu kullanÄ±cÄ±nÄ±n GERÃ‡EK eÅŸ zamanlÄ± sÃ¶zÃ¼dÃ¼r ve silinmez;
-    // karÅŸÄ± taraf susunca kendiliÄŸinden gÃ¶nderilir.
-    const pending = suppressedRef.current;
-    if (pending && Date.now() - pending.at < 8000) {
-      const tokenize = (value: string) => value.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter((word) => word.length > 2);
-      const mineWords = tokenize(pending.text);
-      const theirs = new Set([...tokenize(message.source), ...tokenize(message.translated)]);
-      const overlap = mineWords.length ? mineWords.filter((word) => theirs.has(word)).length / mineWords.length : 1;
-      if (overlap >= 0.5) suppressedRef.current = null;
-    }
-    setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
-    setNotice("KarÅŸÄ± taraftan yeni Ã§eviri geldi.");
-    if (!autoSpeakRef.current) return;
-    const code = speechCodeFor(message.targetLanguage);
-    // Seslendirme sÄ±rasÄ±nda kendi mikrofonumuz aÃ§Ä±k kalÄ±rsa hoparlÃ¶rden Ã§Ä±kan ses
-    // tekrar yazÄ±ya dÃ¶kÃ¼lÃ¼p karÅŸÄ± tarafa geri gÃ¶nderilir (yankÄ± dÃ¶ngÃ¼sÃ¼).
-    // Bu yÃ¼zden dinlemeyi duraklatÄ±p seslendirme bitince geri aÃ§Ä±yoruz.
-    const wasListening = Boolean(speechRef.current?.listening);
-    if (wasListening) speechRef.current?.stop();
-    const resume = () => {
-      if (!wasListening) return;
-      window.setTimeout(() => {
-        if (isSpeechQueueBusy()) return;
-        if (!speechRef.current?.listening) speechRef.current?.toggle();
-      }, 350);
-    };
-    // iOS mikrofon oturumunu anÄ±nda bÄ±rakmaz. Dinleme kapandÄ±ktan hemen sonra
-    // konuÅŸmaya baÅŸlarsak sistem sesi sessizce yutuyor; telefonda "Ã§eviri
-    // geliyor ama ses yok" ÅŸikayetinin sebebi buydu. Mikrofon aÃ§Ä±kken
-    // seslendirmeyi oturum kapanana kadar geciktiriyoruz.
-    const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
-    const handoverDelay = wasListening ? (isAppleWebKit ? 550 : 200) : 0;
-    if (handoverDelay === 0) {
-      queueSpeech(message.translated, code, { onEnd: resume, onError: resume });
-      return;
-    }
-    window.setTimeout(() => queueSpeech(message.translated, code, { onEnd: resume, onError: resume }), handoverDelay);
-  }, []);
-  const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
-    setRemoteLanguage(language);
-    const known = languageByCode(language.code) || languageByName(language.name);
-    setTarget(known?.api || language.name);
-    setNotice(`KarÅŸÄ± tarafÄ±n dili ${known?.name || language.name}; Ã§eviri dili otomatik gÃ¼ncellendi.`);
-  }, []);
-  const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
-  const roomConnection = useRoom(receiveMessage, markDelivered, receiveRemoteLanguage);
-  sendRef.current = roomConnection.send;
-  const sendLanguage = roomConnection.sendLanguage;
-  useEffect(() => {
-    const audio = remoteAudioRef.current;
-    if (!audio) return;
-    const stream = roomConnection.remoteStream;
-    audio.srcObject = stream;
-    setPlaybackBlocked(false);
-    if (stream) {
-      void audio.play().catch(() => setPlaybackBlocked(true));
-    } else {
-      audio.pause();
-    }
-    return () => {
-      if (audio.srcObject === stream) {
-        audio.pause();
-        audio.srcObject = null;
-      }
-    };
-  }, [roomConnection.remoteStream]);
-  useEffect(() => {
-    if (remoteAudioRef.current) remoteAudioRef.current.muted = remoteMuted;
-  }, [remoteMuted]);
-  useEffect(() => {
-    if (roomConnection.voiceConnected) {
-      setNotice("Orijinal ses baÄŸlantÄ±sÄ± kuruldu. ArtÄ±k birbirinizi duyabilirsiniz.");
-    }
-  }, [roomConnection.voiceConnected]);
-  useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
-  useEffect(() => {
-    const language = languageByCode(source);
-    if (language) sendLanguage({ code: language.code, name: language.api });
-  }, [sendLanguage, source]);
-  const changeSourceLanguage = (code: string) => {
-    try { localStorage.setItem("dilmac-source-lang", code); } catch { /* yoksay */ }
-    setSource(code);
-    const language = languageByCode(code);
-    if (language) {
-      sendLanguage({ code: language.code, name: language.api });
-      setNotice(`KonuÅŸma diliniz ${language.name} olarak gÃ¼ncellendi.`);
-    }
-  };
-  const connectRoom = roomConnection.join;
-  useEffect(() => {
-    const legacyRoom = new URLSearchParams(location.search).get("room")?.toUpperCase();
-    if (!roomId && legacyRoom && /^[A-Z0-9]{6}$/.test(legacyRoom)) {
-      navigate(`/oda/${legacyRoom}`, { replace: true });
-      return;
-    }
-    const incoming = roomId?.toUpperCase();
-    if (incoming && /^[A-Z0-9]{6}$/.test(incoming)) {
-      setRemoteLanguage(null);
-      setRemoteMessages([]);
-      setRoom(incoming);
-      setActive(incoming);
-      const incomingRole = new URLSearchParams(location.search).get("role") === "host" ? "host" : "guest";
-      setRole(incomingRole);
-      connectRoom(incoming, incomingRole);
-      setNotice(`${incoming} odasÄ±na baÄŸlanÄ±lÄ±yorâ€¦`);
-    }
-  }, [connectRoom, navigate, roomId]);
-  // CanlÄ± ses aÃ§Ä±kken iki cihaz birbirini hoparlÃ¶rden duyar. KarÅŸÄ± taraf
-  // konuÅŸurken bizim tanÄ±yÄ±cÄ±mÄ±z o sesi KENDÄ° dilimizde Ã§Ã¶zmeye Ã§alÄ±ÅŸÄ±r ve
-  // ortaya hiÃ§ sÃ¶ylenmemiÅŸ cÃ¼mleler Ã§Ä±kar; her uydurma cÃ¼mle karÅŸÄ± tarafta
-  // seslendirilince dÃ¶ngÃ¼ bÃ¼yÃ¼r ve bir sÃ¼re sonra sohbet tamamen saÃ§malar.
-  // Bu yÃ¼zden karÅŸÄ± taraf konuÅŸurken kendi tanÄ±yÄ±cÄ± Ã§Ä±ktÄ±mÄ±zÄ± yok sayÄ±yoruz.
-  const remoteSpeakingRef = useRef(false);
-  remoteSpeakingRef.current = roomConnection.remoteSpeaking;
-  const voiceEnabledRef = useRef(false);
-  voiceEnabledRef.current = roomConnection.voiceEnabled;
-  // BastÄ±rÄ±lan cÃ¼mle Ã‡Ã–PE ATILMAZ, bekletilir. KarÅŸÄ± tarafÄ±n mesajÄ± kÄ±sa
-  // sÃ¼rede gelirse bekleyen metin onun yankÄ±sÄ±dÄ±r ve sessizce silinir; mesaj
-  // gelmezse kullanÄ±cÄ± gerÃ§ekten aynÄ± anda konuÅŸmuÅŸtur ve cÃ¼mlesi karÅŸÄ±
-  // taraf susunca otomatik gÃ¶nderilir. BÃ¶ylece yankÄ± engellenirken gerÃ§ek
-  // eÅŸ zamanlÄ± konuÅŸma kaybolmaz.
-  const suppressedRef = useRef<{ text: string; at: number } | null>(null);
-  const flushTimerRef = useRef<number | null>(null);
-  const enqueueRawRef = useRef<(text: string) => void>(() => {});
-  // YankÄ± ile gerÃ§ek eÅŸ zamanlÄ± konuÅŸmayÄ± ayÄ±ran Ã¶lÃ§Ã¼t ZAMANLAMADIR:
-  // hoparlÃ¶r yankÄ±sÄ± ancak karÅŸÄ± taraf konuÅŸmaya BAÅLADIKTAN SONRA mikrofona
-  // girebilir. CÃ¼mlemizin ilk Ã¶n izlemesi, karÅŸÄ± tarafÄ±n konuÅŸma sinyalinden
-  // Ã–NCE baÅŸladÄ±ysa bu bizim gerÃ§ek sÃ¶zÃ¼mÃ¼zdÃ¼r ve asla bekletilmez.
-  const remoteSpeakingSinceRef = useRef(0);
-  const utteranceStartRef = useRef(0);
-  const enqueue = useCallback((text: string) => {
-    if (voiceEnabledRef.current && remoteSpeakingRef.current) {
-      // 250 ms pay: iki taraf hemen hemen aynÄ± anda baÅŸladÄ±ysa sÄ±ralama aÄŸ
-      // gecikmesinin rastlantÄ±sÄ±dÄ±r; gerÃ§ek yankÄ±nÄ±n Ã¶n izlemesi karÅŸÄ± sesin
-      // ulaÅŸmasÄ± + tanÄ±ma gecikmesi yÃ¼zÃ¼nden en az yarÄ±m saniye geÃ§ baÅŸlar.
-      const mineStartedFirst = utteranceStartRef.current > 0
-        && remoteSpeakingSinceRef.current > 0
-        && utteranceStartRef.current < remoteSpeakingSinceRef.current + 250;
-      if (!mineStartedFirst) {
-        suppressedRef.current = { text, at: Date.now() };
-        logClientError("echo_suppressed", "speech", `KarÅŸÄ± taraf konuÅŸurken gelen ${text.length} karakterlik tanÄ±ma bekletildi`, "warning");
-        setNotice("KarÅŸÄ± taraf konuÅŸuyor â€” cÃ¼mleniz bekletiliyor.");
-        return;
-      }
-      // GerÃ§ek eÅŸ zamanlÄ± konuÅŸma: kaybetme, normal gÃ¶nder.
-    }
-    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
-    setNotice("Mesaj sÄ±raya alÄ±ndÄ±.");
-  }, [source, target]);
-  enqueueRawRef.current = (text: string) => {
-    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
-  };
-  // KarÅŸÄ± taraf susunca: mesajÄ± geldiyse bekleyen metin yankÄ±dÄ±r, sil.
-  // Mesaj gelmediyse kullanÄ±cÄ±nÄ±n gerÃ§ek cÃ¼mlesidir, gÃ¶nder.
-  const remoteSpeakingNow = roomConnection.remoteSpeaking;
-  useEffect(() => {
-    if (remoteSpeakingNow) {
-      if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-      return;
-    }
-    if (!suppressedRef.current) return;
-    flushTimerRef.current = window.setTimeout(() => {
-      const pending = suppressedRef.current;
-      suppressedRef.current = null;
-      if (!pending) return;
-      enqueueRawRef.current(pending.text);
-      setNotice("Bekletilen cÃ¼mleniz gÃ¶nderildi.");
-    }, 2500);
-    return () => {
-      if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    };
-  }, [remoteSpeakingNow]);
-  const speech = useSpeech(source, enqueue);
-  // CÃ¼mlenin ilk Ã¶n izleme anÄ±nÄ± kaydet (yankÄ±/gerÃ§ek sÃ¶z ayrÄ±mÄ± iÃ§in).
-  const prevInterimRef = useRef("");
-  useEffect(() => {
-    const has = speech.interimText.trim().length > 0;
-    const had = prevInterimRef.current.trim().length > 0;
-    if (has && !had) utteranceStartRef.current = Date.now();
-    if (!has) utteranceStartRef.current = 0;
-    prevInterimRef.current = speech.interimText;
-  }, [speech.interimText]);
-  useEffect(() => {
-    if (roomConnection.remoteSpeaking) {
-      if (!remoteSpeakingSinceRef.current) remoteSpeakingSinceRef.current = Date.now();
-    } else {
-      remoteSpeakingSinceRef.current = 0;
-    }
-  }, [roomConnection.remoteSpeaking]);
-  // KonuÅŸmaya baÅŸlar baÅŸlamaz karÅŸÄ± tarafa haber ver; o da bizim sesimizi
-  // kendi mikrofonundan yakalayÄ±p Ã§evirmeye Ã§alÄ±ÅŸmasÄ±n.
-  const sendSpeaking = roomConnection.sendSpeaking;
-  const speakingSignalRef = useRef(false);
-  useEffect(() => {
-    if (!roomConnection.voiceEnabled) return;
-    const speaking = speech.listening && speech.interimText.trim().length > 0;
-    if (speaking === speakingSignalRef.current) return;
-    speakingSignalRef.current = speaking;
-    sendSpeaking(speaking);
-  }, [speech.listening, speech.interimText, roomConnection.voiceEnabled, sendSpeaking]);
-  useEffect(() => {
-    if (!speech.listening && speakingSignalRef.current) {
-      speakingSignalRef.current = false;
-      sendSpeaking(false);
-    }
-  }, [speech.listening, sendSpeaking]);
-  // BaÄŸlantÄ± kurulur kurulmaz canlÄ± sesi otomatik aÃ§: iki taraf da birbirini
-  // hemen duysun. iOS'ta konuÅŸma tanÄ±mayla mikrofon Ã§akÄ±ÅŸtÄ±ÄŸÄ± iÃ§in orada
-  // kullanÄ±cÄ± elle aÃ§maya devam ediyor.
-  const autoVoiceTriedRef = useRef(false);
-  const enableVoiceRef = useRef(roomConnection.enableVoice);
-  enableVoiceRef.current = roomConnection.enableVoice;
-  useEffect(() => {
-    if (!roomConnection.connected || roomConnection.voiceEnabled || autoVoiceTriedRef.current) return;
-    const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
-    if (isAppleWebKit) return;
-    autoVoiceTriedRef.current = true;
-    void enableVoiceRef.current();
-  }, [roomConnection.connected, roomConnection.voiceEnabled]);
-  // "KonuÅŸma baÅŸladÄ±" = karÅŸÄ± taraf baÄŸlÄ± VE ya mikrofon aÃ§Ä±k ya da en az bir
-  // cÃ¼mle alÄ±ÅŸveriÅŸi olmuÅŸ. Deneme sayacÄ± yalnÄ±zca bu koÅŸulda ilerler.
-  const conversing = roomConnection.connected
-    && (speech.listening || localMessages.length > 0 || remoteMessages.length > 0);
-  useEffect(() => { onConversingChange?.(conversing); }, [conversing, onConversingChange]);
-  useEffect(() => () => onConversingChange?.(false), [onConversingChange]);
-  speechRef.current = { listening: speech.listening, stop: speech.stop, toggle: speech.toggle };
-  // Mobil tarayÄ±cÄ±lar seslendirmeyi ilk kullanÄ±cÄ± dokunuÅŸundan sonra oynatÄ±r.
-  // KarÅŸÄ± taraf hiÃ§bir dÃ¼ÄŸmeye basmadan mesaj alabildiÄŸi iÃ§in sayfadaki ilk
-  // dokunuÅŸta kilidi aÃ§Ä±yoruz.
-  useEffect(() => {
-    const unlockOnce = () => unlockSpeechOutput();
-    window.addEventListener("pointerdown", unlockOnce, { once: true });
-    window.addEventListener("keydown", unlockOnce, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlockOnce);
-      window.removeEventListener("keydown", unlockOnce);
-    };
-  }, []);
-  const createRoom = () => {
-    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-    navigate(`/oda/${code}?role=host`);
-  };
-  const inviteLink = active
-    ? `${location.origin}${import.meta.env.BASE_URL}oda/${active}`
-    : "";
-  const join = () => {
-    if (!/^[A-Z0-9]{6}$/.test(room.toUpperCase())) {
-      setNotice("Oda kodu 6 harf veya rakam olmalÄ±.");
-      return;
-    }
-    navigate(`/oda/${room.toUpperCase()}`);
-  };
-  const speak = (text: string, languageName?: string) => {
-    speakText(text, speechCodeFor(languageName || ""));
-  };
-  const submitDraft = (event: React.FormEvent) => {
-    event.preventDefault();
-    unlockSpeechOutput();
-    const text = draft.trim();
-    if (!text) return;
-    enqueue(text);
-    setDraft("");
-  };
-  const toggleVoice = async () => {
-    if (roomConnection.voiceEnabled) {
-      roomConnection.disableVoice();
-      setNotice("Orijinal ses kapatÄ±ldÄ±.");
-      return;
-    }
-    const enabled = await roomConnection.enableVoice();
-    if (enabled) setNotice("Mikrofonunuz aÃ§Ä±k. KarÅŸÄ± tarafÄ±n ses baÄŸlantÄ±sÄ± bekleniyor.");
-  };
-  const toggleConversation = async () => {
-    unlockSpeechOutput();
-    if (speech.listening) {
-      speech.toggle();
-      return;
-    }
-    const isIOSWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
-    if (!isIOSWebKit && !roomConnection.voiceEnabled) {
-      const enabled = await roomConnection.enableVoice();
-      if (!enabled) return;
-    }
-    if (isIOSWebKit && !roomConnection.voiceEnabled) {
-      setNotice("iPhone'da Ã§eviri mikrofonu aÃ§Ä±ldÄ±. Orijinal sesi ayrÄ±ca aÃ§abilirsiniz.");
-    }
-    speech.toggle();
-  };
-  const toggleRemotePlayback = async () => {
-    const audio = remoteAudioRef.current;
-    if (!audio || !roomConnection.voiceConnected) return;
-    if (playbackBlocked || remoteMuted) {
-      audio.muted = false;
-      setRemoteMuted(false);
-      try {
-        await audio.play();
-        setPlaybackBlocked(false);
-      } catch {
-        setPlaybackBlocked(true);
-      }
-      return;
-    }
-    audio.muted = true;
-    setRemoteMuted(true);
-  };
-  const statusError = speech.error || roomConnection.error || roomConnection.voiceError;
-  if (!roomId) return <section className="room-lobby"><div className="lobby-hero"><div className="lobby-icon"><Languages /></div><h1>KonuÅŸma odanÄ±zÄ± aÃ§Ä±n.</h1><p>Yeni bir oda oluÅŸturun veya size gÃ¶nderilen kodla doÄŸrudan gÃ¶rÃ¼ÅŸmeye katÄ±lÄ±n.</p></div><div className="lobby-actions"><article><span>Yeni gÃ¶rÃ¼ÅŸme</span><h2>Bir oda oluÅŸturun</h2><p>Size Ã¶zel baÄŸlantÄ±yÄ± paylaÅŸÄ±n; ikinci kiÅŸi tek dokunuÅŸla katÄ±lsÄ±n.</p><button className="primary" onClick={createRoom}>Oda oluÅŸtur<ArrowRight /></button></article><article><span>Davete katÄ±l</span><h2>Oda kodunu girin</h2><p>BaÄŸlantÄ±nÄ±n sonundaki 6 karakterli kodu kullanabilirsiniz.</p><label>Oda kodu<input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" /></label><button className="ghost" onClick={join}>Odaya katÄ±l<ArrowRight /></button></article></div><div className="lobby-note"><ShieldCheck /> GÃ¶rÃ¼ÅŸmeler doÄŸrudan iki tarayÄ±cÄ± arasÄ±nda kurulur.</div></section>;
-  return (
-    <RoomScreen
-      roomCode={active}
-      inviteLink={inviteLink}
-      connected={roomConnection.connected}
-      connecting={roomConnection.connecting}
-      peerLanguage={remoteLanguage?.name || null}
-      localMessages={localMessages}
-      remoteMessages={remoteMessages}
-      languages={conversationLanguages}
-      sourceCode={source}
-      onSourceChange={changeSourceLanguage}
-      targetName={target}
-      onTargetChange={setTarget}
-      targetLocked={Boolean(remoteLanguage)}
-      listening={speech.listening}
-      interimText={speech.interimText}
-      onToggleMic={toggleConversation}
-      micSupported={speech.supported}
-      autoSpeak={autoSpeak}
-      onToggleAutoSpeak={() => {
-        unlockSpeechOutput();
-        setAutoSpeak((value) => {
-          if (value) clearSpeechQueue();
-          localStorage.setItem("dilmac-autospeak", value ? "0" : "1");
-          return !value;
-        });
-      }}
-      voiceEnabled={roomConnection.voiceEnabled}
-      voiceConnected={roomConnection.voiceConnected}
-      voiceConnecting={roomConnection.voiceConnecting}
-      onToggleVoice={toggleVoice}
-      remoteMuted={remoteMuted}
-      onToggleRemoteAudio={toggleRemotePlayback}
-      draft={draft}
-      onDraftChange={setDraft}
-      onSubmitDraft={submitDraft}
-      onSpeak={(text, languageName) => { unlockSpeechOutput(); speak(text, languageName); }}
-      onRetry={(id) => queueRef.current?.retry(id)}
-      status={statusError || notice}
-      statusIsError={Boolean(statusError)}
-      audioSlot={<audio ref={remoteAudioRef} autoPlay playsInline aria-hidden="true" />}
-    />
-  );
-}
-const pages: {
-  [k: string]: { title: string; intro: string; sections: [string, string][] };
-} = {
-  about: {
-    title: "HakkÄ±nda",
-    intro:
-      "DilmaÃ§, farklÄ± dillerde konuÅŸan iki insanÄ±n doÄŸal iletiÅŸimini kolaylaÅŸtÄ±rmak iÃ§in tasarlandÄ±.",
-    sections: [
-      [
-        "Neden DilmaÃ§?",
-        "Dil engelini mÃ¼mkÃ¼n olan en sade arayÃ¼zle azaltmak; konuÅŸmayÄ± bÃ¶lmeden anlaÅŸmayÄ± saÄŸlamak.",
-      ],
-      [
-        "YaklaÅŸÄ±mÄ±mÄ±z",
-        "Ã–nce Ã§alÄ±ÅŸan iletiÅŸim, sonra gÃ¶steriÅŸ. Ä°zinler, hata durumlarÄ± ve mahremiyet aÃ§Ä±kÃ§a anlatÄ±lÄ±r.",
-      ],
-    ],
-  },
-  how: {
-    title: "NasÄ±l Ã‡alÄ±ÅŸÄ±r",
-    intro: "DÃ¶rt kÄ±sa adÄ±mda canlÄ± gÃ¶rÃ¼ÅŸmeye baÅŸlayÄ±n.",
-    sections: [
-      [
-        "1. Dilleri seÃ§in",
-        "Kendi konuÅŸma dilinizi ve duymak istediÄŸiniz hedef dili belirleyin.",
-      ],
-      [
-        "2. Oda oluÅŸturun",
-        "AltÄ± karakterli oda kodunu veya davet baÄŸlantÄ±sÄ±nÄ± diÄŸer kiÅŸiyle paylaÅŸÄ±n.",
-      ],
-      [
-        "3. Sesli gÃ¶rÃ¼ÅŸmeyi aÃ§Ä±n",
-        "TarayÄ±cÄ± izninden sonra orijinal sesiniz karÅŸÄ± tarafa ulaÅŸÄ±r; konuÅŸmanÄ±z aynÄ± anda yazÄ±ya dÃ¶nÃ¼ÅŸÃ¼r.",
-      ],
-      [
-        "4. Ã‡eviriyi alÄ±n",
-        "Metin seÃ§tiÄŸiniz dile Ã§evrilir ve isterseniz sesli okunur.",
-      ],
-    ],
-  },
-  features: {
-    title: "Ã–zellikler",
-    intro: "CanlÄ± iletiÅŸim iÃ§in gereken temel araÃ§lar tek yerde.",
-    sections: [
-      [
-        "Orijinal ses gÃ¶rÃ¼ÅŸmesi",
-        "Ä°ki kiÅŸi birbirinin gerÃ§ek sesini WebRTC Ã¼zerinden duyarken altyazÄ± ve Ã§eviriyi aynÄ± ekranda takip eder.",
-      ],
-      [
-        "CanlÄ± konuÅŸma tanÄ±ma",
-        "Desteklenen tarayÄ±cÄ±larda Web Speech API ile konuÅŸmayÄ± anlÄ±k metne dÃ¶nÃ¼ÅŸtÃ¼rÃ¼r.",
-      ],
-      [
-        "DoÄŸal Ã§eviri",
-        "BaÄŸlama uygun, doÄŸal Ã§eviri Ã¼reten gÃ¼ncel bir yapay zekÃ¢ modeli kullanÄ±r.",
-      ],
-      [
-        "Sesli okuma",
-        "Ã‡evrilen cÃ¼mleyi cihazÄ±nÄ±zÄ±n ses motoruyla dinleyebilirsiniz.",
-      ],
-      [
-        "EriÅŸilebilir tasarÄ±m",
-        "Klavye kullanÄ±mÄ±, gÃ¶rÃ¼nÃ¼r odak, yÃ¼ksek kontrast ve azaltÄ±lmÄ±ÅŸ hareket desteÄŸi iÃ§erir.",
-      ],
-    ],
-  },
-  privacy: {
-    title: "Gizlilik",
-    intro:
-      "Bu metin genel bilgilendirme taslaÄŸÄ±dÄ±r; hukuki danÄ±ÅŸmanlÄ±k deÄŸildir.",
-    sections: [
-      [
-        "Mikrofon",
-        "Mikrofon yalnÄ±zca sizin aÃ§Ä±k eyleminizle baÅŸlatÄ±lÄ±r. TarayÄ±cÄ± iznini dilediÄŸiniz zaman kaldÄ±rabilirsiniz.",
-      ],
-      [
-        "Ã‡eviri verisi",
-        "GerÃ§ek AI Ã§evirisinde metin seÃ§tiÄŸiniz saÄŸlayÄ±cÄ±ya gÃ¶nderilir. SaÄŸlayÄ±cÄ±nÄ±n gizlilik koÅŸullarÄ± ayrÄ±ca geÃ§erlidir.",
-      ],
-      [
-        "Teknik altyapÄ±",
-        "Ã‡eviri istekleri DilmaÃ§ sunucusu Ã¼zerinden iÅŸlenir; tarayÄ±cÄ±nÄ±zda hiÃ§bir gizli bilgi saklanmaz.",
-      ],
-    ],
-  },
-  terms: {
-    title: "KullanÄ±m ÅartlarÄ±",
-    intro:
-      "DilmaÃ§, bireysel geliÅŸtirici Yasin Dural tarafÄ±ndan iÅŸletilen bir yazÄ±lÄ±m hizmetidir (SaaS). Bu sayfayÄ± kullanarak aÅŸaÄŸÄ±daki ÅŸartlarÄ± kabul etmiÅŸ olursunuz.",
-    sections: [
-      [
-        "Hizmetin niteliÄŸi",
-        "DilmaÃ§ tamamen otomatik Ã§alÄ±ÅŸan bir yazÄ±lÄ±m Ã¼rÃ¼nÃ¼dÃ¼r; Ã§eviriler yapay zekÃ¢ tarafÄ±ndan Ã¼retilir, insan Ã§evirmen veya danÄ±ÅŸmanlÄ±k hizmeti iÃ§ermez. Ã‡eviriler kritik, tÄ±bbi, hukuki veya acil durum iletiÅŸiminde tek kaynak olarak kullanÄ±lmamalÄ±dÄ±r.",
-      ],
-      [
-        "Abonelik ve yenileme",
-        "Pro ve Ekip planlarÄ± aylÄ±k aboneliktir ve her dÃ¶nem sonunda otomatik olarak yenilenir. Yenileme tutarÄ± ve tarihi satÄ±n alma sÄ±rasÄ±nda ve Ã¶deme makbuzunuzda aÃ§Ä±kÃ§a gÃ¶sterilir. Fiyat deÄŸiÅŸiklikleri bir sonraki dÃ¶nemden Ã¶nce e-posta ile bildirilir.",
-      ],
-      [
-        "Ä°ptal",
-        "AboneliÄŸinizi istediÄŸiniz an iptal edebilirsiniz: Ã¶deme makbuzunuzdaki abonelik yÃ¶netimi baÄŸlantÄ±sÄ±ndan veya destek e-postasÄ±na yazarak. Ä°ptal sonrasÄ± mevcut dÃ¶nemin sonuna kadar eriÅŸiminiz devam eder; bir sonraki dÃ¶nem Ã¼creti tahsil edilmez.",
-      ],
-      [
-        "Ä°ade",
-        "TÃ¼m Ã¼cretli planlar 30 gÃ¼n koÅŸulsuz para iade garantisi kapsamÄ±ndadÄ±r. AyrÄ±ntÄ±lar Ä°ade PolitikasÄ± sayfasÄ±ndadÄ±r.",
-      ],
-      [
-        "Ã–deme iÅŸlemcisi",
-        "Ã–demeler yetkili satÄ±cÄ±mÄ±z (Merchant of Record) Paddle tarafÄ±ndan iÅŸlenir. Kart bilgileriniz DilmaÃ§'a ulaÅŸmaz; fatura ve vergi iÅŸlemleri Paddle Ã¼zerinden yÃ¼rÃ¼tÃ¼lÃ¼r.",
-      ],
-      [
-        "KullanÄ±cÄ± sorumluluÄŸu",
-        "Mikrofon izinlerinin ve hesabÄ±nÄ±zÄ±n gÃ¼venli kullanÄ±mÄ±ndan siz sorumlusunuz. Hizmetin hukuka aykÄ±rÄ± amaÃ§la kullanÄ±mÄ± yasaktÄ±r.",
-      ],
-      [
-        "SÃ¼reklilik",
-        "TarayÄ±cÄ± veya Ã¼Ã§Ã¼ncÃ¼ taraf servislerine baÄŸlÄ± Ã¶zelliklerin kesintisiz Ã§alÄ±ÅŸacaÄŸÄ± garanti edilmez; planlÄ± kesintiler makul sÃ¼re Ã¶nce duyurulur.",
-      ],
-      [
-        "Ä°letiÅŸim",
-        "SorularÄ±nÄ±z iÃ§in: yasdural@gmail.com",
-      ],
-    ],
-  },
-  refund: {
-    title: "Ä°ade PolitikasÄ±",
-    intro:
-      "30 gÃ¼n koÅŸulsuz para iade garantisi. Soru sormuyoruz.",
-    sections: [
-      [
-        "Kapsam",
-        "TÃ¼m Ã¼cretli DilmaÃ§ planlarÄ± (Pro ve Ekip), ilk satÄ±n alma tarihinden itibaren 30 gÃ¼n boyunca koÅŸulsuz para iade garantisi kapsamÄ±ndadÄ±r. Herhangi bir sebep belirtmeniz gerekmez.",
-      ],
-      [
-        "NasÄ±l iade alÄ±rÄ±m?",
-        "SatÄ±n almadan sonraki 30 gÃ¼n iÃ§inde yasdural@gmail.com adresine e-posta gÃ¶nderin veya Ã¶deme makbuzunuzdaki Paddle destek baÄŸlantÄ±sÄ±nÄ± kullanÄ±n. Ä°adeniz kesintisiz, tam tutar olarak yapÄ±lÄ±r.",
-      ],
-      [
-        "SÃ¼re",
-        "Ä°ade talepleri en geÃ§ 5 iÅŸ gÃ¼nÃ¼ iÃ§inde iÅŸleme alÄ±nÄ±r. TutarÄ±n kartÄ±nÄ±za yansÄ±masÄ± bankanÄ±za baÄŸlÄ± olarak 5-10 iÅŸ gÃ¼nÃ¼ sÃ¼rebilir.",
-      ],
-      [
-        "Yenileme Ã¶demeleri",
-        "Otomatik yenileme sonrasÄ±nda fark ettiyseniz endiÅŸelenmeyin: yenileme tarihinden itibaren 30 gÃ¼n iÃ§inde baÅŸvurursanÄ±z yenileme Ã¶demesi de tam olarak iade edilir.",
-      ],
-    ],
-  },
-};
-function Info({ data }: { data: typeof pages.about }) {
-  return (
-    <section className="info">
-      <h1>{data.title}</h1>
-      <p className="lead">{data.intro}</p>
-      {data.sections.map(([h, p]) => (
-        <article key={h}>
-          <h2>{h}</h2>
-          <p>{p}</p>
-        </article>
-      ))}
-    </section>
-  );
-}
-function NotFound() {
-  return (
-    <section className="info">
-      <h1>Sayfa bulunamadÄ±</h1>
-      <p>AradÄ±ÄŸÄ±nÄ±z sayfa taÅŸÄ±nmÄ±ÅŸ veya hiÃ§ var olmamÄ±ÅŸ olabilir.</p>
-      <Link className="primary" to="/">
-        Ana sayfaya dÃ¶n
-      </Link>
-    </section>
-  );
-}
-export function App() {
-  // VITE_E2E yalnÄ±zca test derlemesinde 1 olur; Ã¼retim derlemesinde bu dal
-  // Ã¶lÃ¼ koddur ve paketten tamamen Ã§Ä±kar. Testlerde giriÅŸ ekranÄ±nÄ± atlamak
-  // iÃ§in sahte bir kullanÄ±cÄ± saÄŸlar â€” sunucu tarafÄ± plan doÄŸrulamasÄ±nÄ±
-  // etkilemez.
-  const [user, setUser] = useState<User | null>(
-    import.meta.env.VITE_E2E === "1"
-      ? ({ uid: "e2e-test", email: "e2e@test.dev", displayName: "E2E Test" } as unknown as User)
-      : null,
-  );
-  const [profile, setProfile] = useState<MemberProfile | null>(null);
-  const [dark, setDark] = useState(
-    localStorage.getItem("dilmac-theme") !== "light",
-  );
-  const [authChecked, setAuthChecked] = useState(!authReady);
-  useEffect(() => observeUser((nextUser) => {
-    setUser(nextUser);
-    setProfile(readProfile(nextUser));
-    setAuthChecked(true);
-    if (!nextUser) return;
-    // Ã–deme saÄŸlayÄ±cÄ±sÄ±nÄ±n webhook'u planÄ± sunucuya yazar; giriÅŸ yapan
-    // kullanÄ±cÄ±nÄ±n gerÃ§ek planÄ± oradan doÄŸrulanÄ±r. Sunucu kayÄ±t yoksa
-    // cihazdaki seÃ§im geÃ§erli kalÄ±r.
-    void fetchServerPlan(nextUser.uid).then((serverPlan) => {
-      if (!serverPlan) return;
-      setProfile((current) => {
-        const base = current || defaultProfile(nextUser);
-        if (base.plan === serverPlan) return current;
-        const next = { ...base, plan: serverPlan };
-        localStorage.setItem(profileKey(nextUser.uid), JSON.stringify(next));
-        return next;
-      });
-    });
-  }), []);
-  const saveProfile = useCallback((next: MemberProfile) => {
-    if (!user) return;
-    localStorage.setItem(profileKey(user.uid), JSON.stringify(next));
-    setProfile(next);
-  }, [user]);
-  const saveRegisteredProfile = useCallback((targetUser: User, next: MemberProfile) => {
-    localStorage.setItem(profileKey(targetUser.uid), JSON.stringify(next));
-    setProfile(next);
-  }, []);
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    localStorage.setItem("dilmac-theme", dark ? "dark" : "light");
-  }, [dark]);
-  return (
-    <Layout user={user} profile={profile} dark={dark} setDark={setDark}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/uygulama" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
-        <Route path="/deneme" element={<AiPracticePage user={user} authChecked={authChecked} />} />
-        <Route path="/oda/:roomId" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
-        <Route path="/hakkinda" element={<Info data={pages.about} />} />
-        <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
-        <Route path="/ozellikler" element={<Info data={pages.features} />} />
-        <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSaveForUser={saveRegisteredProfile} />} />
-        <Route path="/kayit" element={<AuthPage onRegistered={saveRegisteredProfile} />} />
-        <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
-        <Route path="/gizlilik" element={<Info data={pages.privacy} />} />
-        <Route
-          path="/kullanim-sartlari"
-          element={<Info data={pages.terms} />}
-        />
-        <Route path="/iade-politikasi" element={<Info data={pages.refund} />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      {!authReady && (
-        <div className="auth-note">
-          Google giriÅŸi iÃ§in Firebase ortam deÄŸiÅŸkenleri bekleniyor.
-        </div>
-      )}
-    </Layout>
-  );
-}
+        await s÷4¶‰Ëkºwµç@(€€€€€€€€˜˜É•µ½Ñ•MÁ•…­¥¹M¥¹•I•˜¹ÕÉÉ•¹Ğ€ø€À(€€€€€€€€˜˜ÕÑÑ•É…¹•MÑ…ÉÑI•˜¹ÕÉÉ•¹Ğ€ğÉ•µ½Ñ•MÁ•…­¥¹M¥¹•I•˜¹ÕÉÉ•¹Ğ€¬€ÈÔÀì(€€€€€¥˜€ …µ¥¹•MÑ…ÉÑ•‘¥ÉÍĞ¤ì(€€€€€€€ÍÕÁÁÉ•ÍÍ•‘I•˜¹ÕÉÉ•¹Ğ€ôìÑ•áĞ°…Ğè…Ñ”¹¹½Ü ¤ôì(€€€€€€€±½±¥•¹ÑÉÉ½È ‰•¡½}ÍÕÁÁÉ•ÍÍ•ˆ°€‰ÍÁ•• ˆ°-…ËÄÑ…É…˜­½¹×}ÕÉ­•¸•±•¸€‘íÑ•áĞ¹±•¹Ñ¡ô­…É…­Ñ•É±¥¬Ñ…»Åµ„‰•­±•Ñ¥±‘¥€°€‰İ…É¹¥¹œˆ¤ì(€€€€€€€Í•Ñ9½Ñ¥”¡ÑI•˜¹ÕÉÉ•¹Ğ ‰¹½Ñ¥”¹Á••É	ÕÍäˆ¤¤ì(€€€€€€€É•ÑÕÉ¸ì(€€€€€ô(€€€€€€¼¼•Ë•¬—|é…µ…¹³Ä­½¹×}µ„è­…å‰•Ñµ”°¹½Éµ…°ŸÙ¹‘•È¸(€€€ô(€€€ÅÕ•Õ•I•˜¹ÕÉÉ•¹Ğü¹•¹ÅÕ•Õ”¡ìÍ½ÕÉ”èÑ•áĞ°Í½ÕÉ•1…¹Õ…”è±…¹Õ…•	å½‘”¡Í½ÕÉ”¤ü¹…Á¤ñğÍ½ÕÉ”°Ñ…É•Ñ1…¹Õ…”èÑ…É•Ğô¤ì(€€€Í•Ñ9½Ñ¥”¡ÑI•˜¹ÕÉÉ•¹Ğ ‰¹½Ñ¥”¹ÅÕ•Õ•‘5Íœˆ¤¤ì(€ô°mÍ½ÕÉ”°Ñ…É•Ñt¤ì(€•¹ÅÕ•Õ•I…İI•˜¹ÕÉÉ•¹Ğ€ô€¡Ñ•áĞèÍÑÉ¥¹œ¤€ôøì(€€€ÅÕ•Õ•I•˜¹ÕÉÉ•¹Ğü¹•¹ÅÕ•Õ”¡ìÍ½ÕÉ”èÑ•áĞ°Í½ÕÉ•1…¹Õ…”è±…¹Õ…•	å½‘”¡Í½ÕÉ”¤ü¹…Á¤ñğÍ½ÕÉ”°Ñ…É•Ñ1…¹Õ…”èÑ…É•Ğô¤ì(€ôì(€€¼¼-…ËÄÑ…É…˜ÍÕÍÕ¹„èµ•Í…«Ä•±‘¥åÍ”‰•­±•å•¸µ•Ñ¥¸å…¹¯Å“ÅÈ°Í¥°¸(€€¼¼5•Í…¨•±µ•‘¥åÍ”­Õ±±…»ÅÅ»Å¸•Ë•¬ñµ±•Í¥‘¥È°ŸÙ¹‘•È¸(€½¹ÍĞÉ•µ½Ñ•MÁ•…­¥¹9½Ü€ôÉ½½µ½¹¹•Ñ¥½¸¹É•µ½Ñ•MÁ•…­¥¹œì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€¡É•µ½Ñ•MÁ•…­¥¹9½Ü¤ì(€€€€€¥˜€¡™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ€„ôô¹Õ±°¤İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ¤ì(€€€€€™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ€ô¹Õ±°ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€¥˜€ …ÍÕÁÁÉ•ÍÍ•‘I•˜¹ÕÉÉ•¹Ğ¤É•ÑÕÉ¸ì(€€€™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ€ôİ¥¹‘½Ü¹Í•ÑQ¥µ•½ÕĞ  ¤€ôøì(€€€€€½¹ÍĞÁ•¹‘¥¹œ€ôÍÕÁÁÉ•ÍÍ•‘I•˜¹ÕÉÉ•¹Ğì(€€€€€ÍÕÁÁÉ•ÍÍ•‘I•˜¹ÕÉÉ•¹Ğ€ô¹Õ±°ì(€€€€€¥˜€ …Á•¹‘¥¹œ¤É•ÑÕÉ¸ì(€€€€€•¹ÅÕ•Õ•I…İI•˜¹ÕÉÉ•¹Ğ¡Á•¹‘¥¹œ¹Ñ•áĞ¤ì(€€€€€Í•Ñ9½Ñ¥”¡ÑI•˜¹ÕÉÉ•¹Ğ ‰¹½Ñ¥”¹¡•±‘M•¹Ğˆ¤¤ì(€€€ô°€ÈÔÀÀ¤ì(€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€¥˜€¡™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ€„ôô¹Õ±°¤İ¥¹‘½Ü¹±•…ÉQ¥µ•½ÕĞ¡™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ¤ì(€€€€€™±ÕÍ¡Q¥µ•ÉI•˜¹ÕÉÉ•¹Ğ€ô¹Õ±°ì(€€€ôì(€ô°mÉ•µ½Ñ•MÁ•…­¥¹9½İt¤ì(€½¹ÍĞÍÁ•• €ôÕÍ•MÁ•• ¡Í½ÕÉ”°•¹ÅÕ•Õ”¤ì(€€¼¼ñµ±•¹¥¸¥±¬ƒÙ¸¥é±•µ”…»Å»Ä­…å‘•Ğ€¡å…¹¯Ä½•Ë•¬ÏÙè…åËÅ·Ä§¥¸¤¸(€½¹ÍĞÁÉ•Ù%¹Ñ•É¥µI•˜€ôÕÍ•I•˜ ˆˆ¤ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€½¹ÍĞ¡…Ì€ôÍÁ•• ¹¥¹Ñ•É¥µQ•áĞ¹ÑÉ¥´ ¤¹±•¹Ñ €ø€Àì(€€€½¹ÍĞ¡…€ôÁÉ•Ù%¹Ñ•É¥µI•˜¹ÕÉÉ•¹Ğ¹ÑÉ¥´ ¤¹±•¹Ñ €ø€Àì(€€€¥˜€¡¡…Ì€˜˜€…¡…¤ÕÑÑ•É…¹•MÑ…ÉÑI•˜¹ÕÉÉ•¹Ğ€ô…Ñ”¹¹½Ü ¤ì(€€€¥˜€ …¡…Ì¤ÕÑÑ•É…¹•MÑ…ÉÑI•˜¹ÕÉÉ•¹Ğ€ô€Àì(€€€ÁÉ•Ù%¹Ñ•É¥µI•˜¹ÕÉÉ•¹Ğ€ôÍÁ•• ¹¥¹Ñ•É¥µQ•áĞì(€ô°mÍÁ•• ¹¥¹Ñ•É¥µQ•áÑt¤ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€¡É½½µ½¹¹•Ñ¥½¸¹É•µ½Ñ•MÁ•…­¥¹œ¤ì(€€€€€¥˜€ …É•µ½Ñ•MÁ•…­¥¹M¥¹•I•˜¹ÕÉÉ•¹Ğ¤É•µ½Ñ•MÁ•…­¥¹M¥¹•I•˜¹ÕÉÉ•¹Ğ€ô…Ñ”¹¹½Ü ¤ì(€€€ô•±Í”ì(€€€€€É•µ½Ñ•MÁ•…­¥¹M¥¹•I•˜¹ÕÉÉ•¹Ğ€ô€Àì(€€€ô(€ô°mÉ½½µ½¹¹•Ñ¥½¸¹É•µ½Ñ•MÁ•…­¥¹t¤ì(€€¼¼-½¹×}µ…å„‰‡}±…È‰‡}±…µ…è­…ËÄÑ…É…™„¡…‰•ÈÙ•Èì¼‘„‰¥é¥´Í•Í¥µ¥é¤(€€¼¼­•¹‘¤µ¥­É½™½¹Õ¹‘…¸å…­…±…çÅÀƒ•Ù¥Éµ•å”ƒ…³Ç}µ…ÏÅ¸¸(€½¹ÍĞÍ•¹‘MÁ•…­¥¹œ€ôÉ½½µ½¹¹•Ñ¥½¸¹Í•¹‘MÁ•…­¥¹œì(€½¹ÍĞÍÁ•…­¥¹M¥¹…±I•˜€ôÕÍ•I•˜¡™…±Í”¤ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€ …É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•¤É•ÑÕÉ¸ì(€€€½¹ÍĞÍÁ•…­¥¹œ€ôÍÁ•• ¹±¥ÍÑ•¹¥¹œ€˜˜ÍÁ•• ¹¥¹Ñ•É¥µQ•áĞ¹ÑÉ¥´ ¤¹±•¹Ñ €ø€Àì(€€€¥˜€¡ÍÁ•…­¥¹œ€ôôôÍÁ•…­¥¹M¥¹…±I•˜¹ÕÉÉ•¹Ğ¤É•ÑÕÉ¸ì(€€€ÍÁ•…­¥¹M¥¹…±I•˜¹ÕÉÉ•¹Ğ€ôÍÁ•…­¥¹œì(€€€Í•¹‘MÁ•…­¥¹œ¡ÍÁ•…­¥¹œ¤ì(€ô°mÍÁ•• ¹±¥ÍÑ•¹¥¹œ°ÍÁ•• ¹¥¹Ñ•É¥µQ•áĞ°É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•°Í•¹‘MÁ•…­¥¹t¤ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€ …ÍÁ•• ¹±¥ÍÑ•¹¥¹œ€˜˜ÍÁ•…­¥¹M¥¹…±I•˜¹ÕÉÉ•¹Ğ¤ì(€€€€€ÍÁ•…­¥¹M¥¹…±I•˜¹ÕÉÉ•¹Ğ€ô™…±Í”ì(€€€€€Í•¹‘MÁ•…­¥¹œ¡™…±Í”¤ì(€€€ô(€ô°mÍÁ•• ¹±¥ÍÑ•¹¥¹œ°Í•¹‘MÁ•…­¥¹t¤ì(€€¼¼	‡}±…¹ÓÄ­ÕÉÕ±ÕÈ­ÕÉÕ±µ…è…¹³ÄÍ•Í¤½Ñ½µ…Ñ¥¬‡œè¥­¤Ñ…É…˜‘„‰¥É‰¥É¥¹¤(€€¼¼¡•µ•¸‘ÕåÍÕ¸¸¥=LÑ„­½¹×}µ„Ñ…»Åµ…å±„µ¥­É½™½¸ƒ…¯Ç}ÓÇÄ§¥¸½É…‘„(€€¼¼­Õ±±…»ÅÄ•±±”‡µ…å„‘•Ù…´•‘¥å½È¸(€½¹ÍĞ…ÕÑ½Y½¥•QÉ¥•‘I•˜€ôÕÍ•I•˜¡™…±Í”¤ì(€½¹ÍĞ•¹…‰±•Y½¥•I•˜€ôÕÍ•I•˜¡É½½µ½¹¹•Ñ¥½¸¹•¹…‰±•Y½¥”¤ì(€•¹…‰±•Y½¥•I•˜¹ÕÉÉ•¹Ğ€ôÉ½½µ½¹¹•Ñ¥½¸¹•¹…‰±•Y½¥”ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€¥˜€ …É½½µ½¹¹•Ñ¥½¸¹½¹¹•Ñ•ñğÉ½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•ñğ…ÕÑ½Y½¥•QÉ¥•‘I•˜¹ÕÉÉ•¹Ğ¤É•ÑÕÉ¸ì(€€€½¹ÍĞ¥ÍÁÁ±•]•‰-¥Ğ€ô€½¥@ üé¡½¹•ñ…‘ñ½¤½¤¹Ñ•ÍĞ¡¹…Ù¥…Ñ½È¹ÕÍ•É•¹Ğ¤€˜˜€½ÁÁ±•]•‰-¥Ğ½¤¹Ñ•ÍĞ¡¹…Ù¥…Ñ½È¹ÕÍ•É•¹Ğ¤ì(€€€¥˜€¡¥ÍÁÁ±•]•‰-¥Ğ¤É•ÑÕÉ¸ì(€€€…ÕÑ½Y½¥•QÉ¥•‘I•˜¹ÕÉÉ•¹Ğ€ôÑÉÕ”ì(€€€Ù½¥•¹…‰±•Y½¥•I•˜¹ÕÉÉ•¹Ğ ¤ì(€ô°mÉ½½µ½¹¹•Ñ¥½¸¹½¹¹•Ñ•°É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•‘t¤ì(€€¼¼€‰-½¹×}µ„‰‡}±…“Äˆ€ô­…ËÄÑ…É…˜‰‡}³ÄYå„µ¥­É½™½¸‡ŸÅ¬å„‘„•¸…è‰¥È(€€¼¼ñµ±”…³Ç}Ù•É§}¤½±µ×|¸•¹•µ”Í…å…Äå…±»Åé„‰Ô­¿}Õ±‘„¥±•É±•È¸(€½¹ÍĞ½¹Ù•ÉÍ¥¹œ€ôÉ½½µ½¹¹•Ñ¥½¸¹½¹¹•Ñ•(€€€€˜˜€¡ÍÁ•• ¹±¥ÍÑ•¹¥¹œñğ±½…±5•ÍÍ…•Ì¹±•¹Ñ €ø€ÀñğÉ•µ½Ñ•5•ÍÍ…•Ì¹±•¹Ñ €ø€À¤ì(€ÕÍ•™™•Ğ  ¤€ôøì½¹½¹Ù•ÉÍ¥¹¡…¹”ü¸¡½¹Ù•ÉÍ¥¹œ¤ìô°m½¹Ù•ÉÍ¥¹œ°½¹½¹Ù•ÉÍ¥¹¡…¹•t¤ì(€ÕÍ•™™•Ğ  ¤€ôø€ ¤€ôø½¹½¹Ù•ÉÍ¥¹¡…¹”ü¸¡™…±Í”¤°m½¹½¹Ù•ÉÍ¥¹¡…¹•t¤ì(€ÍÁ••¡I•˜¹ÕÉÉ•¹Ğ€ôì±¥ÍÑ•¹¥¹œèÍÁ•• ¹±¥ÍÑ•¹¥¹œ°ÍÑ½ÀèÍÁ•• ¹ÍÑ½À°Ñ½±”èÍÁ•• ¹Ñ½±”ôì(€€¼¼5½‰¥°Ñ…É…çÅÅ±…ÈÍ•Í±•¹‘¥Éµ•å¤¥±¬­Õ±±…»ÅÄ‘½­Õ¹×}Õ¹‘…¸Í½¹É„½å¹…ÓÅÈ¸(€€¼¼-…ËÄÑ…É…˜¡§‰¥È“ó}µ•å”‰…Íµ…‘…¸µ•Í…¨…±…‰¥±‘§}¤§¥¸Í…å™…‘…­¤¥±¬(€€¼¼‘½­Õ¹×}Ñ„­¥±¥‘¤‡ŸÅå½ÉÕè¸(€ÕÍ•™™•Ğ  ¤€ôøì(€€€½¹ÍĞÕ¹±½­=¹”€ô€ ¤€ôøÕ¹±½­MÁ••¡=ÕÑÁÕĞ ¤ì(€€€İ¥¹‘½Ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É‘½İ¸ˆ°Õ¹±½­=¹”°ì½¹”èÑÉÕ”ô¤ì(€€€İ¥¹‘½Ü¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½İ¸ˆ°Õ¹±½­=¹”°ì½¹”èÑÉÕ”ô¤ì(€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€İ¥¹‘½Ü¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É‘½İ¸ˆ°Õ¹±½­=¹”¤ì(€€€€€İ¥¹‘½Ü¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½İ¸ˆ°Õ¹±½­=¹”¤ì(€€€ôì(€ô°mt¤ì(€½¹ÍĞÉ•…Ñ•I½½´€ô€ ¤€ôøì(€€€½¹ÍĞ½‘”€ô5…Ñ ¹É…¹‘½´ ¤¹Ñ½MÑÉ¥¹œ ÌØ¤¹Í±¥” È°€à¤¹Ñ½UÁÁ•É…Í” ¤ì(€€€¹…Ù¥…Ñ”¡€½½‘„¼‘í½‘•ôıÉ½±”õ¡½ÍÑ€¤ì(€ôì(€½¹ÍĞ¥¹Ù¥Ñ•1¥¹¬€ô…Ñ¥Ù”(€€€€ü€‘í±½…Ñ¥½¸¹½É¥¥¹ô‘í¥µÁ½ÉĞ¹µ•Ñ„¹•¹Ø¹	M}UI1õ½‘„¼‘í…Ñ¥Ù•õ€(€€€€è€ˆˆì(€½¹ÍĞ©½¥¸€ô€ ¤€ôøì(€€€¥˜€ „½ymµhÀ´åuìÙô¼¹Ñ•ÍĞ¡É½½´¹Ñ½UÁÁ•É…Í” ¤¤¤ì(€€€€€Í•Ñ9½Ñ¥”¡Ğ ‰±½‰‰ä¹½‘•ÉÉ½Èˆ¤¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€¹…Ù¥…Ñ”¡€½½‘„¼‘íÉ½½´¹Ñ½UÁÁ•É…Í” ¥õ€¤ì(€ôì(€½¹ÍĞÍÁ•…¬€ô€¡Ñ•áĞèÍÑÉ¥¹œ°±…¹Õ…•9…µ”üèÍÑÉ¥¹œ¤€ôøì(€€€ÍÁ•…­Q•áĞ¡Ñ•áĞ°ÍÁ••¡½‘•½È¡±…¹Õ…•9…µ”ñğ€ˆˆ¤¤ì(€ôì(€½¹ÍĞÍÕ‰µ¥ÑÉ…™Ğ€ô€¡•Ù•¹ĞèI•…Ğ¹½ÉµÙ•¹Ğ¤€ôøì(€€€•Ù•¹Ğ¹ÁÉ•Ù•¹Ñ•™…Õ±Ğ ¤ì(€€€Õ¹±½­MÁ••¡=ÕÑÁÕĞ ¤ì(€€€½¹ÍĞÑ•áĞ€ô‘É…™Ğ¹ÑÉ¥´ ¤ì(€€€¥˜€ …Ñ•áĞ¤É•ÑÕÉ¸ì(€€€•¹ÅÕ•Õ”¡Ñ•áĞ¤ì(€€€Í•ÑÉ…™Ğ ˆˆ¤ì(€ôì(€½¹ÍĞÑ½±•Y½¥”€ô…Íå¹Œ€ ¤€ôøì(€€€¥˜€¡É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•¤ì(€€€€€É½½µ½¹¹•Ñ¥½¸¹‘¥Í…‰±•Y½¥” ¤ì(€€€€€Í•Ñ9½Ñ¥”¡Ğ ‰¹½Ñ¥”¹Ù½¥•=™˜ˆ¤¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€½¹ÍĞ•¹…‰±•€ô…İ…¥ĞÉ½½µ½¹¹•Ñ¥½¸¹•¹…‰±•Y½¥” ¤ì(€€€¥˜€¡•¹…‰±•¤Í•Ñ9½Ñ¥”¡Ğ ‰¹½Ñ¥”¹Ù½¥•]…¥Ñ¥¹œˆ¤¤ì(€ôì(€½¹ÍĞÑ½±•½¹Ù•ÉÍ…Ñ¥½¸€ô…Íå¹Œ€ ¤€ôøì(€€€Õ¹±½­MÁ••¡=ÕÑÁÕĞ ¤ì(€€€¥˜€¡ÍÁ•• ¹±¥ÍÑ•¹¥¹œ¤ì(€€€€€ÍÁ•• ¹Ñ½±” ¤ì(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€½¹ÍĞ¥Í%=M]•‰-¥Ğ€ô€½¥@ üé¡½¹•ñ…‘ñ½¤½¤¹Ñ•ÍĞ¡¹…Ù¥…Ñ½È¹ÕÍ•É•¹Ğ¤€˜˜€½ÁÁ±•]•‰-¥Ğ½¤¹Ñ•ÍĞ¡¹…Ù¥…Ñ½È¹ÕÍ•É•¹Ğ¤ì(€€€¥˜€ …¥Í%=M]•‰-¥Ğ€˜˜€…É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•¤ì(€€€€€½¹ÍĞ•¹…‰±•€ô…İ…¥ĞÉ½½µ½¹¹•Ñ¥½¸¹•¹…‰±•Y½¥” ¤ì(€€€€€¥˜€ …•¹…‰±•¤É•ÑÕÉ¸ì(€€€ô(€€€¥˜€¡¥Í%=M]•‰-¥Ğ€˜˜€…É½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•¤ì(€€€€€Í•Ñ9½Ñ¥”¡Ğ ‰¹½Ñ¥”¹¥½Í5¥Œˆ¤¤ì(€€€ô(€€€ÍÁ•• ¹Ñ½±” ¤ì(€ôì(€½¹ÍĞÑ½±•I•µ½Ñ•A±…å‰…¬€ô…Íå¹Œ€ ¤€ôøì(€€€½¹ÍĞ…Õ‘¥¼€ôÉ•µ½Ñ•Õ‘¥½I•˜¹ÕÉÉ•¹Ğì(€€€¥˜€ ……Õ‘¥¼ñğ€…É½½µ½¹¹•Ñ¥½¸¹Ù½¥•½¹¹•Ñ•¤É•ÑÕÉ¸ì(€€€¥˜€¡Á±…å‰…­	±½­•ñğÉ•µ½Ñ•5ÕÑ•¤ì(€€€€€…Õ‘¥¼¹µÕÑ•€ô™…±Í”ì(€€€€€Í•ÑI•µ½Ñ•5ÕÑ•¡™…±Í”¤ì(€€€€€ÑÉäì(€€€€€€€…İ…¥Ğ…Õ‘¥¼¹Á±…ä ¤ì(€€€€€€€Í•ÑA±…å‰…­	±½­•¡™…±Í”¤ì(€€€€€ô…Ñ ì(€€€€€€€Í•ÑA±…å‰…­	±½­•¡ÑÉÕ”¤ì(€€€€€ô(€€€€€É•ÑÕÉ¸ì(€€€ô(€€€…Õ‘¥¼¹µÕÑ•€ôÑÉÕ”ì(€€€Í•ÑI•µ½Ñ•5ÕÑ•¡ÑÉÕ”¤ì(€ôì(€½¹ÍĞÍÑ…ÑÕÍÉÉ½È€ôÍÁ•• ¹•ÉÉ½È(€€€€üĞ ‰•ÉÉ½È¹µ¥Œˆ¤(€€€€èÉ½½µ½¹¹•Ñ¥½¸¹Ù½¥•ÉÉ½È(€€€€€€üĞ ‰•ÉÉ½È¹Ù½¥”ˆ¤(€€€€€€èÉ½½µ½¹¹•Ñ¥½¸¹•ÉÉ½È(€€€€€€€€üĞ ‰•ÉÉ½È¹É½½´ˆ¤(€€€€€€€€è€ˆˆì(€¥˜€ …É½½µ%¤É•ÑÕÉ¸€ (€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰É½½´µ±½‰‰äˆø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰±½‰‰äµ¡•É¼ˆø(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰±½‰‰äµ¥½¸ˆøñ1…¹Õ…•Ì€¼øğ½‘¥Øø(€€€€€€€€ñ ÄùíĞ ‰±½‰‰ä¹Ñ¥Ñ±”ˆ¥ôğ½ Äø(€€€€€€€€ñÀùíĞ ‰±½‰‰ä¹ÍÕˆˆ¥ôğ½Àø(€€€€€€ğ½‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰±½‰‰äµ…Ñ¥½¹Ìˆø(€€€€€€€€ñ…ÉÑ¥±”ø(€€€€€€€€€€ñÍÁ…¸ùíĞ ‰±½‰‰ä¹¹•İ	…‘”ˆ¥ôğ½ÍÁ…¸ø(€€€€€€€€€€ñ ÈùíĞ ‰±½‰‰ä¹¹•İQ¥Ñ±”ˆ¥ôğ½ Èø(€€€€€€€€€€ñÀùíĞ ‰±½‰‰ä¹¹•İQ•áĞˆ¥ôğ½Àø(€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰ÁÉ¥µ…Éäˆ½¹±¥¬õíÉ•…Ñ•I½½µôùíĞ ‰±½‰‰ä¹É•…Ñ”ˆ¥ôñÉÉ½İI¥¡Ğ€¼øğ½‰ÕÑÑ½¸ø(€€€€€€€€ğ½…ÉÑ¥±”ø(€€€€€€€€ñ…ÉÑ¥±”ø(€€€€€€€€€€ñÍÁ…¸ùíĞ ‰±½‰‰ä¹©½¥¹	…‘”ˆ¥ôğ½ÍÁ…¸ø(€€€€€€€€€€ñ ÈùíĞ ‰±½‰‰ä¹©½¥¹Q¥Ñ±”ˆ¥ôğ½ Èø(€€€€€€€€€€ñÀùíĞ ‰±½‰‰ä¹©½¥¹Q•áĞˆ¥ôğ½Àø(€€€€€€€€€€ñ±…‰•°ùíĞ ‰±½‰‰ä¹½‘•1…‰•°ˆ¥ô(€€€€€€€€€€€€ñ¥¹ÁÕĞÙ…±Õ”õíÉ½½µôµ…á1•¹Ñ õìÙô½¹¡…¹”õì¡•Ù•¹Ğ¤€ôøÍ•ÑI½½´¡•Ù•¹Ğ¹Ñ…É•Ğ¹Ù…±Õ”¹Ñ½UÁÁ•É…Í” ¤¹É•Á±…” ½myµhÀ´åt½œ°€ˆˆ¤¥ôÁ±…•¡½±‘•Èô‰ÅÉÌˆ€¼ø(€€€€€€€€€€ğ½±…‰•°ø(€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”ô‰¡½ÍĞˆ½¹±¥¬õí©½¥¹ôùíĞ ‰±½‰‰ä¹©½¥¸ˆ¥ôñÉÉ½İI¥¡Ğ€¼øğ½‰ÕÑÑ½¸ø(€€€€€€€€ğ½…ÉÑ¥±”ø(€€€€€€ğ½‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰±½‰‰äµ¹½Ñ”ˆøñM¡¥•±‘¡•¬€¼øíĞ ‰±½‰‰ä¹¹½Ñ”ˆ¥ôğ½‘¥Øø(€€€€ğ½Í•Ñ¥½¸ø(€€¤ì(€É•ÑÕÉ¸€ (€€€€ñI½½µMÉ••¸(€€€€€É½½µ½‘”õí…Ñ¥Ù•ô(€€€€€¥¹Ù¥Ñ•1¥¹¬õí¥¹Ù¥Ñ•1¥¹­ô(€€€€€½¹¹•Ñ•õíÉ½½µ½¹¹•Ñ¥½¸¹½¹¹•Ñ•‘ô(€€€€€½¹¹•Ñ¥¹œõíÉ½½µ½¹¹•Ñ¥½¸¹½¹¹•Ñ¥¹ô(€€€€€Á••É1…¹Õ…”õíÉ•µ½Ñ•1…¹Õ…”ü¹¹…µ”ñğ¹Õ±±ô(€€€€€±½…±5•ÍÍ…•Ìõí±½…±5•ÍÍ…•Íô(€€€€€É•µ½Ñ•5•ÍÍ…•ÌõíÉ•µ½Ñ•5•ÍÍ…•Íô(€€€€€±…¹Õ…•Ìõí½¹Ù•ÉÍ…Ñ¥½¹1…¹Õ…•Íô(€€€€€Í½ÕÉ•½‘”õíÍ½ÕÉ•ô(€€€€€½¹M½ÕÉ•¡…¹”õí¡…¹•M½ÕÉ•1…¹Õ…•ô(€€€€€Ñ…É•Ñ9…µ”õíÑ…É•Ñô(€€€€€½¹Q…É•Ñ¡…¹”õíÍ•ÑQ…É•Ñô(€€€€€Ñ…É•Ñ1½­•õí	½½±•…¸¡É•µ½Ñ•1…¹Õ…”¥ô(€€€€€±¥ÍÑ•¹¥¹œõíÍÁ•• ¹±¥ÍÑ•¹¥¹ô(€€€€€¥¹Ñ•É¥µQ•áĞõíÍÁ•• ¹¥¹Ñ•É¥µQ•áÑô(€€€€€½¹Q½±•5¥ŒõíÑ½±•½¹Ù•ÉÍ…Ñ¥½¹ô(€€€€€µ¥MÕÁÁ½ÉÑ•õíÍÁ•• ¹ÍÕÁÁ½ÉÑ•‘ô(€€€€€…ÕÑ½MÁ•…¬õí…ÕÑ½MÁ•…­ô(€€€€€½¹Q½±•ÕÑ½MÁ•…¬õì ¤€ôøì(€€€€€€€Õ¹±½­MÁ••¡=ÕÑÁÕĞ ¤ì(€€€€€€€Í•ÑÕÑ½MÁ•…¬ ¡Ù…±Õ”¤€ôøì(€€€€€€€€€¥˜€¡Ù…±Õ”¤±•…ÉMÁ••¡EÕ•Õ” ¤ì(€€€€€€€€€±½…±MÑ½É…”¹Í•Ñ%Ñ•´ ‰‘¥±µ…Œµ…ÕÑ½ÍÁ•…¬ˆ°Ù…±Õ”€ü€ˆÀˆ€è€ˆÄˆ¤ì(€€€€€€€€€É•ÑÕÉ¸€…Ù…±Õ”ì(€€€€€€€ô¤ì(€€€€€õô(€€€€€Ù½¥•¹…‰±•õíÉ½½µ½¹¹•Ñ¥½¸¹Ù½¥•¹…‰±•‘ô(€€€€€Ù½¥•½¹¹•Ñ•õíÉ½½µ½¹¹•Ñ¥½¸¹Ù½¥•½¹¹•Ñ•‘ô(€€€€€Ù½¥•½¹¹•Ñ¥¹œõíÉ½½µ½¹¹•Ñ¥½¸¹Ù½¥•½¹¹•Ñ¥¹ô(€€€€€½¹Q½±•Y½¥”õíÑ½±•Y½¥•ô(€€€€€É•µ½Ñ•5ÕÑ•õíÉ•µ½Ñ•5ÕÑ•‘ô(€€€€€½¹Q½±•I•µ½Ñ•Õ‘¥¼õíÑ½±•I•µ½Ñ•A±…å‰…­ô(€€€€€‘É…™Ğõí‘É…™Ñô(€€€€€½¹É…™Ñ¡…¹”õíÍ•ÑÉ…™Ñô(€€€€€½¹MÕ‰µ¥ÑÉ…™ĞõíÍÕ‰µ¥ÑÉ…™Ñô(€€€€€½¹MÁ•…¬õì¡Ñ•áĞ°±…¹Õ…•9…µ”¤€ôøìÕ¹±½­MÁ••¡=ÕÑÁÕĞ ¤ìÍÁ•…¬¡Ñ•áĞ°±…¹Õ…•9…µ”¤ìõô(€€€€€½¹I•ÑÉäõì¡¥¤€ôøÅÕ•Õ•I•˜¹ÕÉÉ•¹Ğü¹É•ÑÉä¡¥¥ô(€€€€€ÍÑ…ÑÕÌõíÍÑ…ÑÕÍÉÉ½Èñğ¹½Ñ¥•ô(€€€€€ÍÑ…ÑÕÍ%ÍÉÉ½Èõí	½½±•…¸¡ÍÑ…ÑÕÍÉÉ½È¥ô(€€€€€…Õ‘¥½M±½Ğõìñ…Õ‘¥¼É•˜õíÉ•µ½Ñ•Õ‘¥½I•™ô…ÕÑ½A±…äÁ±…åÍ%¹±¥¹”…É¥„µ¡¥‘‘•¸ô‰ÑÉÕ”ˆ€¼ùô(€€€€¼ø(€€¤ì)ô(¼¼	¥±¤½å…Í…°Í…å™„§•É§}¤ÏÙé³ñ­Ñ•¸•±¥È¸Ù³ñ´Í…çÅÏÄ‰ÕÉ…‘„Í…‰¥ÑÑ¥Èì(¼¼µ•Ñ¥¹±•È¥¹™¼¸ñÍ…å™„ø¹Ìñ8ùĞ€¼Ìñ8ùˆ…¹…¡Ñ…É±…ËÅ¹‘…¸½­Õ¹ÕÈ¸)½¹ÍĞ¥¹™½A…•Ì€ôì(€…‰½ÕĞèì­•äè€‰…‰½ÕĞˆ°Í•Ñ¥½¹Ìè€Èô°(€¡½Üèì­•äè€‰¡½Üˆ°Í•Ñ¥½¹Ìè€Ğô°(€™•…ÑÕÉ•Ìèì­•äè€‰™•…ÑÕÉ•Ìˆ°Í•Ñ¥½¹Ìè€Ôô°(€ÁÉ¥Ù…äèì­•äè€‰ÁÉ¥Ù…äˆ°Í•Ñ¥½¹Ìè€Ìô°(€Ñ•ÉµÌèì­•äè€‰Ñ•ÉµÌˆ°Í•Ñ¥½¹Ìè€àô°(€É•™Õ¹èì­•äè€‰É•™Õ¹ˆ°Í•Ñ¥½¹Ìè€Ğô°)ô…Ì½¹ÍĞì()ÑåÁ”%¹™½A…•-•ä€ô­•å½˜ÑåÁ•½˜¥¹™½A…•Ìì)™Õ¹Ñ¥½¸%¹™¼¡ìÁ…”ôèìÁ…”è%¹™½A…•-•äô¤ì(€½¹ÍĞìĞô€ôÕÍ•$Äá¸ ¤ì(€½¹ÍĞì­•ä°Í•Ñ¥½¹Ìô€ô¥¹™½A…•ÍmÁ…•tì(€É•ÑÕÉ¸€ (€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰¥¹™¼ˆø(€€€€€€ñ ÄùíĞ¡¥¹™¼¸‘í­•åô¹Ñ¥Ñ±•€…Ì¹•Ù•È¥ôğ½ Äø(€€€€€€ñÀ±…ÍÍ9…µ”ô‰±•…ˆùíĞ¡¥¹™¼¸‘í­•åô¹¥¹ÑÉ½€…Ì¹•Ù•È¥ôğ½Àø(€€€€€íÉÉ…ä¹™É½´¡ì±•¹Ñ èÍ•Ñ¥½¹Ìô°€¡|°¥¹‘•à¤€ôø€ (€€€€€€€€ñ…ÉÑ¥±”­•äõí¥¹‘•áôø(€€€€€€€€€€ñ ÈùíĞ¡¥¹™¼¸‘í­•åô¹Ì‘í¥¹‘•à€¬€ÅõÑ€…Ì¹•Ù•È¥ôğ½ Èø(€€€€€€€€€€ñÀùíĞ¡¥¹™¼¸‘í­•åô¹Ì‘í¥¹‘•à€¬€Åõ‰€…Ì¹•Ù•È¥ôğ½Àø(€€€€€€€€ğ½…ÉÑ¥±”ø(€€€€€€¤¥ô(€€€€ğ½Í•Ñ¥½¸ø(€€¤ì)ô)™Õ¹Ñ¥½¸9½Ñ½Õ¹ ¤ì(€½¹ÍĞìĞô€ôÕÍ•$Äá¸ ¤ì(€É•ÑÕÉ¸€ (€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰¥¹™¼ˆø(€€€€€€ñ ÄùíĞ ‰¹˜¹Ñ¥Ñ±”ˆ¥ôğ½ Äø(€€€€€€ñÀùíĞ ‰¹˜¹Ñ•áĞˆ¥ôğ½Àø(€€€€€€ñ1¥¹¬±…ÍÍ9…µ”ô‰ÁÉ¥µ…ÉäˆÑ¼ôˆ¼ˆø(€€€€€€€íĞ ‰¹˜¹¡½µ”ˆ¥ô(€€€€€€ğ½1¥¹¬ø(€€€€ğ½Í•Ñ¥½¸ø(€€¤ì)ô)•áÁ½ÉĞ™Õ¹Ñ¥½¸ÁÀ ¤ì(€½¹ÍĞìĞô€ôÕÍ•$Äá¸ ¤ì(€€¼¼Y%Q}Éå…±»Åé„Ñ•ÍĞ‘•É±•µ•Í¥¹‘”€Ä½±ÕÈìƒñÉ•Ñ¥´‘•É±•µ•Í¥¹‘”‰Ô‘…°(€€¼¼ƒÙ³ğ­½‘‘ÕÈÙ”Á…­•ÑÑ•¸Ñ…µ…µ•¸ƒŸÅ­…È¸Q•ÍÑ±•É‘”¥É§|•­É…»Å»Ä…Ñ±…µ…¬(€€¼¼§¥¸Í…¡Ñ”‰¥È­Õ±±…»ÅÄÍ‡}±…ÈƒŠPÍÕ¹ÕÔÑ…É…›ÄÁ±…¸‘¿}ÉÕ±…µ…ÏÅ»Ä(€€¼¼•Ñ­¥±•µ•è¸(€½¹ÍĞmÕÍ•È°Í•ÑUÍ•Ét€ôÕÍ•MÑ…Ñ”ñUÍ•Èğ¹Õ±°ø (€€€¥µÁ½ÉĞ¹µ•Ñ„¹•¹Ø¹Y%Q}É€ôôô€ˆÄˆ(€€€€€€ü€¡ìÕ¥è€‰”É”µÑ•ÍĞˆ°•µ…¥°è€‰”É•Ñ•ÍĞ¹‘•Øˆ°‘¥ÍÁ±…å9…µ”è€‰ÉQ•ÍĞˆô…ÌÕ¹­¹½İ¸…ÌUÍ•È¤(€€€€€€è¹Õ±°°(€€¤ì(€½¹ÍĞmÁÉ½™¥±”°Í•ÑAÉ½™¥±•t€ôÕÍ•MÑ…Ñ”ñ5•µ‰•ÉAÉ½™¥±”ğ¹Õ±°ø¡¹Õ±°¤ì(€½¹ÍĞm‘…É¬°Í•Ñ…É­t€ôÕÍ•MÑ…Ñ” (€€€±½…±MÑ½É…”¹•Ñ%Ñ•´ ‰‘¥±µ…ŒµÑ¡•µ”ˆ¤€„ôô€‰±¥¡Ğˆ°(€€¤ì(€½¹ÍĞm…ÕÑ¡¡•­•°Í•ÑÕÑ¡¡•­•‘t€ôÕÍ•MÑ…Ñ” ……ÕÑ¡I•…‘ä¤ì(€ÕÍ•™™•Ğ  ¤€ôø½‰Í•ÉÙ•UÍ•È ¡¹•áÑUÍ•È¤€ôøì(€€€Í•ÑUÍ•È¡¹•áÑUÍ•È¤ì(€€€Í•ÑAÉ½™¥±”¡É•…‘AÉ½™¥±”¡¹•áÑUÍ•È¤¤ì(€€€Í•ÑÕÑ¡¡•­•¡ÑÉÕ”¤ì(€€€¥˜€ …¹•áÑUÍ•È¤É•ÑÕÉ¸ì(€€€€¼¼ƒY‘•µ”Í‡}±…çÅÅÏÅ»Å¸İ•‰¡½½¬ÔÁ±…»ÄÍÕ¹ÕÕå„å…é…Èì¥É§|å…Á…¸(€€€€¼¼­Õ±±…»ÅÅ»Å¸•Ë•¬Á±…»Ä½É…‘…¸‘¿}ÉÕ±…»ÅÈ¸MÕ¹ÕÔ­…çÅĞå½­Í„(€€€€¼¼¥¡…é‘…­¤Í—¥´—•É±¤­…³ÅÈ¸(€€€Ù½¥™•Ñ¡M•ÉÙ•ÉA±…¸¡¹•áÑUÍ•È¹Õ¥¤¹Ñ¡•¸ ¡Í•ÉÙ•ÉA±…¸¤€ôøì(€€€€€¥˜€ …Í•ÉÙ•ÉA±…¸¤É•ÑÕÉ¸ì(€€€€€Í•ÑAÉ½™¥±” ¡ÕÉÉ•¹Ğ¤€ôøì(€€€€€€€½¹ÍĞ‰…Í”€ôÕÉÉ•¹Ğñğ‘•™…Õ±ÑAÉ½™¥±”¡¹•áÑUÍ•È¤ì(€€€€€€€¥˜€¡‰…Í”¹Á±…¸€ôôôÍ•ÉÙ•ÉA±…¸¤É•ÑÕÉ¸ÕÉÉ•¹Ğì(€€€€€€€½¹ÍĞ¹•áĞ€ôì€¸¸¹‰…Í”°Á±…¸èÍ•ÉÙ•ÉA±…¸ôì(€€€€€€€±½…±MÑ½É…”¹Í•Ñ%Ñ•´¡ÁÉ½™¥±•-•ä¡¹•áÑUÍ•È¹Õ¥¤°)M=8¹ÍÑÉ¥¹¥™ä¡¹•áĞ¤¤ì(€€€€€€€É•ÑÕÉ¸¹•áĞì(€€€€€ô¤ì(€€€ô¤ì(€ô¤°mt¤ì(€½¹ÍĞÍ…Ù•AÉ½™¥±”€ôÕÍ•…±±‰…¬ ¡¹•áĞè5•µ‰•ÉAÉ½™¥±”¤€ôøì(€€€¥˜€ …ÕÍ•È¤É•ÑÕÉ¸ì(€€€±½…±MÑ½É…”¹Í•Ñ%Ñ•´¡ÁÉ½™¥±•-•ä¡ÕÍ•È¹Õ¥¤°)M=8¹ÍÑÉ¥¹¥™ä¡¹•áĞ¤¤ì(€€€Í•ÑAÉ½™¥±”¡¹•áĞ¤ì(€ô°mÕÍ•Ét¤ì(€½¹ÍĞÍ…Ù•I•¥ÍÑ•É•‘AÉ½™¥±”€ôÕÍ•…±±‰…¬ ¡Ñ…É•ÑUÍ•ÈèUÍ•È°¹•áĞè5•µ‰•ÉAÉ½™¥±”¤€ôøì(€€€±½…±MÑ½É…”¹Í•Ñ%Ñ•´¡ÁÉ½™¥±•-•ä¡Ñ…É•ÑUÍ•È¹Õ¥¤°)M=8¹ÍÑÉ¥¹¥™ä¡¹•áĞ¤¤ì(€€€Í•ÑAÉ½™¥±”¡¹•áĞ¤ì(€ô°mt¤ì(€ÕÍ•™™•Ğ  ¤€ôøì(€€€‘½Õµ•¹Ğ¹‘½Õµ•¹Ñ±•µ•¹Ğ¹‘…Ñ…Í•Ğ¹Ñ¡•µ”€ô‘…É¬€ü€‰‘…É¬ˆ€è€‰±¥¡Ğˆì(€€€±½…±MÑ½É…”¹Í•Ñ%Ñ•´ ‰‘¥±µ…ŒµÑ¡•µ”ˆ°‘…É¬€ü€‰‘…É¬ˆ€è€‰±¥¡Ğˆ¤ì(€ô°m‘…É­t¤ì(€É•ÑÕÉ¸€ (€€€€ñ1…å½ÕĞÕÍ•ÈõíÕÍ•ÉôÁÉ½™¥±”õíÁÉ½™¥±•ô‘…É¬õí‘…É­ôÍ•Ñ…É¬õíÍ•Ñ…É­ôø(€€€€€€ñI½ÕÑ•Ìø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ¼ˆ•±•µ•¹Ğõìñ!½µ”€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½ÕåÕ±…µ„ˆ•±•µ•¹Ğõìñ1¥Ù•QÉ…¹Í±…Ñ¥½¸ÕÍ•ÈõíÕÍ•ÉôÁÉ½™¥±”õíÁÉ½™¥±•ô…ÕÑ¡¡•­•õí…ÕÑ¡¡•­•‘ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½‘•¹•µ”ˆ•±•µ•¹Ğõìñ¥AÉ…Ñ¥•A…”ÕÍ•ÈõíÕÍ•Éô…ÕÑ¡¡•­•õí…ÕÑ¡¡•­•‘ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½½‘„¼éÉ½½µ%ˆ•±•µ•¹Ğõìñ1¥Ù•QÉ…¹Í±…Ñ¥½¸ÕÍ•ÈõíÕÍ•ÉôÁÉ½™¥±”õíÁÉ½™¥±•ô…ÕÑ¡¡•­•õí…ÕÑ¡¡•­•‘ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½¡…­­¥¹‘„ˆ•±•µ•¹Ğõìñ%¹™¼Á…”ô‰…‰½ÕĞˆ€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½¹…Í¥°µ…±¥Í¥Èˆ•±•µ•¹Ğõìñ%¹™¼Á…”ô‰¡½Üˆ€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½½é•±±¥­±•Èˆ•±•µ•¹Ğõìñ%¹™¼Á…”ô‰™•…ÑÕÉ•Ìˆ€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½…‰½¹•±¥¬ˆ•±•µ•¹ĞõìñMÕ‰ÍÉ¥ÁÑ¥½¹A…”ÕÍ•ÈõíÕÍ•ÉôÁÉ½™¥±”õíÁÉ½™¥±•ô½¹M…Ù•½ÉUÍ•ÈõíÍ…Ù•I•¥ÍÑ•É•‘AÉ½™¥±•ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½­…å¥Ğˆ•±•µ•¹ĞõìñÕÑ¡A…”½¹I•¥ÍÑ•É•õíÍ…Ù•I•¥ÍÑ•É•‘AÉ½™¥±•ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½ÁÉ½™¥°ˆ•±•µ•¹ĞõìñAÉ½™¥±•A…”ÕÍ•ÈõíÕÍ•ÉôÁÉ½™¥±”õíÁÉ½™¥±•ô½¹M…Ù”õíÍ…Ù•AÉ½™¥±•ô½¹M…Ù•½ÉUÍ•ÈõíÍ…Ù•I•¥ÍÑ•É•‘AÉ½™¥±•ô€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½¥é±¥±¥¬ˆ•±•µ•¹Ğõìñ%¹™¼Á…”ô‰ÁÉ¥Ù…äˆ€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”(€€€€€€€€€Á…Ñ ôˆ½­Õ±±…¹¥´µÍ…ÉÑ±…É¤ˆ(€€€€€€€€€•±•µ•¹Ğõìñ%¹™¼Á…”ô‰Ñ•ÉµÌˆ€¼ùô(€€€€€€€€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ½¥…‘”µÁ½±¥Ñ¥­…Í¤ˆ•±•µ•¹Ğõìñ%¹™¼Á…”ô‰É•™Õ¹ˆ€¼ùô€¼ø(€€€€€€€€ñI½ÕÑ”Á…Ñ ôˆ¨ˆ•±•µ•¹Ğõìñ9½Ñ½Õ¹€¼ùô€¼ø(€€€€€€ğ½I½ÕÑ•Ìø(€€€€€ì……ÕÑ¡I•…‘ä€˜˜€ (€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰…ÕÑ µ¹½Ñ”ˆø(€€€€€€€€€íĞ ‰…ÕÑ ¹™¥É•‰…Í•5¥ÍÍ¥¹œˆ¥ô(€€€€€€€€ğ½‘¥Øø(€€€€€€¥ô(€€€€ğ½1…å½ÕĞø(€€¤ì)ô(

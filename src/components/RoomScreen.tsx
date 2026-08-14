@@ -7,6 +7,7 @@ import type { QueueItem } from "../lib/messageQueue";
 import type { RoomMessage } from "../hooks/useRoom";
 import Tour, { isTourDone, type TourStep } from "./Tour";
 import LanguagePicker from "./LanguagePicker";
+import { useI18n } from "../lib/i18n";
 import { languageByName, type AppLanguage } from "../lib/languages";
 import "../room.css";
 
@@ -57,66 +58,25 @@ export type RoomScreenProps = {
   audioSlot: React.ReactNode;
 };
 
-const textSizes = ["Normal", "Büyük", "Çok büyük"];
+
 
 const timeOf = (ms: number) =>
   new Date(ms).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
 
 // Öğretici tur adımları. Hedefler ekranın gerçek düğmeleri; biri yoksa
 // tur o adımı atlar, akış bozulmaz.
-const tourSteps: TourStep[] = [
-  {
-    target: ".langbar",
-    tone: "lang",
-    emoji: "🌍",
-    title: "Diller",
-    body: "Solda sizin konuştuğunuz dil, sağda çeviri dili. Dokununca listeden seçersiniz. Karşı taraf odaya girince onun dili otomatik kilitlenir.",
-  },
-  {
-    target: ".mic-button",
-    tone: "mic",
-    emoji: "🎤",
-    title: "Mikrofon",
-    body: "Ana düğme bu. Basın ve normal konuşun; söyledikleriniz anında yazıya dökülüp çevrilir ve karşı tarafa gider. Tekrar basınca durur.",
-  },
-  {
-    target: ".room-bar-actions .icon:nth-of-type(1)",
-    tone: "voice",
-    emoji: "🔊",
-    title: "Otomatik seslendirme",
-    body: "Açıkken karşı taraftan gelen her çeviri kendiliğinden sesli okunur. Sessiz ortamdaysanız buradan kapatabilirsiniz.",
-  },
-  {
-    target: ".room-bar-actions .icon:nth-of-type(2)",
-    tone: "call",
-    emoji: "📞",
-    title: "Canlı ses",
-    body: "Bu, çevirinin yanında karşı tarafın GERÇEK sesini de duymanızı sağlar. İki taraf da açmalı. Yankıyı önlemek için kulaklık önerilir.",
-  },
-  {
-    target: ".room-controls .round:first-child",
-    tone: "text",
-    emoji: "⌨️",
-    title: "Klavyeyle yaz",
-    body: "Konuşamayacağınız bir yerdeyseniz yazarak gönderin. Yazdığınız da aynı şekilde çevrilir.",
-  },
-  {
-    target: ".room-chip",
-    tone: "room",
-    emoji: "🔗",
-    title: "Oda kodu",
-    body: "Dokununca davet bağlantısı paylaşılır. Karşı taraf bu bağlantıyla tek dokunuşta odaya katılır.",
-  },
-  {
-    target: ".room-feed",
-    tone: "feed",
-    emoji: "💬",
-    title: "Konuşma akışı",
-    body: "Çeviri büyük, orijinal küçük yazılır. Bir balona dokunursanız tekrar okutabilir, tam ekranda gösterebilir veya kopyalayabilirsiniz.",
-  },
-];
 
 export default function RoomScreen(props: RoomScreenProps) {
+  const { t } = useI18n();
+  const tourSteps: TourStep[] = useMemo(() => [
+    { target: ".langbar", tone: "lang", emoji: "🌍", title: t("tour.s1t"), body: t("tour.s1b") },
+    { target: ".mic-button", tone: "mic", emoji: "🎤", title: t("tour.s2t"), body: t("tour.s2b") },
+    { target: "[data-tour='auto']", tone: "voice", emoji: "🔊", title: t("tour.s3t"), body: t("tour.s3b") },
+    { target: "[data-tour='voice']", tone: "call", emoji: "📞", title: t("tour.s4t"), body: t("tour.s4b") },
+    { target: "[data-tour='keyboard']", tone: "text", emoji: "⌨️", title: t("tour.s5t"), body: t("tour.s5b") },
+    { target: "[data-tour='room']", tone: "room", emoji: "🔗", title: t("tour.s6t"), body: t("tour.s6b") },
+    { target: ".room-feed", tone: "feed", emoji: "💬", title: t("tour.s7t"), body: t("tour.s7b") },
+  ], [t]);
   const {
     roomCode, inviteLink, connected, connecting, peerLanguage,
     localMessages, remoteMessages, languages,
@@ -194,7 +154,7 @@ export default function RoomScreen(props: RoomScreenProps) {
   const share = async () => {
     if (!inviteLink) return;
     try {
-      if (canShare) await navigator.share({ title: "Dilmaç", text: `${roomCode} odasına katıl.`, url: inviteLink });
+      if (canShare) await navigator.share({ title: "Dilmaç", text: t("room.inviteText", { room: roomCode }), url: inviteLink });
       else await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
@@ -202,17 +162,19 @@ export default function RoomScreen(props: RoomScreenProps) {
   };
 
   const peerLabel = connected
-    ? `Karşı taraf bağlı${peerLanguage ? ` · ${peerLanguage}` : ""}`
-    : connecting ? "Karşı taraf bekleniyor" : "Bağlantı yok";
+    ? peerLanguage
+      ? t("room.peerConnectedLang", { language: peerLanguage })
+      : t("room.peerConnected")
+    : connecting ? t("room.waitTitle") : t("room.noConn");
 
   return (
-    <section className={`room size-${textSize}`} aria-label="Canlı çeviri odası">
+    <section className={`room size-${textSize}`} aria-label={t("room.aria")}>
       {audioSlot}
       <Tour steps={tourSteps} mode={tourMode} onFinish={() => setTourMode("off")} />
 
       <header className="room-bar">
         <button className="chip room-chip" type="button" onClick={share}>
-          <span className="chip-label">ODA</span>
+          <span className="chip-label">{t("room.roomLabel")}</span>
           <b>{roomCode || "—"}</b>
           {copied ? <Check /> : canShare ? <Share2 /> : <Copy />}
         </button>
@@ -228,28 +190,28 @@ export default function RoomScreen(props: RoomScreenProps) {
             className={`icon ${autoSpeak ? "on" : ""}`}
             onClick={onToggleAutoSpeak}
             aria-pressed={autoSpeak}
-            title={autoSpeak ? "Otomatik seslendirme açık" : "Otomatik seslendirme kapalı"}
+            title={autoSpeak ? t("room.autoOn") : t("room.autoOff")}
           >
             {autoSpeak ? <Volume2 /> : <VolumeX />}
-            <small>Oto ses</small>
+            <small>{t("room.autoLabel")}</small>
           </button>
           <button
             type="button"
             className={`icon ${voiceConnected ? "on" : voiceEnabled ? "wait" : ""}`}
             onClick={onToggleVoice}
             disabled={voiceConnecting && !voiceEnabled}
-            title={voiceEnabled ? "Canlı sesi kapat" : "Canlı sesi aç"}
+            title={voiceEnabled ? t("room.voiceOff") : t("room.voiceOn")}
           >
             {voiceEnabled ? <PhoneOff /> : <PhoneCall />}
-            <small>Canlı ses</small>
+            <small>{t("room.voiceLabel")}</small>
           </button>
-          <button type="button" className="icon" onClick={() => setShowSettings(true)} title="Yazı boyutu">
+          <button type="button" className="icon" onClick={() => setShowSettings(true)} title={t("room.sizeAria")}>
             <Type />
-            <small>Boyut</small>
+            <small>{t("room.sizeLabel")}</small>
           </button>
-          <button type="button" className="icon" onClick={() => setTourMode("run")} title="Düğmeleri anlat">
+          <button type="button" className="icon" onClick={() => setTourMode("run")} title={t("room.tourAria")}>
             <HelpCircle />
-            <small>Tur</small>
+            <small>{t("room.tourLabel")}</small>
           </button>
         </div>
       </header>
@@ -260,7 +222,7 @@ export default function RoomScreen(props: RoomScreenProps) {
         <LanguagePicker
           value={sourceCode}
           onChange={onSourceChange}
-          label="SİZ"
+          label={t("room.you")}
         />
         <span className="langbar-swap" aria-hidden="true"><ArrowLeftRight /></span>
         <LanguagePicker
@@ -269,7 +231,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             const language = languages.find((candidate) => candidate.code === code);
             if (language) onTargetChange(language.api);
           }}
-          label={targetLocked ? "KARŞI TARAF" : "ÇEVİRİ"}
+          label={targetLocked ? t("room.peerSide") : t("room.target")}
           disabled={targetLocked}
           align="end"
         />
@@ -279,15 +241,15 @@ export default function RoomScreen(props: RoomScreenProps) {
         {feed.length === 0 && !interimText && (
           <div className="room-empty">
             <Users />
-            <h2>{connected ? "Konuşmaya başlayın" : "Karşı taraf bekleniyor"}</h2>
+            <h2>{connected ? t("room.startTitle") : t("room.waitTitle")}</h2>
             <p>
               {connected
-                ? "Mikrofona basıp konuşun. Söyledikleriniz çevrilip karşı tarafta sesli okunur."
-                : "Oda kodunu paylaşın. İkinci kişi katıldığında burası canlanır."}
+                ? t("room.startText")
+                : t("room.waitText")}
             </p>
             {!connected && inviteLink && (
               <button className="room-invite" type="button" onClick={share}>
-                <Share2 /> Davet bağlantısını paylaş
+                <Share2 /> {t("room.share")}
               </button>
             )}
           </div>
@@ -300,18 +262,18 @@ export default function RoomScreen(props: RoomScreenProps) {
             onClick={() => setOpenEntry(entry)}
           >
             {(i === 0 || feed[i - 1].mine !== entry.mine) && (
-              <span className="turn-who">{entry.mine ? "Siz" : peerLanguage ? `Karşı taraf · ${languageByName(entry.originalLanguage)?.name || entry.originalLanguage}` : "Karşı taraf"}</span>
+              <span className="turn-who">{entry.mine ? t("room.mine") : peerLanguage ? `${t("room.peer")} · ${languageByName(entry.originalLanguage)?.name || entry.originalLanguage}` : t("room.peer")}</span>
             )}
             {entry.mine ? (
               <>
                 <p className="turn-main">{entry.original}</p>
                 {entry.translated && entry.translated !== entry.original && <p className="turn-sub">{entry.translated}</p>}
                 <span className="turn-meta">
-                  {entry.status === "queued" && "Sırada"}
-                  {entry.status === "translating" && "Çevriliyor…"}
-                  {entry.status === "sent" && "Gönderildi"}
-                  {entry.status === "delivered" && `Teslim edildi · ${timeOf(entry.at)}`}
-                  {entry.status === "failed" && "Gönderilemedi"}
+                  {entry.status === "queued" && t("room.queued")}
+                  {entry.status === "translating" && t("room.translating")}
+                  {entry.status === "sent" && t("room.sent")}
+                  {entry.status === "delivered" && `${t("room.delivered")} · ${timeOf(entry.at)}`}
+                  {entry.status === "failed" && t("room.failed")}
                 </span>
                 {entry.status === "failed" && (
                   <button
@@ -319,7 +281,7 @@ export default function RoomScreen(props: RoomScreenProps) {
                     type="button"
                     onClick={(event) => { event.stopPropagation(); onRetry(entry.id); }}
                   >
-                    <RotateCcw /> Tekrar dene
+                    <RotateCcw /> {t("room.retry")}
                   </button>
                 )}
               </>
@@ -348,7 +310,7 @@ export default function RoomScreen(props: RoomScreenProps) {
           type="button"
           className="round"
           onClick={() => setShowKeyboard((value) => !value)}
-          title="Klavyeyle yaz"
+          title={t("room.keyboard")}
         >
           <Keyboard />
         </button>
@@ -361,7 +323,7 @@ export default function RoomScreen(props: RoomScreenProps) {
           aria-pressed={listening}
         >
           {listening ? <MicOff /> : <Mic />}
-          <span>{listening ? "Durdur" : "Konuş"}</span>
+          <span>{listening ? t("room.stop") : t("room.speak")}</span>
         </button>
 
         <button
@@ -369,7 +331,7 @@ export default function RoomScreen(props: RoomScreenProps) {
           className={`round ${remoteMuted ? "" : "on"}`}
           onClick={onToggleRemoteAudio}
           disabled={!voiceConnected}
-          title={remoteMuted ? "Karşı tarafın sesini aç" : "Karşı tarafın sesini kapat"}
+          title={remoteMuted ? t("room.unmuteRemote") : t("room.muteRemote")}
         >
           {remoteMuted ? <VolumeX /> : <Volume2 />}
         </button>
@@ -381,8 +343,8 @@ export default function RoomScreen(props: RoomScreenProps) {
             autoFocus
             value={draft}
             onChange={(event) => onDraftChange(event.target.value)}
-            placeholder="Yazın, çevrilip gönderilsin…"
-            aria-label="Çevrilecek mesaj"
+            placeholder={t("room.composePh")}
+            aria-label={t("room.composeAria")}
           />
           <button className="round send" type="submit" disabled={!draft.trim()}><ArrowUp /></button>
         </form>
@@ -395,13 +357,13 @@ export default function RoomScreen(props: RoomScreenProps) {
             <p className="sheet-text">{openEntry.mine ? openEntry.translated || openEntry.original : openEntry.translated}</p>
             <div className="sheet-actions">
               <button type="button" onClick={() => { onSpeak(openEntry.mine ? openEntry.translated : openEntry.translated, openEntry.translatedLanguage); setOpenEntry(null); }}>
-                <Volume2 /> Tekrar oku
+                <Volume2 /> {t("room.speakAgain")}
               </button>
               <button type="button" onClick={() => { setFullScreen(openEntry); setOpenEntry(null); }}>
-                <Maximize2 /> Tam ekran
+                <Maximize2 /> {t("room.fullscreen")}
               </button>
               <button type="button" onClick={() => { void navigator.clipboard.writeText(openEntry.translated || openEntry.original); setOpenEntry(null); }}>
-                <Copy /> Kopyala
+                <Copy /> {t("room.copy")}
               </button>
             </div>
           </div>
@@ -410,7 +372,7 @@ export default function RoomScreen(props: RoomScreenProps) {
 
       {fullScreen && (
         <div className="takeover" onClick={() => setFullScreen(null)}>
-          <button className="takeover-close" type="button" aria-label="Kapat"><X /></button>
+          <button className="takeover-close" type="button" aria-label={t("room.close")}><X /></button>
           <p>{fullScreen.mine ? fullScreen.translated : fullScreen.translated}</p>
           <small>{fullScreen.mine ? fullScreen.original : fullScreen.original}</small>
         </div>
@@ -420,9 +382,9 @@ export default function RoomScreen(props: RoomScreenProps) {
         <div className="sheet-backdrop" onClick={() => setShowSettings(false)}>
           <div className="sheet" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-grip" aria-hidden="true" />
-            <h3>Yazı boyutu</h3>
+            <h3>{t("room.sizeAria")}</h3>
             <div className="sheet-sizes">
-              {textSizes.map((label, index) => (
+              {[t("room.sizeNormal"), t("room.sizeBig"), t("room.sizeHuge")].map((label, index) => (
                 <button
                   key={label}
                   type="button"
@@ -433,7 +395,7 @@ export default function RoomScreen(props: RoomScreenProps) {
                 </button>
               ))}
             </div>
-            <button className="sheet-done" type="button" onClick={() => setShowSettings(false)}>Tamam</button>
+            <button className="sheet-done" type="button" onClick={() => setShowSettings(false)}>{t("room.done")}</button>
           </div>
         </div>
       )}
