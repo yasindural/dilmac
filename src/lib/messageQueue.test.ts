@@ -41,6 +41,29 @@ describe("MessageQueue", () => {
     expect(right).toEqual(Array.from({ length: 10 }, (_, index) => `sağ-${index + 1}`));
   });
 
+  it("birleştirme penceresi içinde gelen konuşma yeni baloncuk açmaz, son mesajı günceller", async () => {
+    const sent: { source: string; translated: string; appended?: string }[] = [];
+    const queue = new MessageQueue(async (text) => ({ text: `T:${text}`, demo: false }), (message) => { sent.push({ source: message.source, translated: message.translated, appended: message.appended }); return true; });
+    const firstId = queue.enqueue(draft("merhaba"), { mergeWindowMs: 5000 });
+    await waitUntil(() => sent.length === 1);
+    const secondId = queue.enqueue(draft("nasılsın"), { mergeWindowMs: 5000 });
+    expect(secondId).toBe(firstId);
+    await waitUntil(() => sent.length === 2);
+    expect(queue.snapshot()).toHaveLength(1);
+    expect(sent[1].source).toBe("merhaba nasılsın");
+    expect(sent[1].translated).toBe("T:merhaba T:nasılsın");
+    expect(sent[1].appended).toBe("T:nasılsın");
+  });
+
+  it("araya karşı tarafın mesajı girince birleştirme yapılmaz", async () => {
+    const queue = new MessageQueue(async (text) => ({ text, demo: false }), () => true);
+    const firstId = queue.enqueue(draft("bir"), { mergeWindowMs: 5000 });
+    await waitUntil(() => queue.snapshot()[0]?.status === "sent");
+    const secondId = queue.enqueue(draft("iki"), { mergeWindowMs: 5000, lastRemoteAt: Date.now() + 1 });
+    expect(secondId).not.toBe(firstId);
+    expect(queue.snapshot()).toHaveLength(2);
+  });
+
   it("kaynak ve hedef dil aynıysa çeviri servisine hiç gitmez", async () => {
     const translator = vi.fn();
     const sent: unknown[] = [];

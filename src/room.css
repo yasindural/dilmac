@@ -17,6 +17,13 @@
 .room.size-1{--turn-in:31px;--turn-main:20px;--turn-sub:15px}
 .room.size-2{--turn-in:38px;--turn-main:22px;--turn-sub:16px}
 
+/* Uzun konuşma tek baloncukta toplanınca dev puntoyla ekranı yutmasın;
+   yalnızca yazı tipi ölçeği kısılır, düzen ve kırılma noktaları değişmez. */
+.turn.longform{--turn-in:20px;--turn-main:16px;--turn-sub:13px}
+.room.size-1 .turn.longform{--turn-in:24px;--turn-main:17px;--turn-sub:14px}
+.room.size-2 .turn.longform{--turn-in:29px;--turn-main:19px;--turn-sub:15px}
+.turn.longform .turn-main{line-height:1.42;letter-spacing:-.1px}
+
 /* ---------- üst şerit ---------- */
 .room-bar{display:flex;align-items:center;gap:8px;padding-bottom:12px}
 .chip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:13px;min-height:0}

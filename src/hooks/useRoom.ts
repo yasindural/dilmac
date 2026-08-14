@@ -8,6 +8,9 @@ export type RoomMessage = {
   sourceLanguage: string;
   targetLanguage: string;
   sentAt: number;
+  // Konuşmacı duraksayıp devam ettiğinde mesaj aynı kimlikle güncellenir;
+  // appended yalnızca yeni eklenen çeviri parçasıdır (alıcı sadece bunu seslendirir).
+  appended?: string;
 };
 
 export type RoomLanguage = { code: string; name: string };
@@ -417,7 +420,11 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   }, [bindConnection, close, handleIncomingMediaConnection]);
 
   const send = useCallback((message: RoomMessage) => {
-    if (!outboundRef.current.some((candidate) => candidate.id === message.id)) outboundRef.current.push(message);
+    // Aynı kimlikle gelen güncellenmiş mesaj bekleme listesindeki eski
+    // kopyanın yerine geçer; yeniden bağlanınca güncel hali gönderilir.
+    const existingIndex = outboundRef.current.findIndex((candidate) => candidate.id === message.id);
+    if (existingIndex >= 0) outboundRef.current[existingIndex] = message;
+    else outboundRef.current.push(message);
     if (!connectionRef.current?.open) return false;
     connectionRef.current.send({ kind: "message", message, protocol: 2 } satisfies Envelope);
     return true;

@@ -954,6 +954,13 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
     </AccessGate>
   );
 }
+// Konuşma parçalarını birleştirme ayarları: tanıyıcıdan gelen parçalar
+// SPEECH_BUFFER_MS boyunca beklenip tek çeviriye toplanır; konuşmacı susup
+// SPEECH_MERGE_WINDOW_MS içinde devam ederse son baloncuk düzenlenir.
+const SPEECH_BUFFER_MS = 1100;
+const SPEECH_BUFFER_MAX_CHARS = 500;
+const SPEECH_MERGE_WINDOW_MS = 7000;
+
 function Translator({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
   const { t } = useI18n();
   // Oda geri çağrıları useCallback([]) ile sabit kimlikte tutulur; dil
@@ -1003,8 +1010,19 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   const sendRef = useRef<(message: RoomMessage) => boolean>(() => false);
   const queueRef = useRef<MessageQueue | null>(null);
   if (!queueRef.current) queueRef.current = new MessageQueue((text, language) => translate(text, language, keyRef.current), (message) => sendRef.current(message));
+  // Karşı mesajların bilinen son çevirisi: aynı kimlikle gelen paket yeni mi,
+  // güncelleme mi, yoksa yeniden gönderim mi burada anlaşılır.
+  const remoteSeenRef = useRef(new Map<string, string>());
+  const lastRemoteAtRef = useRef(0);
   const receiveMessage = useCallback((message: RoomMessage) => {
     if (!message.source.trim() || !message.translated.trim()) return;
+    const previousTranslated = remoteSeenRef.current.get(message.id);
+    const isDuplicate = previousTranslated === message.translated;
+    const isUpdate = previousTranslated !== undefined && !isDuplicate;
+    remoteSeenRef.current.set(message.id, message.translated);
+    // Yeniden bağlanma sonrası aynı içerikle tekrar gelen mesaj: sessiz geç.
+    if (isDuplicate) return;
+    lastRemoteAtRef.current = Date.now();
     // Karşı tarafın mesajı geldi. Bekletilen tanıma bu mesajın hoparlör
     // yankısı mı? İçerik karşılaştırmasıyla karar verilir: yankı, karşı
     // tarafın söyledikleriyle büyük ölçüde aynı kelimeleri içerir. Benzerlik
@@ -1018,9 +1036,19 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       const overlap = mineWords.length ? mineWords.filter((word) => theirs.has(word)).length / mineWords.length : 1;
       if (overlap >= 0.5) suppressedRef.current = null;
     }
-    setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
+    setRemoteMessages((current) => {
+      const index = current.findIndex((item) => item.id === message.id);
+      if (index === -1) return [...current, message];
+      const next = [...current];
+      next[index] = message;
+      return next;
+    });
     setNotice(tRef.current("notice.newTranslation"));
     if (!autoSpeakRef.current) return;
+    // Güncellenen mesajda yalnızca yeni eklenen parça seslendirilir; tamamını
+    // tekrar okumak aynı cümleyi iki kez duyurur.
+    const speechText = isUpdate ? (message.appended || "").trim() : message.translated;
+    if (!speechText) return;
     const code = speechCodeFor(message.targetLanguage);
     // Seslendirme sırasında kendi mikrofonumuz açık kalırsa hoparlörden çıkan ses
     // tekrar yazıya dökülüp karşı tarafa geri gönderilir (yankı döngüsü).
@@ -1041,10 +1069,10 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
     const handoverDelay = wasListening ? (isAppleWebKit ? 550 : 200) : 0;
     if (handoverDelay === 0) {
-      queueSpeech(message.translated, code, { onEnd: resume, onError: resume });
+      queueSpeech(speechText, code, { onEnd: resume, onError: resume });
       return;
     }
-    window.setTimeout(() => queueSpeech(message.translated, code, { onEnd: resume, onError: resume }), handoverDelay);
+    window.setTimeout(() => queueSpeech(speechText, code, { onEnd: resume, onError: resume }), handoverDelay);
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
@@ -1160,11 +1188,17 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       }
       // Gerçek eş zamanlı konuşma: kaybetme, normal gönder.
     }
-    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
+    queueRef.current?.enqueue(
+      { source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target },
+      { mergeWindowMs: SPEECH_MERGE_WINDOW_MS, lastRemoteAt: lastRemoteAtRef.current },
+    );
     setNotice(tRef.current("notice.queuedMsg"));
   }, [source, target]);
   enqueueRawRef.current = (text: string) => {
-    queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
+    queueRef.current?.enqueue(
+      { source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target },
+      { mergeWindowMs: SPEECH_MERGE_WINDOW_MS, lastRemoteAt: lastRemoteAtRef.current },
+    );
   };
   // Karşı taraf susunca: mesajı geldiyse bekleyen metin yankıdır, sil.
   // Mesaj gelmediyse kullanıcının gerçek cümlesidir, gönder.
@@ -1188,7 +1222,35 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       flushTimerRef.current = null;
     };
   }, [remoteSpeakingNow]);
-  const speech = useSpeech(source, enqueue);
+  // Tanıyıcı "ıı", nefes ve kısa duraksamalarda cümleyi böler; her parçayı
+  // ayrı çevirmek sohbeti 2-3 baloncuğa dağıtıyordu. Parçalar önce kısa bir
+  // tampon süresinde birleştirilir, tek istekte çevrilir.
+  const enqueueLatestRef = useRef(enqueue);
+  enqueueLatestRef.current = enqueue;
+  const [pendingSpeech, setPendingSpeech] = useState("");
+  const pendingSpeechRef = useRef("");
+  const pendingSpeechTimerRef = useRef<number | null>(null);
+  const flushPendingSpeech = useCallback(() => {
+    if (pendingSpeechTimerRef.current !== null) window.clearTimeout(pendingSpeechTimerRef.current);
+    pendingSpeechTimerRef.current = null;
+    const text = pendingSpeechRef.current.trim();
+    pendingSpeechRef.current = "";
+    setPendingSpeech("");
+    if (text) enqueueLatestRef.current(text);
+  }, []);
+  const collectSpeech = useCallback((text: string) => {
+    pendingSpeechRef.current = `${pendingSpeechRef.current} ${text}`.trim();
+    setPendingSpeech(pendingSpeechRef.current);
+    if (pendingSpeechTimerRef.current !== null) window.clearTimeout(pendingSpeechTimerRef.current);
+    // Çok uzun monologda çeviri sonsuza kadar beklemesin.
+    if (pendingSpeechRef.current.length >= SPEECH_BUFFER_MAX_CHARS) { flushPendingSpeech(); return; }
+    pendingSpeechTimerRef.current = window.setTimeout(flushPendingSpeech, SPEECH_BUFFER_MS);
+  }, [flushPendingSpeech]);
+  const speech = useSpeech(source, collectSpeech);
+  // Mikrofon kapanınca bekleyen metin hemen gönderilir.
+  useEffect(() => {
+    if (!speech.listening) flushPendingSpeech();
+  }, [speech.listening, flushPendingSpeech]);
   // Cümlenin ilk ön izleme anını kaydet (yankı/gerçek söz ayrımı için).
   const prevInterimRef = useRef("");
   useEffect(() => {
@@ -1211,11 +1273,11 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   const speakingSignalRef = useRef(false);
   useEffect(() => {
     if (!roomConnection.voiceEnabled) return;
-    const speaking = speech.listening && speech.interimText.trim().length > 0;
+    const speaking = speech.listening && (speech.interimText.trim().length > 0 || pendingSpeech.length > 0);
     if (speaking === speakingSignalRef.current) return;
     speakingSignalRef.current = speaking;
     sendSpeaking(speaking);
-  }, [speech.listening, speech.interimText, roomConnection.voiceEnabled, sendSpeaking]);
+  }, [speech.listening, speech.interimText, pendingSpeech, roomConnection.voiceEnabled, sendSpeaking]);
   useEffect(() => {
     if (!speech.listening && speakingSignalRef.current) {
       speakingSignalRef.current = false;
@@ -1239,7 +1301,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   // cümle alışverişi olmuş. Deneme sayacı yalnızca bu koşulda ilerler.
   const localTranslationActive = localMessages.some((message) => message.status === "queued" || message.status === "translating");
   const conversing = roomConnection.connected
-    && (speech.interimText.trim().length > 0 || localTranslationActive || roomConnection.remoteSpeaking);
+    && (speech.interimText.trim().length > 0 || pendingSpeech.length > 0 || localTranslationActive || roomConnection.remoteSpeaking);
   useEffect(() => { onConversingChange?.(conversing); }, [conversing, onConversingChange]);
   useEffect(() => () => onConversingChange?.(false), [onConversingChange]);
   speechRef.current = { listening: speech.listening, stop: speech.stop, toggle: speech.toggle };
@@ -1395,7 +1457,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       targetName={remoteLanguage?.name || ""}
       targetLocked
       listening={speech.listening}
-      interimText={speech.interimText}
+      interimText={`${pendingSpeech} ${speech.interimText}`.trim()}
       onToggleMic={toggleConversation}
       micSupported={speech.supported}
       autoSpeak={autoSpeak}

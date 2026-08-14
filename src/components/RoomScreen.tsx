@@ -136,11 +136,15 @@ export default function RoomScreen(props: RoomScreenProps) {
     return [...mine, ...theirs].sort((a, b) => a.at - b.at);
   }, [localMessages, remoteMessages]);
 
+  // Birleştirilen mesaj yeni baloncuk açmadan uzar; akışın dibinde kalmak
+  // için mesaj sayısıyla birlikte son mesajın uzunluğu da izlenir.
+  const lastEntry = feed[feed.length - 1];
+  const lastEntryGrowth = lastEntry ? lastEntry.original.length + lastEntry.translated.length : 0;
   useEffect(() => {
     const node = feedRef.current;
     if (!node || !pinnedRef.current) return;
     requestAnimationFrame(() => node.scrollTo({ top: node.scrollHeight, behavior: "smooth" }));
-  }, [feed.length, interimText]);
+  }, [feed.length, interimText, lastEntryGrowth]);
 
   const onFeedScroll = () => {
     const node = feedRef.current;
@@ -256,7 +260,7 @@ export default function RoomScreen(props: RoomScreenProps) {
         {feed.map((entry, i) => (
           <article
             key={entry.id}
-            className={`turn ${entry.mine ? "mine" : "theirs"} ${entry.status ? `is-${entry.status}` : ""} ${i > 0 && feed[i - 1].mine === entry.mine ? "grouped" : "first-of-group"}`}
+            className={`turn ${entry.mine ? "mine" : "theirs"} ${entry.status ? `is-${entry.status}` : ""} ${i > 0 && feed[i - 1].mine === entry.mine ? "grouped" : "first-of-group"} ${(entry.mine ? entry.original : entry.translated).length > 160 ? "longform" : ""}`}
             onClick={() => setOpenEntry(entry)}
           >
             {(i === 0 || feed[i - 1].mine !== entry.mine) && (
@@ -294,7 +298,7 @@ export default function RoomScreen(props: RoomScreenProps) {
         ))}
 
         {interimText && (
-          <article className="turn mine ghost" aria-live="polite">
+          <article className={`turn mine ghost ${interimText.length > 160 ? "longform" : ""}`} aria-live="polite">
             <p className="turn-main">{interimText}<i className="caret" /></p>
           </article>
         )}
