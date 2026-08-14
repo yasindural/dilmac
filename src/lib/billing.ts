@@ -96,6 +96,10 @@ export function billingProvider(): BillingProvider {
 
 export const billingConfigured = billingProvider() !== "none";
 
+export function isGmailAddress(value: string) {
+  return /^[a-z0-9._%+-]+@gmail\.com$/i.test(value.trim());
+}
+
 /** Mesajı bir çeviri anahtarıdır; arayüz t() ile yerelleştirir. */
 export class BillingError extends Error {
   constructor(public readonly translationKey: string) {
@@ -214,7 +218,14 @@ export async function getLocalizedPlanPrices(): Promise<Partial<Record<PlanId, s
   }
 }
 
-export type CheckoutRequest = { planId: PlanId; uid: string; email: string | null; locale?: string };
+export type CheckoutRequest = {
+  planId: PlanId;
+  uid: string;
+  email: string | null;
+  firstName?: string;
+  lastName?: string;
+  locale?: string;
+};
 
 // Paddle Checkout'un desteklediği yerel ayarlar. Listede olmayan bir değer
 // gönderilirse Paddle hata verebilir; bu yüzden bilinmeyen dil "en"e düşer.
@@ -227,7 +238,7 @@ function safePaddleLocale(locale?: string) {
 }
 
 /** Seçilen plan için ödeme akışını başlatır. */
-export async function startCheckout({ planId, uid, email, locale }: CheckoutRequest): Promise<void> {
+export async function startCheckout({ planId, uid, email, firstName, lastName, locale }: CheckoutRequest): Promise<void> {
   const provider = billingProvider();
   if (provider === "none") throw new BillingNotConfiguredError();
 
@@ -238,9 +249,9 @@ export async function startCheckout({ planId, uid, email, locale }: CheckoutRequ
     paddle.Checkout.open({
       items: [{ priceId, quantity: 1 }],
       // Webhook bu uid ile planı sunucuya yazar; uygulama girişte doğrular.
-      customData: { uid, planId },
+      customData: { uid, planId, firstName, lastName, gmail: email },
       customer: email ? { email } : undefined,
-      settings: { displayMode: "overlay", locale: safePaddleLocale(locale), theme: "dark" },
+      settings: { displayMode: "overlay", variant: "one-page", locale: safePaddleLocale(locale), theme: "light" },
     });
     return;
   }
@@ -248,7 +259,7 @@ export async function startCheckout({ planId, uid, email, locale }: CheckoutRequ
   const response = await fetchWithTimeout(endpoint as string, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ planId, uid, email, returnTo: `${location.origin}${import.meta.env.BASE_URL}abonelik` }),
+    body: JSON.stringify({ planId, uid, email, firstName, lastName, returnTo: `${location.origin}${import.meta.env.BASE_URL}abonelik` }),
   });
   if (!response.ok) throw new BillingError("billing.openFailed");
   const payload = await response.json() as { url?: string };

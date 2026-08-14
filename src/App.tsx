@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, NavLink, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   Menu,
@@ -45,7 +45,7 @@ import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import RoomScreen from "./components/RoomScreen";
 import GoogleLogo from "./components/GoogleLogo";
-import { BillingError, billingProvider, getLocalizedPlanPrices, localizedPlans, startCheckout } from "./lib/billing";
+import { BillingError, billingProvider, getLocalizedPlanPrices, isGmailAddress, localizedPlans, startCheckout } from "./lib/billing";
 import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
@@ -362,6 +362,12 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   const navigate = useNavigate();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState("");
+  const [checkoutPlan, setCheckoutPlan] = useState<PlanId | null>(null);
+  const [checkoutUser, setCheckoutUser] = useState<User | null>(null);
+  const [checkoutFirstName, setCheckoutFirstName] = useState("");
+  const [checkoutLastName, setCheckoutLastName] = useState("");
+  const [checkoutGmail, setCheckoutGmail] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
   const { t, lang } = useI18n();
   const [localizedPrices, setLocalizedPrices] = useState<Partial<Record<PlanId, string>>>({});
   const planCatalog = localizedPlans(t, localizedPrices);
@@ -372,6 +378,65 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
     void getLocalizedPlanPrices().then((prices) => { if (active) setLocalizedPrices(prices); });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    if (!checkoutPlan) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) setCheckoutPlan(null);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [checkoutPlan, busy]);
+
+  const requestCheckoutDetails = (plan: PlanId, activeUser: User) => {
+    const saved = readProfile(activeUser) || defaultProfile(activeUser);
+    setCheckoutUser(activeUser);
+    setCheckoutPlan(plan);
+    setCheckoutFirstName(saved.firstName);
+    setCheckoutLastName(saved.lastName);
+    setCheckoutGmail(activeUser.email || "");
+    setCheckoutError("");
+  };
+
+  const submitCheckoutDetails = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!checkoutPlan || !checkoutUser) return;
+    const firstName = checkoutFirstName.trim();
+    const lastName = checkoutLastName.trim();
+    const gmail = checkoutGmail.trim().toLowerCase();
+    if (!firstName || !lastName) {
+      setCheckoutError(t("sub.checkoutNameRequired"));
+      return;
+    }
+    if (!isGmailAddress(gmail)) {
+      setCheckoutError(t("sub.checkoutGmailInvalid"));
+      return;
+    }
+    setCheckoutError("");
+    setBusy(checkoutPlan);
+    try {
+      const saved = readProfile(checkoutUser) || defaultProfile(checkoutUser);
+      onSaveForUser(checkoutUser, { ...saved, firstName, lastName, completed: true });
+      await startCheckout({
+        planId: checkoutPlan,
+        uid: checkoutUser.uid,
+        email: gmail,
+        firstName,
+        lastName,
+        locale: lang,
+      });
+      setCheckoutPlan(null);
+    } catch (requestError) {
+      setCheckoutError(requestError instanceof BillingError ? t(requestError.translationKey as never) : t("billing.failed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const choose = async (plan: PlanId) => {
     setError("");
     setBusy(plan);
@@ -385,7 +450,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       // Ödeme sağlayıcısı bağlıysa ücretli planlar gerçek checkout'a gider;
       // plan, ödeme onaylanınca webhook üzerinden sunucuya yazılır.
       if (plan !== "free" && billingProvider() !== "none") {
-        await startCheckout({ planId: plan, uid: activeUser.uid, email: activeUser.email, locale: lang });
+        requestCheckoutDetails(plan, activeUser);
         setBusy(null);
         return;
       }
@@ -412,6 +477,53 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
         <span><Lock />{t("sub.assure3")}</span>
         <span><CheckCircle2 />{t("sub.assure4")}</span>
       </div>
+
+      {checkoutPlan && checkoutUser && (
+        <div className="checkout-details-backdrop" role="presentation">
+          <section className="checkout-details-card" role="dialog" aria-modal="true" aria-labelledby="checkout-details-title">
+            <button
+              className="checkout-details-close"
+              type="button"
+              aria-label={t("sub.checkoutClose")}
+              disabled={Boolean(busy)}
+              onClick={() => setCheckoutPlan(null)}
+            >
+              <X />
+            </button>
+            <div className="checkout-details-brand"><ShieldCheck /></div>
+            <span className="checkout-details-eyebrow"><Lock /> {t("sub.checkoutEyebrow")}</span>
+            <h2 id="checkout-details-title">{t("sub.checkoutTitle")}</h2>
+            <p className="checkout-details-intro">{t("sub.checkoutIntro", { plan: planCatalog.find((plan) => plan.id === checkoutPlan)?.name || "" })}</p>
+            <div className="checkout-details-trust">
+              <span><ShieldCheck />{t("sub.checkoutTrust1")}</span>
+              <span><CheckCircle2 />{t("sub.checkoutTrust2")}</span>
+              <span><Lock />{t("sub.checkoutTrust3")}</span>
+            </div>
+            <form className="checkout-details-form" onSubmit={submitCheckoutDetails}>
+              <label>
+                <span>{t("auth.first")}</span>
+                <input value={checkoutFirstName} onChange={(event) => setCheckoutFirstName(event.target.value)} required autoComplete="given-name" />
+              </label>
+              <label>
+                <span>{t("auth.last")}</span>
+                <input value={checkoutLastName} onChange={(event) => setCheckoutLastName(event.target.value)} required autoComplete="family-name" />
+              </label>
+              <label className="checkout-details-email">
+                <span><Mail />{t("sub.checkoutGmail")}</span>
+                <input type="email" value={checkoutGmail} onChange={(event) => setCheckoutGmail(event.target.value)} required autoComplete="email" inputMode="email" placeholder="ornek@gmail.com" />
+              </label>
+              {checkoutError && <div className="checkout-details-error" role="alert"><AlertCircle />{checkoutError}</div>}
+              <p className="checkout-details-privacy">{t("sub.checkoutPrivacy")}</p>
+              <div className="checkout-details-actions">
+                <button className="ghost" type="button" disabled={Boolean(busy)} onClick={() => setCheckoutPlan(null)}>{t("sub.checkoutCancel")}</button>
+                <button className="primary" type="submit" disabled={Boolean(busy)}>
+                  <Lock />{busy ? t("sub.processing") : t("sub.checkoutContinue")}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       <div className="pricing-grid">
         {planCatalog.map((plan) => {
@@ -1346,35 +1458,35 @@ const contactCopy: Record<SiteLang, {
   tr: {
     nav: "İletişim", customBadge: "ÖZEL PLAN", customTitle: "Kurumsal", customNote: "Daha yüksek kullanım veya size özel çözüm için", customPrice: "Teklif alın",
     customFeatures: ["İhtiyaca göre dakika", "Daha fazla ekip üyesi", "Özel destek ve kurulum"], customCta: "Bizimle iletişime geç",
-    localizedPrice: "Paddle kesintisi fiyata dahildir. Konumunuza göre güncel kurla yerel para birimi gösterilir; kesin tutar ödeme ekranında doğrulanır.",
+    localizedPrice: "Paddle kesintisi fiyata dahildir. Ücretler USD olarak gösterilir; vergi ve kesin tutar ödeme ekranında doğrulanır.",
     eyebrow: "Size özel", title: "İhtiyacınızı anlatın, teklif hazırlayalım.", intro: "Daha fazla dakika, ekip kullanımı veya özel bir entegrasyon için bilgileri doldurun. E-posta uygulamanız hazır teklif metniyle açılır.",
     name: "Adınız", email: "E-posta", company: "Şirket / ekip", minutes: "Aylık tahmini dakika", message: "İhtiyacınız", send: "Teklif isteğini hazırla", direct: "Doğrudan e-posta",
   },
   en: {
     nav: "Contact", customBadge: "CUSTOM PLAN", customTitle: "Enterprise", customNote: "For higher usage or a solution tailored to you", customPrice: "Get a quote",
     customFeatures: ["Minutes tailored to your needs", "More team members", "Dedicated support and setup"], customCta: "Contact us",
-    localizedPrice: "The Paddle fee is included. Current conversion is shown in your local currency for your location; the exact amount is confirmed at checkout.",
+    localizedPrice: "The Paddle fee is included. Prices are shown in USD; taxes and the exact total are confirmed at checkout.",
     eyebrow: "Made for you", title: "Tell us what you need and we’ll prepare a quote.", intro: "For more minutes, team usage, or a custom integration, fill in the details. Your email app opens with a ready-to-send request.",
     name: "Your name", email: "Email", company: "Company / team", minutes: "Estimated monthly minutes", message: "What you need", send: "Prepare quote request", direct: "Email directly",
   },
   de: {
     nav: "Kontakt", customBadge: "INDIVIDUELL", customTitle: "Enterprise", customNote: "Für mehr Nutzung oder eine maßgeschneiderte Lösung", customPrice: "Angebot anfragen",
     customFeatures: ["Minuten nach Bedarf", "Mehr Teammitglieder", "Persönlicher Support und Einrichtung"], customCta: "Kontakt aufnehmen",
-    localizedPrice: "Die Paddle-Gebühr ist enthalten. Der aktuelle Kurs wird je nach Standort in lokaler Währung angezeigt; der genaue Betrag folgt im Checkout.",
+    localizedPrice: "Die Paddle-Gebühr ist enthalten. Preise werden in USD angezeigt; Steuern und Endbetrag werden im Checkout bestätigt.",
     eyebrow: "Für dich", title: "Beschreibe deinen Bedarf – wir erstellen ein Angebot.", intro: "Für mehr Minuten, Teams oder eine individuelle Integration: Formular ausfüllen. Dein E-Mail-Programm öffnet eine fertige Anfrage.",
     name: "Name", email: "E-Mail", company: "Unternehmen / Team", minutes: "Geschätzte Minuten pro Monat", message: "Dein Bedarf", send: "Anfrage vorbereiten", direct: "Direkt per E-Mail",
   },
   fr: {
     nav: "Contact", customBadge: "SUR MESURE", customTitle: "Entreprise", customNote: "Pour un usage plus élevé ou une solution personnalisée", customPrice: "Demander un devis",
     customFeatures: ["Minutes selon vos besoins", "Plus de membres d’équipe", "Assistance et installation dédiées"], customCta: "Nous contacter",
-    localizedPrice: "Les frais Paddle sont inclus. Le taux actuel est affiché dans votre devise locale selon votre position ; le montant exact est confirmé au paiement.",
+    localizedPrice: "Les frais Paddle sont inclus. Les prix sont affichés en USD ; les taxes et le total exact sont confirmés au paiement.",
     eyebrow: "Sur mesure", title: "Décrivez votre besoin, nous préparerons un devis.", intro: "Pour plus de minutes, un usage en équipe ou une intégration dédiée, remplissez le formulaire. Votre messagerie s’ouvre avec une demande prête à envoyer.",
     name: "Votre nom", email: "E-mail", company: "Entreprise / équipe", minutes: "Minutes mensuelles estimées", message: "Votre besoin", send: "Préparer la demande", direct: "E-mail direct",
   },
   es: {
     nav: "Contacto", customBadge: "PLAN A MEDIDA", customTitle: "Empresa", customNote: "Para más uso o una solución personalizada", customPrice: "Pedir presupuesto",
     customFeatures: ["Minutos según tus necesidades", "Más miembros del equipo", "Soporte y configuración dedicados"], customCta: "Contáctanos",
-    localizedPrice: "La comisión de Paddle está incluida. Se muestra el cambio actual en tu moneda local según tu ubicación; el importe exacto se confirma al pagar.",
+    localizedPrice: "La comisión de Paddle está incluida. Los precios se muestran en USD; los impuestos y el total exacto se confirman al pagar.",
     eyebrow: "A tu medida", title: "Cuéntanos qué necesitas y prepararemos una propuesta.", intro: "Para más minutos, uso en equipo o una integración personalizada, completa los datos. Tu aplicación de correo se abrirá con una solicitud lista para enviar.",
     name: "Tu nombre", email: "Correo", company: "Empresa / equipo", minutes: "Minutos mensuales estimados", message: "Qué necesitas", send: "Preparar solicitud", direct: "Correo directo",
   },
