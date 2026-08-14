@@ -1,24 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
-import { conversationLanguages, languageByCode, searchLanguages } from "../lib/languages";
+import { languageByCode, searchLanguages } from "../lib/languages";
 import { useI18n } from "../lib/i18n";
 
 // Şık dil seçici: bayrak + dilin kendi adıyla bir kapsül düğme; dokununca
-// arama kutulu bir panel açılır. 20 dil listeyle değil aramayla bulunur.
+// arama kutulu bir panel açılır. Yalnızca gerçekten desteklenen diller gösterilir.
 type Props = {
   value: string;                 // seçili dil kodu (ör. "tr-TR")
   onChange: (code: string) => void;
   label: string;                 // "SİZ" / "ÇEVİRİ" gibi üst etiket
   disabled?: boolean;
   align?: "start" | "end";
+  placeholder?: string;
 };
 
-export default function LanguagePicker({ value, onChange, label, disabled = false, align = "start" }: Props) {
+export default function LanguagePicker({ value, onChange, label, disabled = false, align = "start", placeholder }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const selected = languageByCode(value) || conversationLanguages[0];
+  const selected = languageByCode(value);
   const results = useMemo(() => searchLanguages(query), [query]);
 
   useEffect(() => {
@@ -37,12 +38,13 @@ export default function LanguagePicker({ value, onChange, label, disabled = fals
         className={`lp-button ${disabled ? "locked" : ""}`}
         onClick={() => { if (!disabled) setOpen(true); }}
         aria-haspopup="dialog"
+        aria-disabled={disabled}
         aria-expanded={open}
       >
         <small>{label}</small>
         <span className="lp-value">
-          <i aria-hidden="true">{selected.flag}</i>
-          <b>{selected.name}</b>
+          {selected ? <i aria-hidden="true">{selected.flag}</i> : <i className="lp-placeholder-dot" aria-hidden="true" />}
+          <b>{selected?.display || selected?.name || placeholder || "—"}</b>
           {!disabled && <ChevronDown aria-hidden="true" />}
         </span>
       </button>
@@ -70,13 +72,13 @@ export default function LanguagePicker({ value, onChange, label, disabled = fals
                   key={language.code}
                   type="button"
                   role="option"
-                  aria-selected={language.code === selected.code}
-                  className={`lp-item ${language.code === selected.code ? "on" : ""}`}
+                  aria-selected={language.code === selected?.code}
+                  className={`lp-item ${language.code === selected?.code ? "on" : ""}`}
                   onClick={() => { onChange(language.code); setOpen(false); }}
                 >
                   <i aria-hidden="true">{language.flag}</i>
-                  <span><b>{language.name}</b><small>{language.api}</small></span>
-                  {language.code === selected.code && <Check aria-hidden="true" />}
+                  <span><b>{language.display || language.name}</b><small>{language.api}</small></span>
+                  {language.code === selected?.code && <Check aria-hidden="true" />}
                 </button>
               ))}
               {results.length === 0 && <p className="lp-empty">{t("lp.empty")}</p>}

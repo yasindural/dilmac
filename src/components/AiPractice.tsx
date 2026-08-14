@@ -116,9 +116,9 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
     if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: turns.length > 1 ? "smooth" : "auto" });
   }, [busy, turns]);
 
-  // Deneme sayacı ancak gerçekten konuşulurken işlesin: mikrofon açıkken,
-  // AI yanıt üretirken veya en az bir tur konuşulmuşken.
-  const conversing = speech.listening || busy || turns.length > 0;
+  // Deneme sayacı yalnızca gerçek etkinlikte işler. Mikrofonun açık ama sessiz
+  // olması veya geçmişte bir mesaj gönderilmiş olması süre tüketmez.
+  const conversing = speech.interimText.trim().length > 0 || busy;
   useEffect(() => {
     document.body.classList.add("room-locked");
     return () => document.body.classList.remove("room-locked");
@@ -137,6 +137,14 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
     return () => window.clearTimeout(warning);
   }, [speech.activityTick, speech.listening, userLanguage]);
   const submit = (event: FormEvent) => { event.preventDefault(); unlockSpeechOutput(); void send(draft); };
+  const toggleAutoSpeak = () => {
+    unlockSpeechOutput();
+    const next = !autoSpeak;
+    setAutoSpeak(next);
+    // Mobil tarayıcıların ses çıkış kilidini doğrudan bu kullanıcı dokunuşunda
+    // aç. Sonraki ağ yanıtı geldiğinde ses artık sessizce yutulmaz.
+    if (next) speakText(tRef.current("ai.voiceOn"), userLanguage);
+  };
   const swapLanguages = () => {
     setUserLanguage(aiLanguage);
     setAiLanguage(userLanguage);
@@ -161,7 +169,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
           <button
             type="button"
             className={`icon ${autoSpeak ? "on" : ""}`}
-            onClick={() => setAutoSpeak((value) => !value)}
+            onClick={toggleAutoSpeak}
             aria-pressed={autoSpeak}
             title={autoSpeak ? t("ai.voiceOn") : t("ai.voiceOff")}
           >
@@ -261,7 +269,7 @@ export default function AiPractice({ onConversingChange }: { onConversingChange?
         <button
           type="button"
           className={`round ${autoSpeak ? "on" : ""}`}
-          onClick={() => setAutoSpeak((value) => !value)}
+          onClick={toggleAutoSpeak}
           title={autoSpeak ? t("ai.voiceOffAria") : t("ai.voiceAria")}
         >
           {autoSpeak ? <Volume2 /> : <VolumeX />}

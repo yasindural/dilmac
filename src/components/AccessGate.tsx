@@ -9,6 +9,7 @@ type Props = {
   remaining: number;
   /** "live" = canlı çeviri (kayıt zorunlu), "ai" = AI pratik (kayıtsıza deneme) */
   variant?: "live" | "ai";
+  registered?: boolean;
   /** Sayaç şu an ilerlemiyorsa kullanıcıya bunu açıkça söyle. */
   paused?: boolean;
   children: React.ReactNode;
@@ -20,7 +21,7 @@ type Props = {
  *  - Abone olmayan kayıtlı kullanıcı 2 dakikalık aktif kullanım hakkıyla girer.
  *  - Hak bitince ekran kapanır, yükseltme kartı gelir.
  */
-export default function AccessGate({ state, remaining, variant = "live", paused = false, children }: Props) {
+export default function AccessGate({ state, remaining, variant = "live", registered = false, paused = false, children }: Props) {
   const { t } = useI18n();
   // Deneme süresi metinlerde elle yazılmaz; tek kaynak FREE_TRIAL_MS.
   const FREE_TRIAL_MINUTES = Math.round(FREE_TRIAL_MS / 60_000);
@@ -62,7 +63,7 @@ export default function AccessGate({ state, remaining, variant = "live", paused 
             <h1>{t("gate.expiredTitle")}</h1>
             <p>{t("gate.aiExpiredText", { minutes: FREE_TRIAL_MINUTES })}</p>
             <div className="gate-actions">
-              <Link className="primary" to="/kayit">{t("gate.register")}</Link>
+              <Link className="primary" to={registered ? "/abonelik" : "/kayit"}>{registered ? t("gate.plans") : t("gate.register")}</Link>
               <Link className="ghost" to="/abonelik">{t("gate.plans")}</Link>
             </div>
             <div className="gate-perk"><Sparkles /> {t("gate.perkAi", { minutes: FREE_TRIAL_MINUTES })}</div>
@@ -80,7 +81,7 @@ export default function AccessGate({ state, remaining, variant = "live", paused 
             <Link className="primary" to="/abonelik"><Crown /> {t("gate.toPro")}</Link>
             <Link className="ghost" to="/deneme">{t("gate.continueAi")}</Link>
           </div>
-          <div className="gate-perk">{t("gate.aiStillFree")}</div>
+          <div className="gate-perk">{t("gate.aiStillFree", { minutes: FREE_TRIAL_MINUTES })}</div>
         </div>
       </section>
     );
@@ -92,7 +93,7 @@ export default function AccessGate({ state, remaining, variant = "live", paused 
         <div className={`trial-pill ${paused ? "paused" : ""} ${!paused && remaining < 60_000 ? "urgent" : ""}`} role="status">
           <Timer />
           <span>{variant === "ai" ? t("gate.trialFree") : t("gate.trial")} <b>{formatRemaining(remaining)}</b>{paused && <em> · {t("gate.paused")}</em>}</span>
-          <Link to={variant === "ai" ? "/kayit" : "/abonelik"}>{variant === "ai" ? t("gate.signup") : t("gate.upgrade")}</Link>
+          <Link to={variant === "ai" && !registered ? "/kayit" : "/abonelik"}>{variant === "ai" && !registered ? t("gate.signup") : t("gate.upgrade")}</Link>
         </div>
       )}
       {children}

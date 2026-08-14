@@ -169,3 +169,16 @@ body.room-locked header{position:static}
 .typing-dots span:nth-child(3){animation-delay:.3s}
 @keyframes typing{30%{transform:translateY(-4px);opacity:1}0%,60%,100%{transform:none;opacity:.4}}
 @media (prefers-reduced-motion:reduce){.typing-dots span{animation:none}}
+
+/* Mobilde dil alanları tek satırda taşmadan kalır; iki tarafın alanı eşit,
+   orta ok sabit genişliktedir. */
+.langbar > .lp-button{flex:1 1 0;min-width:0}
+@media (max-width:520px){
+  .langbar{display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);gap:5px;padding:5px}
+  .langbar .lp-button{width:100%;padding:9px 10px;border-radius:12px}
+  .langbar .lp-value{gap:6px}
+  .langbar .lp-value i{font-size:15px}
+  .langbar .lp-value b{font-size:13px}
+  .langbar .lp-value svg{display:none}
+  .langbar-swap{width:26px}
+}
