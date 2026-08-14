@@ -1209,3 +1209,50 @@ header .member-chip > svg { display: none; }
 .langbar { gap: 10px; }
 .langbar .lp-button { max-width: none; }
 @media (prefers-reduced-motion: reduce) { .lp-panel, .lp-backdrop { animation: none; } }
+
+/* ================= UZUN DİLLERDE BAŞLIK TAŞMASI ================= */
+/* Almanca/Fransızca menü metinleri Türkçeden belirgin uzun. 980 px'lik eski
+   kırılma noktasında 1440 px'te bile "So funktioniert's" iki satıra bölünüp
+   logonun üstüne biniyordu. Menü öğeleri artık sarmıyor ve hamburger daha
+   erken devreye giriyor. */
+header nav > a { white-space: nowrap; }
+header .brand { white-space: nowrap; flex: none; }
+/* Başlıktaki düğmeler hiçbir dilde satır kırmaz ve sıkışıp ezilmez; taşma
+   olacaksa hamburger devreye girsin, düğme üç satıra bölünmesin. */
+@media (min-width: 1280px) {
+  header nav { gap: 16px; }
+  header nav > .primary,
+  header nav > .auth-button,
+  header nav > .lang-select { white-space: nowrap; flex: none; }
+  header nav > .primary > *,
+  header nav > .auth-button > * { flex: none; }
+}
+/* Ara boy ekranlar (dizüstü): Fransızca/İspanyolca satır 1280 px'e sığmıyordu.
+   Tipografi ve boşluklar bir tık daralır, dil seçici yalnızca kodu gösterir;
+   düzen aynı kalır, hamburger'e düşmeden altı bağlantı da görünür kalır. */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  header nav { gap: 11px; }
+  header nav > a { font-size: 13px; }
+  header nav > .primary { padding: 0 14px; font-size: 13px; }
+  header nav > .auth-button { padding: 0 12px; font-size: 13px; }
+  header .lang-select { padding-inline: 9px; }
+}
+@media (max-width: 1279px) {
+  header .mobile-menu { display: inline-flex; margin-left: auto; }
+  header nav {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 18px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    display: none;
+  }
+  header nav.open { display: flex; }
+  header nav > a { padding: 8px 2px; }
+  header nav > a::after { display: none; }
+}

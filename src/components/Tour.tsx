@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { GraduationCap, PartyPopper, X } from "lucide-react";
+import { useI18n } from "../lib/i18n";
 import "../tour.css";
 
 export type TourStep = {
@@ -52,6 +53,7 @@ type Props = {
 };
 
 export default function Tour({ steps, mode, onFinish }: Props) {
+  const { t } = useI18n();
   const [asking, setAsking] = useState(mode === "ask");
   const [running, setRunning] = useState(mode === "run");
   const [index, setIndex] = useState(0);
@@ -156,19 +158,16 @@ export default function Tour({ steps, mode, onFinish }: Props) {
 
   if (asking) {
     return (
-      <div className="tour-backdrop" role="dialog" aria-modal="true" aria-label="Öğretici mod" onTouchMove={(e) => e.preventDefault()}>
+      <div className="tour-backdrop" role="dialog" aria-modal="true" aria-label={t("tour.askTitle")} onTouchMove={(e) => e.preventDefault()}>
         <div className="tour-invite">
           <div className="tour-invite-icon"><GraduationCap /></div>
-          <h2>Kısa bir tur atalım mı?</h2>
-          <p>
-            Mikrofon, seslendirme, canlı ses ve dil seçimi — hepsini
-            <b> 40 saniyede</b> tek tek gösterelim.
-          </p>
+          <h2>{t("tour.askTitle")}</h2>
+<p>{t("tour.askText", { seconds: 40 })}</p>
           <div className="tour-invite-actions">
             <button className="tour-yes" type="button" onClick={() => { setAsking(false); setRunning(true); }}>
-              Evet, göster
+              {t("tour.yes")}
             </button>
-            <button className="tour-no" type="button" onClick={close}>Gerek yok</button>
+            <button className="tour-no" type="button" onClick={close}>{t("tour.no")}</button>
           </div>
         </div>
       </div>
@@ -183,15 +182,15 @@ export default function Tour({ steps, mode, onFinish }: Props) {
             {Array.from({ length: 14 }, (_, i) => <i key={i} style={{ "--i": i } as React.CSSProperties} />)}
           </div>
           <div className="tour-invite-icon done"><PartyPopper /></div>
-          <h2>Görev tamamlandı!</h2>
-          <p>Artık tüm düğmeleri biliyorsun. Mikrofona bas ve konuşmaya başla.</p>
+          <h2>{t("tour.doneTitle")}</h2>
+          <p>{t("tour.doneText")}</p>
           <div className="tour-badges">
             {steps.map((item) => (
               <span key={item.target} className={`tour-badge tone-${item.tone}`}>{item.emoji} {item.title}</span>
             ))}
           </div>
           <div className="tour-invite-actions">
-            <button className="tour-yes" type="button" onClick={close}>Başlayalım</button>
+            <button className="tour-yes" type="button" onClick={close}>{t("tour.doneCta")}</button>
           </div>
         </div>
       </div>
@@ -205,8 +204,8 @@ export default function Tour({ steps, mode, onFinish }: Props) {
     return (
       <div className="tour-backdrop plain">
         <div className="tour-card floating">
-          <p>Bu adım bu ekranda görünmüyor.</p>
-          <button className="tour-yes" type="button" onClick={next}>Devam</button>
+          <p>{t("tour.missing")}</p>
+          <button className="tour-yes" type="button" onClick={next}>{t("tour.continue")}</button>
         </div>
       </div>
     );
@@ -245,7 +244,7 @@ export default function Tour({ steps, mode, onFinish }: Props) {
         className={`tour-card tone-${step.tone} ${below ? "below" : "above"}`}
         style={cardStyle}
       >
-        <button className="tour-skip" type="button" onClick={close} aria-label="Turu kapat"><X /></button>
+        <button className="tour-skip" type="button" onClick={close} aria-label={t("tour.skipAria")}><X /></button>
         <span className="tour-step">{index + 1} / {steps.length}</span>
         <h3><span aria-hidden="true">{step.emoji}</span> {step.title}</h3>
         <p>{step.body}</p>
@@ -254,7 +253,7 @@ export default function Tour({ steps, mode, onFinish }: Props) {
             {steps.map((item, i) => <i key={item.target} className={i === index ? "on" : i < index ? "past" : ""} />)}
           </div>
           <button className="tour-yes" type="button" onClick={next}>
-            {index + 1 === steps.length ? "Bitir" : "Sonraki"}
+            {index + 1 === steps.length ? t("tour.finish") : t("tour.next")}
           </button>
         </div>
       </div>

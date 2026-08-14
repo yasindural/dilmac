@@ -43,7 +43,7 @@ import { useRoom, type RoomLanguage, type RoomMessage } from "./hooks/useRoom";
 import { MessageQueue, type QueueItem } from "./lib/messageQueue";
 import RoomScreen from "./components/RoomScreen";
 import GoogleLogo from "./components/GoogleLogo";
-import { billingProvider, plans as planCatalog, startCheckout } from "./lib/billing";
+import { BillingError, billingProvider, localizedPlans, startCheckout } from "./lib/billing";
 import "./membership.css";
 import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
@@ -88,8 +88,10 @@ function defaultProfile(user: User): MemberProfile {
   return { firstName: parts[0] || "", lastName: parts.slice(1).join(" "), plan: "free", completed: false };
 }
 function Brand() {
+  const { t } = useI18n();
+  const ariaBrand = t("a11y.brand");
   return (
-    <Link className="brand" to="/" aria-label="Dilmaç ana sayfa">
+    <Link className="brand" to="/" aria-label={ariaBrand}>
       <BrandMark />
       <strong>Dilmaç</strong>
     </Link>
@@ -112,6 +114,7 @@ function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { lang, setLang, t } = useI18n();
+  const planCatalog = localizedPlans(t);
   // Mobil menü, hangi öğeye basılırsa basılsın adres değişince kapanmalı.
   // Tek tek onClick eklemek yerine rotayı dinliyoruz; böylece "Canlı çeviriyi
   // başlat" gibi navigate() kullanan düğmelerde de menü açık kalmıyor.
@@ -141,13 +144,13 @@ function Layout({
         <Brand />
         <button
           className="mobile-menu"
-          aria-label={t("menu.open")}
+          aria-label={open ? t("a11y.menuClose") : t("menu.open")}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
           {open ? <X /> : <Menu />}
         </button>
-        <nav className={open ? "open" : ""} aria-label="Ana menü">
+        <nav className={open ? "open" : ""} aria-label={t("a11y.mainNav")}>
           {[
             ["/", t("nav.home")],
             ["/nasil-calisir", t("nav.how")],
@@ -174,9 +177,9 @@ function Layout({
             {dark ? <Sun /> : <Moon />}
           </button>
           {user && (() => {
-            const shownName = profile?.firstName || user.displayName || "Profilim";
+            const shownName = profile?.firstName || user.displayName || t("prof.myProfile");
             const plan = profile?.plan || "free";
-            const planName = planCatalog.find((p) => p.id === plan)?.name || "Üye";
+            const planName = planCatalog.find((candidate) => candidate.id === plan)?.name || t("plan.member");
             // Avatar: Google fotoğrafı varsa o, yoksa baş harf. Ücretli planlarda
             // halka marka gradyanına döner — rozet aramadan planı gösterir.
             return (
@@ -199,8 +202,11 @@ function Layout({
           ) : (
             <Link className="ghost auth-button" to="/kayit" onClick={() => setOpen(false)}><LogIn />{t("auth.signup")}</Link>
           )}
+          {/* Başlıktaki buton dar alanda durur; uzun dillerde (de/fr/es) tam
+              cümle üç satıra kırılıp logonun üstüne biniyordu. Kısa varyant
+              kullanılıyor, tam cümle sayfa içi CTA'da kalıyor. */}
           <button className="primary" onClick={() => { setOpen(false); navigate("/uygulama"); }}>
-            {t("cta.start")}
+            {t("cta.headerStart")}
             <ArrowRight />
           </button>
         </nav>
@@ -243,6 +249,7 @@ function Layout({
 }
 function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [mode, setMode] = useState<"register" | "login">("register");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -257,7 +264,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
       const existing = readProfile(result.user);
       if (!existing) onRegistered(result.user, defaultProfile(result.user));
       navigate(existing?.completed ? "/uygulama" : "/profil?welcome=1");
-    } catch (reason) { setError((reason as Error).message); }
+    } catch { setError(t("auth.error")); }
     finally { setBusy(false); }
   };
   const submit = async (event: React.FormEvent) => {
@@ -268,46 +275,46 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
         onRegistered(result.user, { firstName: firstName.trim(), lastName: lastName.trim(), plan: "free", completed: true });
       } else await loginEmail(email.trim(), password);
       navigate("/uygulama");
-    } catch (reason) { setError((reason as Error).message); }
+    } catch { setError(t("auth.error")); }
     finally { setBusy(false); }
   };
   return <section className="auth-split">
     <div className="auth-pitch">
-      <span className="eyebrow"><Sparkles /> Ücretsiz hesap</span>
-      <h1>Konuşmaya bir adım kaldı.</h1>
-      <p>Hesabınızı saniyeler içinde açın; canlı çeviri odanız ve AI pratik ekranınız anında hazır olsun.</p>
+      <span className="eyebrow"><Sparkles /> {t("auth.eyebrow")}</span>
+      <h1>{t("auth.h1")}</h1>
+      <p>{t("auth.sub")}</p>
       <div className="auth-benefits">
-        <span><CheckCircle2 />Sınırsız AI pratik ve canlı çeviri odası</span>
-        <span><CheckCircle2 />7 dilde çift yönlü konuşma</span>
-        <span><CheckCircle2 />Görüşmeleriniz sunucuda saklanmaz</span>
-        <span><CheckCircle2 />Kredi kartı istemez</span>
+        <span><CheckCircle2 />{t("auth.b1")}</span>
+        <span><CheckCircle2 />{t("auth.b2", { count: conversationLanguages.length })}</span>
+        <span><CheckCircle2 />{t("auth.b3")}</span>
+        <span><CheckCircle2 />{t("auth.b4")}</span>
       </div>
       <div className="auth-mini" aria-hidden="true">
-        <div className="row"><span className="scene-dot" />Oda bağlı · DLM-482</div>
-        <div className="bubble"><b>Merhaba, nasılsın?</b><small>Hello, how are you?</small></div>
-        <div className="bubble"><b>I&apos;m good, thanks!</b><small>İyiyim, teşekkürler!</small></div>
+        <div className="row"><span className="scene-dot" />{t("auth.miniRow")} · DLM-482</div>
+        <div className="bubble"><b>Yarınki toplantı saat kaçta?</b><small>What time is tomorrow&apos;s meeting?</small></div>
+        <div className="bubble"><b>It starts at ten.</b><small>Saat onda başlıyor.</small></div>
       </div>
     </div>
     <div className="auth-card">
-      <h2>{mode === "register" ? "Hesap oluştur" : "Tekrar hoş geldiniz"}</h2>
-      <p>{mode === "register" ? "30 saniyede kaydolun, hemen konuşmaya başlayın." : "Hesabınıza giriş yapın ve kaldığınız yerden devam edin."}</p>
+      <h2>{mode === "register" ? t("auth.createTitle") : t("auth.welcomeTitle")}</h2>
+      <p>{mode === "register" ? t("auth.createSub") : t("auth.welcomeSub")}</p>
       <div className="auth-tabs">
-        <button type="button" className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>Kayıt ol</button>
-        <button type="button" className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>Giriş yap</button>
+        <button type="button" className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>{t("auth.tabRegister")}</button>
+        <button type="button" className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>{t("auth.tabLogin")}</button>
       </div>
-      <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />Google ile {mode === "register" ? "kayıt ol" : "giriş yap"}</button>
-      <div className="auth-divider"><span>veya e-posta ile</span></div>
+      <button className="google-button" onClick={google} disabled={busy}><GoogleLogo />{mode === "register" ? t("auth.googleRegister") : t("auth.googleLogin")}</button>
+      <div className="auth-divider"><span>{t("auth.or")}</span></div>
       <form onSubmit={submit}>
         {mode === "register" && <div className="name-row">
-          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
-          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+          <label>{t("auth.first")}<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+          <label>{t("auth.last")}<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
         </div>}
-        <label><span><Mail />E-posta</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="ornek@email.com" /></label>
-        <label><span><LockKeyhole />Şifre</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="En az 6 karakter" /></label>
+        <label><span><Mail />{t("auth.email")}</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder={t("auth.emailPh")} /></label>
+        <label><span><LockKeyhole />{t("auth.password")}</span><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder={t("auth.passwordPh")} /></label>
         {error && <div className="auth-error"><AlertCircle />{error}</div>}
-        <button className="primary" type="submit" disabled={busy}>{busy ? "Lütfen bekleyin…" : mode === "register" ? "Hesabımı oluştur" : "Giriş yap"}<ArrowRight /></button>
+        <button className="primary" type="submit" disabled={busy}>{busy ? t("auth.busy") : mode === "register" ? t("auth.submitRegister") : t("auth.submitLogin")}<ArrowRight /></button>
       </form>
-      <p className="auth-legal">Devam ederek <Link to="/kullanim-sartlari">Kullanım Şartları</Link> ve <Link to="/gizlilik">Gizlilik</Link> metnini kabul etmiş olursunuz.</p>
+      <p className="auth-legal">{t("auth.legalBefore")}<Link to="/kullanim-sartlari">{t("footer.terms")}</Link>{t("auth.legalMiddle")}<Link to="/gizlilik">{t("footer.privacy")}</Link>{t("auth.legalAfter")}</p>
     </div>
   </section>;
 }
@@ -316,6 +323,9 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   const navigate = useNavigate();
   const [busy, setBusy] = useState<PlanId | null>(null);
   const [error, setError] = useState("");
+  const { t, lang } = useI18n();
+  const planCatalog = localizedPlans(t);
+  const languageCount = String(conversationLanguages.length);
   useReveal();
   const choose = async (plan: PlanId) => {
     setError("");
@@ -330,7 +340,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       // Ödeme sağlayıcısı bağlıysa ücretli planlar gerçek checkout'a gider;
       // plan, ödeme onaylanınca webhook üzerinden sunucuya yazılır.
       if (plan !== "free" && billingProvider() !== "none") {
-        await startCheckout({ planId: plan, uid: activeUser.uid, email: activeUser.email });
+        await startCheckout({ planId: plan, uid: activeUser.uid, email: activeUser.email, locale: lang });
         setBusy(null);
         return;
       }
@@ -338,7 +348,7 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       onSaveForUser(activeUser, next);
       navigate(next.completed ? "/profil" : "/profil?welcome=1");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "İşlem tamamlanamadı.");
+      setError(requestError instanceof BillingError ? t(requestError.translationKey as never) : t("billing.failed"));
     } finally {
       setBusy(null);
     }
@@ -346,16 +356,16 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   return (
     <section className="pricing">
       <div className="pricing-head reveal">
-        <span className="eyebrow"><Crown /> Abonelik</span>
-        <h1>Dil engelini <em>tamamen</em> kaldırın.</h1>
-        <p>Karşınızdaki kendi dilinde konuşsun, siz kendi dilinizde duyun. Ücretsiz başlayın, ihtiyacınız büyüyünce yükseltin.</p>
+        <span className="eyebrow"><Crown /> {t("sub.eyebrow")}</span>
+        <h1>{t("sub.h1a")}<em>{t("sub.h1em")}</em>{t("sub.h1b")}</h1>
+        <p>{t("sub.sub")}</p>
       </div>
 
       <div className="pricing-assure reveal">
-        <span><ShieldCheck />30 gün koşulsuz iade</span>
-        <span><CheckCircle2 />İstediğiniz an iptal</span>
-        <span><Lock />Kart bilgisi bize ulaşmaz</span>
-        <span><CheckCircle2 />Kurulum gerekmez</span>
+        <span><ShieldCheck />{t("sub.assure1")}</span>
+        <span><CheckCircle2 />{t("sub.assure2")}</span>
+        <span><Lock />{t("sub.assure3")}</span>
+        <span><CheckCircle2 />{t("sub.assure4")}</span>
       </div>
 
       <div className="pricing-grid">
@@ -363,20 +373,20 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
           const current = profile?.plan === plan.id;
           return (
             <article key={plan.id} className={`pricing-card reveal ${plan.highlight ? "featured" : ""}`}>
-              {plan.highlight && <b className="pricing-badge">EN POPÜLER</b>}
+              {plan.highlight && <b className="pricing-badge">{t("sub.popular")}</b>}
               <h2>{plan.name}</h2>
               <p className="note">{plan.note}</p>
               <div className="pricing-amount"><b>{plan.price}</b><span>{plan.period}</span></div>
               <ul>{plan.features.map((feature) => <li key={feature}><CheckCircle2 />{feature}</li>)}</ul>
               {current ? (
-                <button className="pricing-cta current" type="button" disabled>Mevcut planınız</button>
+                <button className="pricing-cta current" type="button" disabled>{t("sub.current")}</button>
               ) : user ? (
                 <button className="primary pricing-cta" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
-                  {busy === plan.id ? "İşleniyor…" : plan.id === "free" ? "Ücretsiz devam et" : `${plan.name}'a geç`}
+                  {busy === plan.id ? t("sub.processing") : plan.id === "free" ? t("sub.freeCta") : t("sub.switchTo", { plan: plan.name })}
                 </button>
               ) : (
                 <button className="google-button" type="button" disabled={busy === plan.id} onClick={() => choose(plan.id)}>
-                  <GoogleLogo />{busy === plan.id ? "Bağlanıyor…" : "Google ile başla"}
+                  <GoogleLogo />{busy === plan.id ? t("sub.connecting") : t("sub.googleStart")}
                 </button>
               )}
             </article>
@@ -387,28 +397,29 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       {error && <p className="pricing-note" style={{ color: "var(--coral)" }}>{error}</p>}
 
       <div className="compare reveal">
-        <h3>Planları yan yana görün</h3>
+        <h3>{t("sub.compareTitle")}</h3>
         <table>
           <thead>
             <tr>
-              <th>Özellik</th>
-              <th>Başlangıç</th>
-              <th className="col-pro">Pro</th>
-              <th>Ekip</th>
+              <th>{t("sub.colFeature")}</th>
+              <th>{planCatalog[0].name}</th>
+              <th className="col-pro">{planCatalog[1].name}</th>
+              <th>{planCatalog[2].name}</th>
             </tr>
           </thead>
           <tbody>
             {[
-              ["Canlı çeviri odası", "✓", "✓", "✓"],
-              ["AI ile sesli pratik", "✓", "✓", "✓"],
-              ["Desteklenen dil sayısı", "7", "7", "7"],
-              ["Görüşme süresi", "Sınırlı", "Sınırsız", "Sınırsız"],
-              ["Orijinal ses + çeviri sesi", "✓", "✓", "✓"],
-              ["Öncelikli çeviri hızı", "—", "✓", "✓"],
-              ["Aynı anda birden fazla oda", "—", "—", "✓"],
-              ["Ekip üyesi yönetimi", "—", "—", "✓"],
-              ["Öncelikli destek", "—", "E-posta", "Öncelikli"],
-              ["30 gün koşulsuz iade", "—", "✓", "✓"],
+              // Dil sayısı elle yazılmaz; conversationLanguages tek kaynaktır.
+              [t("sub.r1"), "✓", "✓", "✓"],
+              [t("sub.r2"), "✓", "✓", "✓"],
+              [t("sub.r3"), languageCount, languageCount, languageCount],
+              [t("sub.r4"), t("sub.limited"), t("sub.unlimited"), t("sub.unlimited")],
+              [t("sub.r5"), "✓", "✓", "✓"],
+              [t("sub.r6"), "—", "✓", "✓"],
+              [t("sub.r7"), "—", "—", "✓"],
+              [t("sub.r8"), "—", "—", "✓"],
+              [t("sub.r9"), "—", t("sub.emailSupport"), t("sub.prioritySupport")],
+              [t("sub.r10"), "—", "✓", "✓"],
             ].map(([label, free, pro, team]) => (
               <tr key={label}>
                 <th scope="row">{label}</th>
@@ -423,16 +434,16 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
 
       <p className="pricing-note reveal">
         {billingProvider() === "none"
-          ? <>Şu an <b>ödeme alınmıyor</b>. Plan seçiminiz hesabınıza işlenir; ödeme sağlayıcısı bağlandığında aynı ekrandan devam edeceksiniz.</>
-          : <>Ödemeler yetkili satıcımız <b>Paddle</b> (Merchant of Record) üzerinden alınır; kart bilgileriniz Dilmaç'a hiçbir zaman ulaşmaz, fatura ve vergi işlemleri Paddle tarafından yürütülür. Aboneliğinizi istediğiniz an iptal edebilir, 30 gün içinde koşulsuz <Link to="/iade-politikasi">iade</Link> alabilirsiniz.</>}
+          ? <>{t("sub.noteNoneA")}<b>{t("sub.noteNoneB")}</b>{t("sub.noteNoneC")}</>
+          : <>{t("sub.notePaidA")}<b>Paddle</b>{t("sub.notePaidB")}<Link to="/iade-politikasi">{t("sub.notePaidLink")}</Link>{t("sub.notePaidC")}</>}
       </p>
 
       <div className="pricing-faq reveal">
-        <h3>Sık sorulanlar</h3>
-        <details><summary>Ücretsiz planda ne kadar konuşabilirim?</summary><p>Lansman süresince ücretsiz hesapla hem AI pratik hem canlı çeviri sınırsız. İlerleyen dönemde ücretsiz planda süre sınırı uygulanabilir; aboneler bundan etkilenmez.</p></details>
-        <details><summary>Görüşmelerim kaydediliyor mu?</summary><p>Hayır. Konuşmalar iki tarayıcı arasında doğrudan kurulur; metin ve ses sunucuda saklanmaz. Yalnızca hata ayıklama için teknik hata kayıtları tutulur.</p></details>
-        <details><summary>İstediğim zaman iptal edebilir miyim?</summary><p>Evet. Aboneliğinizi istediğiniz an durdurabilirsiniz; dönem sonuna kadar kullanmaya devam edersiniz. Ayrıca tüm ücretli planlarda 30 gün koşulsuz para iade garantisi vardır — soru sormayız.</p></details>
-        <details><summary>Hangi diller destekleniyor?</summary><p>Türkçe, İngilizce, Almanca, Fransızca, İspanyolca, İtalyanca ve Arapça. Her iki taraf kendi dilini seçer, çeviri iki yönlü çalışır.</p></details>
+        <h3>{t("sub.faqTitle")}</h3>
+        <details><summary>{t("sub.faq1q")}</summary><p>{t("sub.faq1a")}</p></details>
+        <details><summary>{t("sub.faq2q")}</summary><p>{t("sub.faq2a")}</p></details>
+        <details><summary>{t("sub.faq3q")}</summary><p>{t("sub.faq3a")}</p></details>
+        <details><summary>{t("sub.faq4q")}</summary><p>{t("sub.faq4a", { count: conversationLanguages.length })}</p></details>
       </div>
     </section>
   );
@@ -440,6 +451,8 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
 
 function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | null; profile: MemberProfile | null; onSave: (profile: MemberProfile) => void; onSaveForUser: (user: User, profile: MemberProfile) => void }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const planCatalog = localizedPlans(t);
   const initial = user ? (profile || defaultProfile(user)) : null;
   const [firstName, setFirstName] = useState(initial?.firstName || "");
   const [lastName, setLastName] = useState(initial?.lastName || "");
@@ -456,27 +469,27 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
       const next = readProfile(result.user) || defaultProfile(result.user);
       onSaveForUser(result.user, next);
       navigate(next.completed ? "/uygulama" : "/profil?welcome=1");
-    } catch (error) { alert((error as Error).message); }
+    } catch { alert(t("auth.error")); }
   };
   if (!user || !initial) {
     return (
       <section className="auth-split">
         <div className="auth-pitch">
-          <span className="eyebrow"><UserCircle /> Üyelik merkezi</span>
-          <h1>Profilinizi oluşturun.</h1>
-          <p>Google hesabınızla saniyeler içinde kaydolun; canlı çeviri odanız ve pratik ekranınız hazır olsun.</p>
+          <span className="eyebrow"><UserCircle /> {t("prof.eyebrow")}</span>
+          <h1>{t("prof.gateH1")}</h1>
+          <p>{t("prof.gateSub")}</p>
           <div className="auth-benefits">
-            <span><CheckCircle2 />Sınırsız AI pratik</span>
-            <span><CheckCircle2 />Kendi canlı çeviri odanız</span>
-            <span><CheckCircle2 />Kredi kartı istemez</span>
+            <span><CheckCircle2 />{t("prof.gateB1")}</span>
+            <span><CheckCircle2 />{t("prof.gateB2")}</span>
+            <span><CheckCircle2 />{t("auth.b4")}</span>
           </div>
         </div>
         <div className="auth-card">
-          <h2>Hemen başlayın</h2>
-          <p>Tek dokunuşla güvenli kayıt.</p>
-          <button className="google-button" onClick={() => void google()}><GoogleLogo />Google ile kayıt ol</button>
-          <div className="auth-divider"><span>veya</span></div>
-          <Link className="ghost" to="/kayit" style={{ width: "100%", justifyContent: "center", height: 52 }}><LogIn />E-posta ile devam et</Link>
+          <h2>{t("prof.gateCard")}</h2>
+          <p>{t("prof.gateCardSub")}</p>
+          <button className="google-button" onClick={() => void google()}><GoogleLogo />{t("prof.gateGoogle")}</button>
+          <div className="auth-divider"><span>{t("prof.or")}</span></div>
+          <Link className="ghost" to="/kayit" style={{ width: "100%", justifyContent: "center", height: 52 }}><LogIn />{t("prof.gateEmail")}</Link>
         </div>
       </section>
     );
@@ -496,7 +509,7 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
       <div className="dash-head">
         <span className="dash-avatar">{initials}</span>
         <div>
-          <h1>{initial.completed ? `Merhaba, ${firstName || "hoş geldiniz"}` : "Kaydınızı tamamlayın"}</h1>
+          <h1>{initial.completed ? t("prof.hello", { name: firstName || t("prof.welcome") }) : t("prof.completeTitle")}</h1>
           <p>{user.email}</p>
         </div>
         <span className={`plan-badge ${initial.plan}`}>
@@ -507,18 +520,18 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
 
       <div className="dash-grid">
         <form className="dash-card" onSubmit={save}>
-          <h2>Hesap bilgileri</h2>
-          <p className="big">Profilinizi güncelleyin</p>
-          <label>Ad<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
-          <label>Soyad<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
-          <label>E-posta<input value={user.email || ""} disabled /></label>
+          <h2>{t("prof.accountTitle")}</h2>
+          <p className="big">{t("prof.accountBig")}</p>
+          <label>{t("auth.first")}<input value={firstName} onChange={(e) => setFirstName(e.target.value)} required autoComplete="given-name" /></label>
+          <label>{t("auth.last")}<input value={lastName} onChange={(e) => setLastName(e.target.value)} required autoComplete="family-name" /></label>
+          <label>{t("auth.email")}<input value={user.email || ""} disabled /></label>
           <div className="dash-actions">
-            <button className="primary" type="submit"><CheckCircle2 />{saved ? "Kaydedildi" : "Kaydet ve devam et"}</button>
+            <button className="primary" type="submit"><CheckCircle2 />{saved ? t("prof.saved") : t("prof.save")}</button>
           </div>
         </form>
 
         <div className="dash-card">
-          <h2>Aboneliğiniz</h2>
+          <h2>{t("prof.subTitle")}</h2>
           <p className="big">{currentPlan.name} · {currentPlan.price}</p>
           <div className="trust-list" style={{ marginBottom: 18 }}>
             {currentPlan.features.slice(0, 4).map((feature) => (
@@ -526,20 +539,20 @@ function ProfilePage({ user, profile, onSave, onSaveForUser }: { user: User | nu
             ))}
           </div>
           <div className="dash-actions">
-            <Link className="primary" to="/abonelik"><CreditCard />{initial.plan === "free" ? "Pro'ya yükselt" : "Planı yönet"}</Link>
+            <Link className="primary" to="/abonelik"><CreditCard />{initial.plan === "free" ? t("prof.upgrade") : t("prof.manage")}</Link>
           </div>
         </div>
 
         <div className="dash-card">
-          <h2>Hızlı başlangıç</h2>
-          <p className="big">Konuşmaya başlayın</p>
+          <h2>{t("prof.quickTitle")}</h2>
+          <p className="big">{t("prof.quickBig")}</p>
           <div className="trust-list" style={{ marginBottom: 18 }}>
-            <span><Radio />Canlı çeviri odası açın ve bağlantıyı paylaşın.</span>
-            <span><Bot />Karşınızda kimse yoksa AI ile pratik yapın.</span>
+            <span><Radio />{t("prof.quick1")}</span>
+            <span><Bot />{t("prof.quick2")}</span>
           </div>
           <div className="dash-actions">
-            <Link className="primary" to="/uygulama"><Mic />Canlı çeviriyi aç</Link>
-            <Link className="ghost" to="/deneme"><Bot />AI ile pratik</Link>
+            <Link className="primary" to="/uygulama"><Mic />{t("prof.openLive")}</Link>
+            <Link className="ghost" to="/deneme"><Bot />{t("prof.openAi")}</Link>
           </div>
         </div>
       </div>
@@ -604,7 +617,7 @@ function Home() {
 
       {/* ---------- DİLLER ŞERİDİ ---------- */}
       <section className="langs-band reveal">
-        <h2>{t("band.title")}</h2>
+        <h2>{t("band.title", { count: conversationLanguages.length })}</h2>
         <div className="langs-track">
           {[...marquee, ...marquee].map((name, index) => (
             <span key={`${name}-${index}`}><i />{name}</span>
@@ -674,8 +687,8 @@ function Home() {
           </article>
           <article>
             <Languages className="bento-ico" />
-            <h3>{t("b6.t")}</h3>
-            <p>{t("b6.p")}</p>
+            <h3>{t("b6.t", { count: conversationLanguages.length })}</h3>
+            <p>{t("b6.p", { count: conversationLanguages.length })}</p>
           </article>
         </div>
       </section>
@@ -771,6 +784,11 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
   );
 }
 function Translator({ onConversingChange }: { onConversingChange?: (value: boolean) => void } = {}) {
+  const { t } = useI18n();
+  // Oda geri çağrıları useCallback([]) ile sabit kimlikte tutulur; dil
+  // değişince bağlantı yeniden kurulmasın diye çeviriciyi ref'ten okuyoruz.
+  const tRef = useRef(t);
+  tRef.current = t;
   const navigate = useNavigate();
   const { roomId } = useParams();
   // Kaynak dil ilk girişte tarayıcının dilinden gelir; kullanıcının seçimi
@@ -795,7 +813,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     [room, setRoom] = useState(""),
     [active, setActive] = useState(""),
     [key] = useState(sessionStorage.getItem("dilmac-key") || "backend"),
-    [notice, setNotice] = useState("Hazır"),
+    [notice, setNotice] = useState(() => t("notice.ready")),
     [, setRole] = useState<"host" | "guest" | null>(null),
     [draft, setDraft] = useState(""),
     [remoteMuted, setRemoteMuted] = useState(false),
@@ -829,7 +847,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       if (overlap >= 0.5) suppressedRef.current = null;
     }
     setRemoteMessages((current) => current.some((item) => item.id === message.id) ? current : [...current, message]);
-    setNotice("Karşı taraftan yeni çeviri geldi.");
+    setNotice(tRef.current("notice.newTranslation"));
     if (!autoSpeakRef.current) return;
     const code = speechCodeFor(message.targetLanguage);
     // Seslendirme sırasında kendi mikrofonumuz açık kalırsa hoparlörden çıkan ses
@@ -860,7 +878,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     setRemoteLanguage(language);
     const known = languageByCode(language.code) || languageByName(language.name);
     setTarget(known?.api || language.name);
-    setNotice(`Karşı tarafın dili ${known?.name || language.name}; çeviri dili otomatik güncellendi.`);
+    setNotice(tRef.current("notice.peerLanguage", { language: known?.name || language.name }));
   }, []);
   const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
   const roomConnection = useRoom(receiveMessage, markDelivered, receiveRemoteLanguage);
@@ -889,7 +907,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   }, [remoteMuted]);
   useEffect(() => {
     if (roomConnection.voiceConnected) {
-      setNotice("Orijinal ses bağlantısı kuruldu. Artık birbirinizi duyabilirsiniz.");
+      setNotice(tRef.current("notice.voiceReady"));
     }
   }, [roomConnection.voiceConnected]);
   useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
@@ -903,7 +921,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     const language = languageByCode(code);
     if (language) {
       sendLanguage({ code: language.code, name: language.api });
-      setNotice(`Konuşma diliniz ${language.name} olarak güncellendi.`);
+      setNotice(t("notice.sourceChanged", { language: language.name }));
     }
   };
   const connectRoom = roomConnection.join;
@@ -922,7 +940,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       const incomingRole = new URLSearchParams(location.search).get("role") === "host" ? "host" : "guest";
       setRole(incomingRole);
       connectRoom(incoming, incomingRole);
-      setNotice(`${incoming} odasına bağlanılıyor…`);
+      setNotice(tRef.current("notice.connecting", { room: incoming }));
     }
   }, [connectRoom, navigate, roomId]);
   // Canlı ses açıkken iki cihaz birbirini hoparlörden duyar. Karşı taraf
@@ -959,13 +977,13 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       if (!mineStartedFirst) {
         suppressedRef.current = { text, at: Date.now() };
         logClientError("echo_suppressed", "speech", `Karşı taraf konuşurken gelen ${text.length} karakterlik tanıma bekletildi`, "warning");
-        setNotice("Karşı taraf konuşuyor — cümleniz bekletiliyor.");
+        setNotice(tRef.current("notice.peerBusy"));
         return;
       }
       // Gerçek eş zamanlı konuşma: kaybetme, normal gönder.
     }
     queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
-    setNotice("Mesaj sıraya alındı.");
+    setNotice(tRef.current("notice.queuedMsg"));
   }, [source, target]);
   enqueueRawRef.current = (text: string) => {
     queueRef.current?.enqueue({ source: text, sourceLanguage: languageByCode(source)?.api || source, targetLanguage: target });
@@ -985,7 +1003,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       suppressedRef.current = null;
       if (!pending) return;
       enqueueRawRef.current(pending.text);
-      setNotice("Bekletilen cümleniz gönderildi.");
+      setNotice(tRef.current("notice.heldSent"));
     }, 2500);
     return () => {
       if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
@@ -1067,7 +1085,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     : "";
   const join = () => {
     if (!/^[A-Z0-9]{6}$/.test(room.toUpperCase())) {
-      setNotice("Oda kodu 6 harf veya rakam olmalı.");
+      setNotice(t("lobby.codeError"));
       return;
     }
     navigate(`/oda/${room.toUpperCase()}`);
@@ -1086,11 +1104,11 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   const toggleVoice = async () => {
     if (roomConnection.voiceEnabled) {
       roomConnection.disableVoice();
-      setNotice("Orijinal ses kapatıldı.");
+      setNotice(t("notice.voiceOff"));
       return;
     }
     const enabled = await roomConnection.enableVoice();
-    if (enabled) setNotice("Mikrofonunuz açık. Karşı tarafın ses bağlantısı bekleniyor.");
+    if (enabled) setNotice(t("notice.voiceWaiting"));
   };
   const toggleConversation = async () => {
     unlockSpeechOutput();
@@ -1104,7 +1122,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       if (!enabled) return;
     }
     if (isIOSWebKit && !roomConnection.voiceEnabled) {
-      setNotice("iPhone'da çeviri mikrofonu açıldı. Orijinal sesi ayrıca açabilirsiniz.");
+      setNotice(t("notice.iosMic"));
     }
     speech.toggle();
   };
@@ -1125,8 +1143,40 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     audio.muted = true;
     setRemoteMuted(true);
   };
-  const statusError = speech.error || roomConnection.error || roomConnection.voiceError;
-  if (!roomId) return <section className="room-lobby"><div className="lobby-hero"><div className="lobby-icon"><Languages /></div><h1>Konuşma odanızı açın.</h1><p>Yeni bir oda oluşturun veya size gönderilen kodla doğrudan görüşmeye katılın.</p></div><div className="lobby-actions"><article><span>Yeni görüşme</span><h2>Bir oda oluşturun</h2><p>Size özel bağlantıyı paylaşın; ikinci kişi tek dokunuşla katılsın.</p><button className="primary" onClick={createRoom}>Oda oluştur<ArrowRight /></button></article><article><span>Davete katıl</span><h2>Oda kodunu girin</h2><p>Bağlantının sonundaki 6 karakterli kodu kullanabilirsiniz.</p><label>Oda kodu<input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" /></label><button className="ghost" onClick={join}>Odaya katıl<ArrowRight /></button></article></div><div className="lobby-note"><ShieldCheck /> Görüşmeler doğrudan iki tarayıcı arasında kurulur.</div></section>;
+  const statusError = speech.error
+    ? t("error.mic")
+    : roomConnection.voiceError
+      ? t("error.voice")
+      : roomConnection.error
+        ? t("error.room")
+        : "";
+  if (!roomId) return (
+    <section className="room-lobby">
+      <div className="lobby-hero">
+        <div className="lobby-icon"><Languages /></div>
+        <h1>{t("lobby.title")}</h1>
+        <p>{t("lobby.sub")}</p>
+      </div>
+      <div className="lobby-actions">
+        <article>
+          <span>{t("lobby.newBadge")}</span>
+          <h2>{t("lobby.newTitle")}</h2>
+          <p>{t("lobby.newText")}</p>
+          <button className="primary" onClick={createRoom}>{t("lobby.create")}<ArrowRight /></button>
+        </article>
+        <article>
+          <span>{t("lobby.joinBadge")}</span>
+          <h2>{t("lobby.joinTitle")}</h2>
+          <p>{t("lobby.joinText")}</p>
+          <label>{t("lobby.codeLabel")}
+            <input value={room} maxLength={6} onChange={(event) => setRoom(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="A1B2C3" />
+          </label>
+          <button className="ghost" onClick={join}>{t("lobby.join")}<ArrowRight /></button>
+        </article>
+      </div>
+      <div className="lobby-note"><ShieldCheck /> {t("lobby.note")}</div>
+    </section>
+  );
   return (
     <RoomScreen
       roomCode={active}
@@ -1172,180 +1222,48 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     />
   );
 }
-const pages: {
-  [k: string]: { title: string; intro: string; sections: [string, string][] };
-} = {
-  about: {
-    title: "Hakkında",
-    intro:
-      "Dilmaç, farklı dillerde konuşan iki insanın doğal iletişimini kolaylaştırmak için tasarlandı.",
-    sections: [
-      [
-        "Neden Dilmaç?",
-        "Dil engelini mümkün olan en sade arayüzle azaltmak; konuşmayı bölmeden anlaşmayı sağlamak.",
-      ],
-      [
-        "Yaklaşımımız",
-        "Önce çalışan iletişim, sonra gösteriş. İzinler, hata durumları ve mahremiyet açıkça anlatılır.",
-      ],
-    ],
-  },
-  how: {
-    title: "Nasıl Çalışır",
-    intro: "Dört kısa adımda canlı görüşmeye başlayın.",
-    sections: [
-      [
-        "1. Dilleri seçin",
-        "Kendi konuşma dilinizi ve duymak istediğiniz hedef dili belirleyin.",
-      ],
-      [
-        "2. Oda oluşturun",
-        "Altı karakterli oda kodunu veya davet bağlantısını diğer kişiyle paylaşın.",
-      ],
-      [
-        "3. Sesli görüşmeyi açın",
-        "Tarayıcı izninden sonra orijinal sesiniz karşı tarafa ulaşır; konuşmanız aynı anda yazıya dönüşür.",
-      ],
-      [
-        "4. Çeviriyi alın",
-        "Metin seçtiğiniz dile çevrilir ve isterseniz sesli okunur.",
-      ],
-    ],
-  },
-  features: {
-    title: "Özellikler",
-    intro: "Canlı iletişim için gereken temel araçlar tek yerde.",
-    sections: [
-      [
-        "Orijinal ses görüşmesi",
-        "İki kişi birbirinin gerçek sesini WebRTC üzerinden duyarken altyazı ve çeviriyi aynı ekranda takip eder.",
-      ],
-      [
-        "Canlı konuşma tanıma",
-        "Desteklenen tarayıcılarda Web Speech API ile konuşmayı anlık metne dönüştürür.",
-      ],
-      [
-        "Doğal çeviri",
-        "Bağlama uygun, doğal çeviri üreten güncel bir yapay zekâ modeli kullanır.",
-      ],
-      [
-        "Sesli okuma",
-        "Çevrilen cümleyi cihazınızın ses motoruyla dinleyebilirsiniz.",
-      ],
-      [
-        "Erişilebilir tasarım",
-        "Klavye kullanımı, görünür odak, yüksek kontrast ve azaltılmış hareket desteği içerir.",
-      ],
-    ],
-  },
-  privacy: {
-    title: "Gizlilik",
-    intro:
-      "Bu metin genel bilgilendirme taslağıdır; hukuki danışmanlık değildir.",
-    sections: [
-      [
-        "Mikrofon",
-        "Mikrofon yalnızca sizin açık eyleminizle başlatılır. Tarayıcı iznini dilediğiniz zaman kaldırabilirsiniz.",
-      ],
-      [
-        "Çeviri verisi",
-        "Gerçek AI çevirisinde metin seçtiğiniz sağlayıcıya gönderilir. Sağlayıcının gizlilik koşulları ayrıca geçerlidir.",
-      ],
-      [
-        "Teknik altyapı",
-        "Çeviri istekleri Dilmaç sunucusu üzerinden işlenir; tarayıcınızda hiçbir gizli bilgi saklanmaz.",
-      ],
-    ],
-  },
-  terms: {
-    title: "Kullanım Şartları",
-    intro:
-      "Dilmaç, bireysel geliştirici Yasin Dural tarafından işletilen bir yazılım hizmetidir (SaaS). Bu sayfayı kullanarak aşağıdaki şartları kabul etmiş olursunuz.",
-    sections: [
-      [
-        "Hizmetin niteliği",
-        "Dilmaç tamamen otomatik çalışan bir yazılım ürünüdür; çeviriler yapay zekâ tarafından üretilir, insan çevirmen veya danışmanlık hizmeti içermez. Çeviriler kritik, tıbbi, hukuki veya acil durum iletişiminde tek kaynak olarak kullanılmamalıdır.",
-      ],
-      [
-        "Abonelik ve yenileme",
-        "Pro ve Ekip planları aylık aboneliktir ve her dönem sonunda otomatik olarak yenilenir. Yenileme tutarı ve tarihi satın alma sırasında ve ödeme makbuzunuzda açıkça gösterilir. Fiyat değişiklikleri bir sonraki dönemden önce e-posta ile bildirilir.",
-      ],
-      [
-        "İptal",
-        "Aboneliğinizi istediğiniz an iptal edebilirsiniz: ödeme makbuzunuzdaki abonelik yönetimi bağlantısından veya destek e-postasına yazarak. İptal sonrası mevcut dönemin sonuna kadar erişiminiz devam eder; bir sonraki dönem ücreti tahsil edilmez.",
-      ],
-      [
-        "İade",
-        "Tüm ücretli planlar 30 gün koşulsuz para iade garantisi kapsamındadır. Ayrıntılar İade Politikası sayfasındadır.",
-      ],
-      [
-        "Ödeme işlemcisi",
-        "Ödemeler yetkili satıcımız (Merchant of Record) Paddle tarafından işlenir. Kart bilgileriniz Dilmaç'a ulaşmaz; fatura ve vergi işlemleri Paddle üzerinden yürütülür.",
-      ],
-      [
-        "Kullanıcı sorumluluğu",
-        "Mikrofon izinlerinin ve hesabınızın güvenli kullanımından siz sorumlusunuz. Hizmetin hukuka aykırı amaçla kullanımı yasaktır.",
-      ],
-      [
-        "Süreklilik",
-        "Tarayıcı veya üçüncü taraf servislerine bağlı özelliklerin kesintisiz çalışacağı garanti edilmez; planlı kesintiler makul süre önce duyurulur.",
-      ],
-      [
-        "İletişim",
-        "Sorularınız için: yasdural@gmail.com",
-      ],
-    ],
-  },
-  refund: {
-    title: "İade Politikası",
-    intro:
-      "30 gün koşulsuz para iade garantisi. Soru sormuyoruz.",
-    sections: [
-      [
-        "Kapsam",
-        "Tüm ücretli Dilmaç planları (Pro ve Ekip), ilk satın alma tarihinden itibaren 30 gün boyunca koşulsuz para iade garantisi kapsamındadır. Herhangi bir sebep belirtmeniz gerekmez.",
-      ],
-      [
-        "Nasıl iade alırım?",
-        "Satın almadan sonraki 30 gün içinde yasdural@gmail.com adresine e-posta gönderin veya ödeme makbuzunuzdaki Paddle destek bağlantısını kullanın. İadeniz kesintisiz, tam tutar olarak yapılır.",
-      ],
-      [
-        "Süre",
-        "İade talepleri en geç 5 iş günü içinde işleme alınır. Tutarın kartınıza yansıması bankanıza bağlı olarak 5-10 iş günü sürebilir.",
-      ],
-      [
-        "Yenileme ödemeleri",
-        "Otomatik yenileme sonrasında fark ettiyseniz endişelenmeyin: yenileme tarihinden itibaren 30 gün içinde başvurursanız yenileme ödemesi de tam olarak iade edilir.",
-      ],
-    ],
-  },
-};
-function Info({ data }: { data: typeof pages.about }) {
+// Bilgi/yasal sayfa içeriği sözlükten gelir. Bölüm sayısı burada sabittir;
+// metinler info.<sayfa>.s<N>t / s<N>b anahtarlarından okunur.
+const infoPages = {
+  about: { key: "about", sections: 2 },
+  how: { key: "how", sections: 4 },
+  features: { key: "features", sections: 5 },
+  privacy: { key: "privacy", sections: 3 },
+  terms: { key: "terms", sections: 8 },
+  refund: { key: "refund", sections: 4 },
+} as const;
+
+type InfoPageKey = keyof typeof infoPages;
+function Info({ page }: { page: InfoPageKey }) {
+  const { t } = useI18n();
+  const { key, sections } = infoPages[page];
   return (
     <section className="info">
-      <h1>{data.title}</h1>
-      <p className="lead">{data.intro}</p>
-      {data.sections.map(([h, p]) => (
-        <article key={h}>
-          <h2>{h}</h2>
-          <p>{p}</p>
+      <h1>{t(`info.${key}.title` as never)}</h1>
+      <p className="lead">{t(`info.${key}.intro` as never)}</p>
+      {Array.from({ length: sections }, (_, index) => (
+        <article key={index}>
+          <h2>{t(`info.${key}.s${index + 1}t` as never)}</h2>
+          <p>{t(`info.${key}.s${index + 1}b` as never)}</p>
         </article>
       ))}
     </section>
   );
 }
 function NotFound() {
+  const { t } = useI18n();
   return (
     <section className="info">
-      <h1>Sayfa bulunamadı</h1>
-      <p>Aradığınız sayfa taşınmış veya hiç var olmamış olabilir.</p>
+      <h1>{t("nf.title")}</h1>
+      <p>{t("nf.text")}</p>
       <Link className="primary" to="/">
-        Ana sayfaya dön
+        {t("nf.home")}
       </Link>
     </section>
   );
 }
 export function App() {
+  const { t } = useI18n();
   // VITE_E2E yalnızca test derlemesinde 1 olur; üretim derlemesinde bu dal
   // ölü koddur ve paketten tamamen çıkar. Testlerde giriş ekranını atlamak
   // için sahte bir kullanıcı sağlar — sunucu tarafı plan doğrulamasını
@@ -1399,23 +1317,23 @@ export function App() {
         <Route path="/uygulama" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
         <Route path="/deneme" element={<AiPracticePage user={user} authChecked={authChecked} />} />
         <Route path="/oda/:roomId" element={<LiveTranslation user={user} profile={profile} authChecked={authChecked} />} />
-        <Route path="/hakkinda" element={<Info data={pages.about} />} />
-        <Route path="/nasil-calisir" element={<Info data={pages.how} />} />
-        <Route path="/ozellikler" element={<Info data={pages.features} />} />
+        <Route path="/hakkinda" element={<Info page="about" />} />
+        <Route path="/nasil-calisir" element={<Info page="how" />} />
+        <Route path="/ozellikler" element={<Info page="features" />} />
         <Route path="/abonelik" element={<SubscriptionPage user={user} profile={profile} onSaveForUser={saveRegisteredProfile} />} />
         <Route path="/kayit" element={<AuthPage onRegistered={saveRegisteredProfile} />} />
         <Route path="/profil" element={<ProfilePage user={user} profile={profile} onSave={saveProfile} onSaveForUser={saveRegisteredProfile} />} />
-        <Route path="/gizlilik" element={<Info data={pages.privacy} />} />
+        <Route path="/gizlilik" element={<Info page="privacy" />} />
         <Route
           path="/kullanim-sartlari"
-          element={<Info data={pages.terms} />}
+          element={<Info page="terms" />}
         />
-        <Route path="/iade-politikasi" element={<Info data={pages.refund} />} />
+        <Route path="/iade-politikasi" element={<Info page="refund" />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {!authReady && (
         <div className="auth-note">
-          Google girişi için Firebase ortam değişkenleri bekleniyor.
+          {t("auth.firebaseMissing")}
         </div>
       )}
     </Layout>

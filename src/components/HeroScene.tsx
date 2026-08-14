@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useI18n } from "../lib/i18n";
 
 // Hero sahnesi: dev bir mikrofon fareyle hafifçe eğilir, sayfa aşağı
 // kaydıkça küçülüp saydamlaşır ve yerini Dilmaç telefon arayüzüne bırakır;
@@ -6,6 +7,7 @@ import { useEffect, useRef } from "react";
 // property'leri üzerinden transform/opacity ile yapılır — layout hesabı yok,
 // bu yüzden mobilde de akıcı çalışır.
 export default function HeroScene() {
+  const { t } = useI18n();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function HeroScene() {
 
       <div className="scene-speaker left">
         <span className="scene-avatar">🙋‍♀️</span>
-        <b>TÜRKÇE</b>
+        <b>Türkçe</b>
       </div>
 
       <div className="scene-mic">
@@ -118,7 +120,7 @@ export default function HeroScene() {
           <div className="scene-notch" />
           <div className="scene-bar">
             <span className="scene-dot" />
-            Oda <b>DLM-482</b>
+            {t("room.roomLabel")} <b>DLM-482</b>
           </div>
           <div className="scene-langs">
             <span>Türkçe</span>
@@ -126,7 +128,7 @@ export default function HeroScene() {
             <span>English</span>
           </div>
           <div className="scene-bubble them">
-            <small>TÜRKÇE</small>
+            <small>Türkçe</small>
             <p>Yarınki toplantı saat kaçta?</p>
             <i>What time is tomorrow's meeting?</i>
           </div>

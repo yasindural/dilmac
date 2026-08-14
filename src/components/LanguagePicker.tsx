@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
 import { conversationLanguages, languageByCode, searchLanguages } from "../lib/languages";
+import { useI18n } from "../lib/i18n";
 
 // Şık dil seçici: bayrak + dilin kendi adıyla bir kapsül düğme; dokununca
 // arama kutulu bir panel açılır. 20 dil listeyle değil aramayla bulunur.
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export default function LanguagePicker({ value, onChange, label, disabled = false, align = "start" }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,11 +58,11 @@ export default function LanguagePicker({ value, onChange, label, disabled = fals
                   ref={inputRef}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Dil ara · search language"
-                  aria-label="Dil ara"
+                  placeholder={t("lp.search")}
+                  aria-label={t("lp.search")}
                 />
               </div>
-              <button type="button" className="lp-close" onClick={() => setOpen(false)} aria-label="Kapat"><X /></button>
+              <button type="button" className="lp-close" onClick={() => setOpen(false)} aria-label={t("lp.close")}><X /></button>
             </div>
             <div className="lp-list" role="listbox">
               {results.map((language) => (
@@ -77,7 +79,7 @@ export default function LanguagePicker({ value, onChange, label, disabled = fals
                   {language.code === selected.code && <Check aria-hidden="true" />}
                 </button>
               ))}
-              {results.length === 0 && <p className="lp-empty">Sonuç yok · no match</p>}
+              {results.length === 0 && <p className="lp-empty">{t("lp.empty")}</p>}
             </div>
           </div>
         </div>
