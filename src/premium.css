@@ -1256,3 +1256,105 @@ header .brand { white-space: nowrap; flex: none; }
   header nav > a { padding: 8px 2px; }
   header nav > a::after { display: none; }
 }
+
+/* ================= CODEX V2 DÜZELTMELERİ ================= */
+/* Açık temada eski koyu-tema rengi kart başlıklarını görünmez yapıyordu. */
+.home .steps > a {
+  position: relative;
+  display: block;
+  min-width: 0;
+  padding: 28px 24px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: linear-gradient(170deg, var(--surface2), var(--surface));
+  color: var(--text);
+  overflow: hidden;
+  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+}
+.home .steps > a::before { content:""; position:absolute; inset:0 0 auto; height:2px; background:var(--brand-gradient); }
+.home .steps > a:hover { transform:translateY(-4px); border-color:color-mix(in srgb,var(--violet) 45%,var(--line)); box-shadow:var(--shadow); }
+.home .steps > a b { display:block; margin-bottom:14px; font:600 15px 'Newsreader',serif; letter-spacing:2px; color:var(--cyan); }
+.home .steps > a h3 { margin:0; padding-right:28px; color:var(--text); font-size:16.5px; line-height:1.45; }
+.home .steps > a > svg { position:absolute; right:20px; bottom:24px; width:17px; color:var(--muted); transition:transform var(--t-fast),color var(--t-fast); }
+.home .steps > a:hover > svg { transform:translateX(3px); color:var(--cyan); }
+.home .steps > div { display:none; }
+html[data-theme="light"] .home .steps > a h3 { color:#0a0f1f; }
+
+/* Native select yerine dokunması kolay, görünür bir dil menüsü. */
+.site-lang-menu { position:relative; flex:none; }
+.site-lang-menu summary {
+  list-style:none; display:flex; align-items:center; gap:7px; min-height:42px; padding:0 12px;
+  border:1px solid color-mix(in srgb,var(--cyan) 28%,var(--line)); border-radius:999px;
+  background:color-mix(in srgb,var(--surface) 78%,transparent); color:var(--text-soft); cursor:pointer;
+}
+.site-lang-menu summary::-webkit-details-marker { display:none; }
+.site-lang-menu summary > svg:first-child { width:17px; color:var(--cyan); }
+.site-lang-menu summary > svg:last-child { width:14px; color:var(--muted); transition:transform var(--t-fast); }
+.site-lang-menu[open] summary > svg:last-child { transform:rotate(180deg); }
+.site-lang-menu summary strong { font-size:13px; font-weight:700; }
+.site-lang-options {
+  position:absolute; top:calc(100% + 10px); right:0; z-index:50; width:210px; padding:8px;
+  border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow-lg);
+}
+.site-lang-options button { width:100%; min-height:42px; justify-content:space-between; padding:0 12px; border-radius:10px; background:transparent; color:var(--text-soft); }
+.site-lang-options button:hover,.site-lang-options button.on { background:color-mix(in srgb,var(--violet) 13%,var(--surface)); color:var(--text); }
+.site-lang-options button svg { width:16px; color:var(--cyan); }
+
+/* Profil rozetinde harf ve iki satır metin aynı optik eksende kalır. */
+header .member-chip { min-height:42px; align-self:center; }
+.chip-avatar b { display:block; line-height:1; transform:translateY(1px); }
+.member-chip .chip-text { justify-content:center; line-height:1.1; transform:translateY(.5px); }
+.member-chip .chip-text small,.member-chip .chip-text strong { line-height:1.12; }
+
+/* Oda dil düğmeleri ve kaydırılabilir modal. min-height:0 yüzünden mobilde
+   grid satırları sıkışıyor, bütün diller üst üste geliyordu. */
+.lp-button { border-color:color-mix(in srgb,var(--cyan) 30%,var(--line)); box-shadow:inset 0 1px color-mix(in srgb,#fff 7%,transparent); }
+.lp-button:not(.locked) { background:linear-gradient(145deg,color-mix(in srgb,var(--violet) 10%,var(--surface2)),color-mix(in srgb,var(--cyan) 7%,var(--surface))); }
+.lp-button.locked { border-style:dashed; }
+.lp-placeholder-dot { width:9px; height:9px; border-radius:50%; background:var(--amber); box-shadow:0 0 10px color-mix(in srgb,var(--amber) 60%,transparent); }
+.lp-list { flex:1 1 auto; min-height:0; grid-auto-rows:minmax(58px,auto); align-content:start; }
+.lp-item { min-height:58px; flex:none; }
+.lp-item span { line-height:1.25; }
+
+/* Dört plan, yerel fiyat açıklaması ve iletişim kartı. */
+.pricing-grid { grid-template-columns:repeat(4,minmax(0,1fr)); max-width:1320px; }
+.contact-plan { border-style:dashed; }
+.pricing-badge.custom { background:linear-gradient(110deg,var(--emerald),var(--cyan)); }
+.localized-price-note { display:flex; align-items:center; justify-content:center; gap:9px; max-width:780px; margin:22px auto 0; color:var(--muted); text-align:center; font-size:13px; }
+.localized-price-note svg { width:17px; flex:none; color:var(--cyan); }
+
+/* İletişim ekranı doğrudan e-posta uygulamasına hazır teklif taşır. */
+.contact-page { min-height:calc(100dvh - 68px); display:grid; grid-template-columns:minmax(0,.9fr) minmax(420px,1.1fr); gap:clamp(36px,7vw,100px); align-items:center; max-width:1180px; margin:auto; padding:clamp(54px,8vw,100px) clamp(18px,5vw,72px); }
+.contact-copy h1 { margin:20px 0 18px; font:600 clamp(40px,5vw,68px)/1.02 'Newsreader',serif; letter-spacing:-.035em; }
+.contact-copy > p { max-width:52ch; color:var(--muted); font-size:17px; line-height:1.75; }
+.contact-copy .ghost { margin-top:20px; }
+.contact-form { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:clamp(22px,4vw,36px); border:1px solid var(--line); border-radius:28px; background:linear-gradient(150deg,var(--surface2),var(--surface)); box-shadow:var(--shadow-lg); }
+.contact-form label { color:var(--text-soft); font-size:13px; font-weight:600; }
+.contact-form input,.contact-form textarea { width:100%; margin-top:7px; border:1px solid var(--line); border-radius:12px; background:var(--bg2); color:var(--text); padding:12px 14px; resize:vertical; }
+.contact-form textarea { min-height:130px; }
+.contact-form .wide { grid-column:1/-1; }
+
+/* Ana sayfada uzun içerikten sonra erişilebilir yukarı çık düğmesi. */
+.scroll-top { position:fixed; right:max(18px,env(safe-area-inset-right)); bottom:max(18px,env(safe-area-inset-bottom)); z-index:32; width:48px; min-width:48px; height:48px; min-height:0; padding:0; border:1px solid color-mix(in srgb,var(--cyan) 45%,var(--line)); border-radius:50%; background:color-mix(in srgb,var(--surface) 88%,transparent); color:var(--cyan); box-shadow:var(--shadow); backdrop-filter:blur(14px); opacity:0; visibility:hidden; transform:translateY(12px); transition:opacity var(--t),transform var(--t),visibility var(--t); }
+.scroll-top.show { opacity:1; visibility:visible; transform:none; }
+
+.guest-language-card { width:min(560px,100%); margin:30px auto 0; padding:22px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:stretch; border:1px solid var(--line); border-radius:22px; background:var(--surface); }
+
+@media (max-width:1100px) { .pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:820px) {
+  .contact-page { grid-template-columns:1fr; }
+  .site-lang-menu { width:100%; }
+  .site-lang-menu summary { justify-content:center; }
+  .site-lang-options { position:static; width:100%; margin-top:8px; box-shadow:none; }
+  header nav { max-height:calc(100dvh - 60px); overflow-y:auto; }
+}
+@media (max-width:640px) {
+  .pricing-grid { grid-template-columns:1fr; }
+  .contact-page { padding-top:42px; }
+  .contact-form { grid-template-columns:1fr; padding:20px; }
+  .contact-form label { grid-column:1/-1; }
+  .contact-copy .ghost { width:100%; font-size:12px; }
+  .guest-language-card { grid-template-columns:1fr; padding:16px; }
+  .lp-panel { max-height:min(78svh,620px); padding-bottom:env(safe-area-inset-bottom); }
+  .home .steps { grid-template-columns:1fr; }
+}

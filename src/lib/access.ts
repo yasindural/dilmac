@@ -2,39 +2,43 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // Erişim kuralları tek yerde toplanır:
 //  - Canlı çeviri yalnızca kayıtlı kullanıcılara açıktır.
-//  - Abone olmayan kayıtlı kullanıcı 5 dakika GERÇEK KULLANIM hakkı alır.
+//  - Abone olmayan kayıtlı kullanıcı her özellik için 3 dakika GERÇEK KULLANIM hakkı alır.
 //    Süre duvar saatiyle değil, gerçekten konuşulan süreyle işler: odaya
 //    girmek, karşı tarafı beklemek veya sekmeyi arka plana almak süreyi
 //    harcamaz. Sayaç ancak bağlantı kurulup konuşma başlayınca işler.
 
-// Şimdilik deneme süresi KAPALI: kayıtlı herkes sınırsız kullanır.
-// Tekrar açmak için tek satır: TRIAL_ENABLED = true.
-export const TRIAL_ENABLED = false;
-export const FREE_TRIAL_MS = 300_000;
+export const TRIAL_ENABLED = true;
+export const FREE_TRIAL_MS = 180_000;
+
+export type AccessFeature = "live" | "ai";
 
 export type PlanId = "free" | "pro" | "business";
 export type AccessState = "loading" | "anonymous" | "trial" | "expired" | "subscribed";
 
-const usageKey = (uid: string) => `dilmac-trial-used:${uid}`;
+const usageKey = (uid: string, feature: AccessFeature) => `dilmac-trial-used:${uid}:${feature}`;
 
-export function readTrialUsed(uid: string) {
+export function readTrialUsed(uid: string, feature: AccessFeature = "live") {
   try {
-    const raw = Number(localStorage.getItem(usageKey(uid)));
+    const raw = Number(localStorage.getItem(usageKey(uid, feature)));
     return Number.isFinite(raw) && raw > 0 ? Math.min(raw, FREE_TRIAL_MS) : 0;
   } catch {
     return 0;
   }
 }
 
-function writeTrialUsed(uid: string, used: number) {
+function writeTrialUsed(uid: string, feature: AccessFeature, used: number) {
   try {
-    localStorage.setItem(usageKey(uid), String(Math.min(Math.max(used, 0), FREE_TRIAL_MS)));
+    localStorage.setItem(usageKey(uid, feature), String(Math.min(Math.max(used, 0), FREE_TRIAL_MS)));
   } catch { /* depolama kapalıysa sessizce geç */ }
 }
 
-export function resetTrial(uid: string) {
+export function resetTrial(uid: string, feature?: AccessFeature) {
   try {
-    localStorage.removeItem(usageKey(uid));
+    if (feature) localStorage.removeItem(usageKey(uid, feature));
+    else {
+      localStorage.removeItem(usageKey(uid, "live"));
+      localStorage.removeItem(usageKey(uid, "ai"));
+    }
   } catch { /* yoksay */ }
 }
 
@@ -52,19 +56,20 @@ export function formatRemaining(ms: number) {
 type AccessInput = {
   uid: string | null;
   plan: PlanId | null;
+  feature: AccessFeature;
   /** Sayaç yalnızca gerçekten konuşulurken işlesin diye dışarıdan kontrol edilir. */
   active: boolean;
   ready: boolean;
 };
 
-export function useAccess({ uid, plan, active, ready }: AccessInput) {
+export function useAccess({ uid, plan, feature, active, ready }: AccessInput) {
   const [used, setUsed] = useState(0);
   const tickRef = useRef<number | null>(null);
   const lastTickRef = useRef(0);
 
   useEffect(() => {
-    setUsed(uid ? readTrialUsed(uid) : 0);
-  }, [uid]);
+    setUsed(uid ? readTrialUsed(uid, feature) : 0);
+  }, [feature, uid]);
 
   const subscribed = isSubscribed(plan) || !TRIAL_ENABLED;
   const remaining = Math.max(0, FREE_TRIAL_MS - used);
@@ -83,7 +88,7 @@ export function useAccess({ uid, plan, active, ready }: AccessInput) {
       lastTickRef.current = now;
       setUsed((current) => {
         const next = Math.min(FREE_TRIAL_MS, current + delta);
-        writeTrialUsed(uid, next);
+        writeTrialUsed(uid, feature, next);
         return next;
       });
     }, 1000);
@@ -91,7 +96,7 @@ export function useAccess({ uid, plan, active, ready }: AccessInput) {
       if (tickRef.current !== null) window.clearInterval(tickRef.current);
       tickRef.current = null;
     };
-  }, [countdownRunning, uid]);
+  }, [countdownRunning, feature, uid]);
 
   const state: AccessState = !ready
     ? "loading"
@@ -107,10 +112,10 @@ export function useAccess({ uid, plan, active, ready }: AccessInput) {
     if (!uid) return;
     setUsed((current) => {
       const next = Math.max(0, current - ms);
-      writeTrialUsed(uid, next);
+      writeTrialUsed(uid, feature, next);
       return next;
     });
-  }, [uid]);
+  }, [feature, uid]);
 
   return { state, remaining, used, subscribed, grantMore };
 }

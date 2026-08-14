@@ -8,7 +8,7 @@ import type { RoomMessage } from "../hooks/useRoom";
 import Tour, { isTourDone, type TourStep } from "./Tour";
 import LanguagePicker from "./LanguagePicker";
 import { useI18n } from "../lib/i18n";
-import { languageByName, type AppLanguage } from "../lib/languages";
+import { languageByName } from "../lib/languages";
 import "../room.css";
 
 export type FeedEntry = {
@@ -30,11 +30,9 @@ export type RoomScreenProps = {
   peerLanguage: string | null;
   localMessages: QueueItem[];
   remoteMessages: RoomMessage[];
-  languages: readonly AppLanguage[];
   sourceCode: string;
   onSourceChange: (code: string) => void;
   targetName: string;
-  onTargetChange: (name: string) => void;
   targetLocked: boolean;
   listening: boolean;
   interimText: string;
@@ -79,8 +77,8 @@ export default function RoomScreen(props: RoomScreenProps) {
   ], [t]);
   const {
     roomCode, inviteLink, connected, connecting, peerLanguage,
-    localMessages, remoteMessages, languages,
-    sourceCode, onSourceChange, targetName, onTargetChange, targetLocked,
+    localMessages, remoteMessages,
+    sourceCode, onSourceChange, targetName, targetLocked,
     listening, interimText, onToggleMic, micSupported,
     autoSpeak, onToggleAutoSpeak,
     voiceEnabled, voiceConnected, voiceConnecting, onToggleVoice,
@@ -226,13 +224,11 @@ export default function RoomScreen(props: RoomScreenProps) {
         />
         <span className="langbar-swap" aria-hidden="true"><ArrowLeftRight /></span>
         <LanguagePicker
-          value={languageByName(targetName)?.code || "en-US"}
-          onChange={(code) => {
-            const language = languages.find((candidate) => candidate.code === code);
-            if (language) onTargetChange(language.api);
-          }}
+          value={languageByName(targetName)?.code || ""}
+          onChange={() => undefined}
           label={targetLocked ? t("room.peerSide") : t("room.target")}
           disabled={targetLocked}
+          placeholder={t("room.waitTitle")}
           align="end"
         />
       </div>

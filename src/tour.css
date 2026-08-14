@@ -40,6 +40,9 @@
   padding:18px 18px 14px;
   box-shadow:0 30px 70px -30px #000d;
   animation:tour-in .26s cubic-bezier(.22,1,.36,1) both;
+  max-height:calc(100svh - 24px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
 }
 .tour-card.floating{position:static;translate:none;animation:none}
 @keyframes tour-in{from{opacity:0;transform:translateY(10px)}}
@@ -97,3 +100,11 @@
 .tour-backdrop{touch-action:none;overscroll-behavior:contain}
 /* Gövde sabitlenince başlık sticky'liğini kaybeder; tur boyunca gizlenmesin. */
 body.tour-open{overscroll-behavior:none}
+
+@media (max-width:520px){
+  .tour-backdrop{padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
+  .tour-invite{padding:26px 18px 20px;border-radius:20px;max-height:calc(100svh - 24px);overflow-y:auto}
+  .tour-card{width:calc(100vw - 20px);padding:16px 15px 13px;border-radius:16px}
+  .tour-card p{font-size:13.5px;line-height:1.5}
+  .tour-card-foot{position:sticky;bottom:0;padding-top:8px;background:var(--surface)}
+}

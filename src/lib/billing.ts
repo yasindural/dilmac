@@ -42,25 +42,35 @@ export type Plan = {
 export type PlanShape = {
   id: PlanId;
   price: string;
+  basePriceUsd: number;
+  minutes: number;
   featureCount: number;
   highlight?: boolean;
 };
 
 export const planShapes: PlanShape[] = [
-  { id: "free", price: "Ücretsiz", featureCount: 3 },
-  { id: "pro", price: "₺149", featureCount: 4, highlight: true },
-  { id: "business", price: "₺399", featureCount: 4 },
+  { id: "free", price: "Ücretsiz", basePriceUsd: 0, minutes: 3, featureCount: 3 },
+  { id: "pro", price: "$14.37", basePriceUsd: 14.37, minutes: 100, featureCount: 4, highlight: true },
+  { id: "business", price: "$30.00", basePriceUsd: 30, minutes: 250, featureCount: 4 },
 ];
+
+// Paddle'ın 14 Ağustos 2026'da doğrulanan standart Checkout kesintisi.
+// Bu kesinti müşterinin fiyatına sonradan eklenmez; brüt tutardan düşülür.
+export const PADDLE_STANDARD_FEE = { percent: 0.05, fixedUsd: 0.5 } as const;
+
+export function estimatePaddleNetUsd(grossUsd: number) {
+  return Math.max(0, Math.round((grossUsd * (1 - PADDLE_STANDARD_FEE.percent) - PADDLE_STANDARD_FEE.fixedUsd) * 100) / 100);
+}
 
 // Tip-only import: çalışma zamanında döngü oluşmaz.
 type PlanTranslate = (key: TranslationKey) => string;
 
 /** Plan listesini seçili site diliyle üretir. Kimlik ve fiyat değişmez. */
-export function localizedPlans(t: PlanTranslate): Plan[] {
+export function localizedPlans(t: PlanTranslate, localizedPrices: Partial<Record<PlanId, string>> = {}): Plan[] {
   return planShapes.map((shape) => ({
     id: shape.id,
     name: t(`plan.${shape.id}.name` as TranslationKey),
-    price: shape.id === "free" ? t("plan.free.price") : shape.price,
+    price: shape.id === "free" ? t("plan.free.price") : localizedPrices[shape.id] || shape.price,
     period: shape.id === "free" ? "" : t("plan.period"),
     note: t(`plan.${shape.id}.note` as TranslationKey),
     features: Array.from({ length: shape.featureCount }, (_, index) => t(`plan.${shape.id}.f${index + 1}` as TranslationKey)),
@@ -105,6 +115,9 @@ type PaddleJS = {
   Environment: { set: (env: "sandbox" | "production") => void };
   Initialize: (options: { token: string; eventCallback?: (event: { name?: string; type?: string; code?: string; detail?: unknown; error?: unknown }) => void }) => void;
   Checkout: { open: (options: unknown) => void };
+  PricePreview: (options: { items: Array<{ priceId: string; quantity: number }> }) => Promise<{
+    data?: { details?: { lineItems?: Array<{ price?: { id?: string }; formattedTotals?: { subtotal?: string; total?: string } }> } };
+  }>;
 };
 
 declare global {
@@ -168,6 +181,36 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms = 15_000): Pr
     throw new BillingError("billing.unreachable");
   } finally {
     window.clearTimeout(timeout);
+  }
+}
+
+/**
+ * Paddle aynı fiyat kimliğini kullanarak ziyaretçinin IP konumuna göre güncel
+ * döviz dönüşümünü yapar. Böylece karttaki para birimi checkout ile aynıdır;
+ * istemcide kur tablosu veya sabit ülke listesi tutulmaz.
+ */
+export async function getLocalizedPlanPrices(): Promise<Partial<Record<PlanId, string>>> {
+  if (billingProvider() !== "paddle") return {};
+  const items = (["pro", "business"] as const)
+    .map((planId) => ({ planId, priceId: paddlePrices[planId] }))
+    .filter((item): item is { planId: "pro" | "business"; priceId: string } => Boolean(item.priceId));
+  if (!items.length) return {};
+  try {
+    const paddle = await loadPaddle();
+    const preview = await paddle.PricePreview({ items: items.map(({ priceId }) => ({ priceId, quantity: 1 })) });
+    const result: Partial<Record<PlanId, string>> = {};
+    for (const line of preview.data?.details?.lineItems || []) {
+      const plan = items.find((item) => item.priceId === line.price?.id)?.planId;
+      // Kartta müşterinin gerçekten ödeyeceği vergi dahil toplamı göster.
+      // `subtotal`, verginin fiyata dahil olduğu ülkelerde daha düşük görünür
+      // ve ödeme penceresiyle fiyat kartının farklılaşmasına neden olur.
+      const formatted = line.formattedTotals?.total || line.formattedTotals?.subtotal;
+      if (plan && formatted) result[plan] = formatted;
+    }
+    return result;
+  } catch (error) {
+    logClientError("price_preview_failed", "billing", error instanceof Error ? error.message : error, "warning");
+    return {};
   }
 }
 

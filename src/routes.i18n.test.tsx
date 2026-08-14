@@ -41,7 +41,7 @@ function bodyTextWithoutDemos() {
 const ROUTES = [
   "/", "/nasil-calisir", "/ozellikler", "/deneme", "/abonelik",
   "/hakkinda", "/kayit", "/profil", "/gizlilik", "/kullanim-sartlari",
-  "/iade-politikasi", "/uygulama", "/bilinmeyen-sayfa",
+  "/iade-politikasi", "/iletisim", "/uygulama", "/bilinmeyen-sayfa",
 ];
 
 describe("rota yerelleştirmesi", () => {

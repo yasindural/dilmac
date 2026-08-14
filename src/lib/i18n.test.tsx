@@ -78,7 +78,7 @@ describe("site sözlükleri", () => {
 
   it("desteklenen dil sayısı conversationLanguages ile aynıdır", () => {
     // Ana sayfa/SSS metinlerindeki sayı elle yazılmamalı; tek kaynak burasıdır.
-    expect(conversationLanguages.length).toBe(20);
+    expect(conversationLanguages.length).toBe(5);
     for (const lang of Object.keys(dictionaries) as SiteLang[]) {
       const band = dictionaries[lang]["band.title"];
       expect(band, `${lang} band.title`).toContain("{count}");
