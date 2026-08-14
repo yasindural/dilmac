@@ -1,5 +1,5 @@
 .practice-page {
-  min-height: calc(100vh - 78px);
+  min-height: calc(100dvh - var(--header-h));
   padding: 64px clamp(18px, 5vw, 74px) 90px;
   background:
     radial-gradient(circle at 82% 10%, #174fff22, transparent 30%),

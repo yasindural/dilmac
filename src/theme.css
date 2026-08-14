@@ -54,6 +54,14 @@ html[data-theme="dark"] {
   --t-fast: .16s var(--ease);
   --t: .26s var(--ease);
   --t-slow: .5s var(--ease);
+
+  /* tek kaynak: header gerçek yüksekliği. room.css / ai-practice.css / premium.css
+     hepsi bunu okur; artık 68/76/78/84 gibi birbirini ezen sabit yok. */
+  --header-h: 68px;
+}
+
+@media (max-width: 640px) {
+  :root { --header-h: 60px; }
 }
 
 html[data-theme="light"] {

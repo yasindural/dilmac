@@ -11,3 +11,5 @@ vite.config.d.ts
 claude-task.local.json
 .orchestra-output/
 dist-e2e/
+/frontend/
+/backend/

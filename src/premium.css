@@ -1081,17 +1081,7 @@ header .member-chip > svg { display: none; }
 .tour-block { z-index: 94; }
 
 /* ================= GÖRÜŞME EKRANI YÜKSEKLİĞİ ================= */
-/* room.css'teki 76px eski başlık yüksekliğine göre yazılmıştı; premium
-   başlık 68px (mobilde 60px). Fark kadar sayfa kayıyor ve tur sırasında
-   ekran oynuyordu. Tek bir değişkene bağlıyoruz. */
-:root { --header-h: 68px; }
-@media (max-width: 640px) { :root { --header-h: 60px; } }
-/* svh = araç çubukları AÇIKKEN ki yükseklik (en küçük hâl). dvh kullanınca
-   iOS'ta çubuk açılıp kapandıkça mikrofon düğmesi altta kesiliyordu. */
-.room { height: calc(100dvh - var(--header-h)); }
-@supports (height: 100svh) {
-  .room { height: calc(100svh - var(--header-h)); }
-}
+/* --header-h theme.css'te tek kaynak; .room yüksekliği artık yalnızca room.css'te tanımlı. */
 
 /* ================= DİL SEÇİCİ ================= */
 .lp-button {
@@ -1300,7 +1290,7 @@ html[data-theme="light"] .home .steps > a h3 { color:#0a0f1f; }
   position:absolute; top:calc(100% + 10px); right:0; z-index:50; width:210px; padding:8px;
   border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow-lg);
 }
-.site-lang-options button { width:100%; min-height:42px; justify-content:space-between; padding:0 12px; border-radius:10px; background:transparent; color:var(--text-soft); }
+.site-lang-options button { width:100%; min-height:44px; justify-content:space-between; padding:0 12px; border-radius:10px; background:transparent; color:var(--text-soft); }
 .site-lang-options button:hover,.site-lang-options button.on { background:color-mix(in srgb,var(--violet) 13%,var(--surface)); color:var(--text); }
 .site-lang-options button svg { width:16px; color:var(--cyan); }
 

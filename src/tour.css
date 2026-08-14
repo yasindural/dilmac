@@ -58,8 +58,8 @@
 .tour-dots i.past{background:color-mix(in srgb,var(--tone) 55%,var(--line))}
 .tour-dots i.on{width:18px;border-radius:3px;background:var(--tone)}
 
-.tour-yes{height:42px;min-height:0;padding:0 20px;border-radius:999px;background:var(--tone,var(--blue));color:#fff;font-weight:600;font-size:14px;border:0}
-.tour-no{height:42px;min-height:0;padding:0 20px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--muted);font-size:14px}
+.tour-yes{height:44px;min-height:0;padding:0 20px;border-radius:999px;background:var(--tone,var(--blue));color:#fff;font-weight:600;font-size:14px;border:0}
+.tour-no{height:44px;min-height:0;padding:0 20px;border-radius:999px;background:transparent;border:1px solid var(--line);color:var(--muted);font-size:14px}
 
 /* ---- davet ve bitiş kartı ---- */
 .tour-invite{position:relative;width:min(430px,100%);text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:34px 26px 26px;box-shadow:0 40px 90px -40px #000d;overflow:hidden;animation:tour-in .26s cubic-bezier(.22,1,.36,1) both}

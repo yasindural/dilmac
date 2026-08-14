@@ -1,5 +1,10 @@
 .gate{display:flex;align-items:center;justify-content:center;min-height:60vh;padding:32px 16px}
-.gate-card{width:min(520px,100%);text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:40px 28px;box-shadow:0 24px 60px -40px rgba(0,0,0,.55)}
+/* min-height + flex: "loading" iskeleti ile asıl kart aynı alanı kaplasın, auth cevabı gelince
+   kart aniden büyümesin (ölçülen CLS: 0.13-0.26). Görsel boyut değişmiyor, sadece rezerve ediliyor. */
+.gate-card{width:min(520px,100%);min-height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:40px 28px;box-shadow:0 24px 60px -40px rgba(0,0,0,.55)}
+/* dar ekranda metin daha çok satıra sarıyor, kart doğal olarak daha uzun oluyor;
+   rezerve edilen alanı da buna göre büyütüyoruz (ölçüldü: 320-430px arası 456-562px). */
+@media (max-width:480px){.gate-card{min-height:580px}}
 .gate-icon{width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:20px;background:color-mix(in srgb,var(--cyan) 14%,transparent);color:var(--cyan)}
 .gate-icon.warn{background:color-mix(in srgb,#f6a94a 16%,transparent);color:#f6a94a}
 .gate-icon svg{width:28px;height:28px}
