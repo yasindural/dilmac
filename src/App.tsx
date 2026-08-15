@@ -1004,6 +1004,10 @@ function AiPracticePage({ user, profile, authChecked }: { user: User | null; pro
 }
 function LiveTranslation({ user, profile, authChecked }: { user: User | null; profile: MemberProfile | null; authChecked: boolean }) {
   const visible = useVisible();
+  // /oda/:id ile /uygulama aynı bileşeni kullanır; key olmadan React odadan
+  // çıkışta bileşeni söküp yeniden kurmaz ve oda bağlantısı ile mikrofon
+  // lobide açık kalır. key, ayrılınca tam temizlik garantisi verir.
+  const { roomId } = useParams();
   // Sayaç yalnızca gerçekten konuşulurken işler. Odayı açıp karşı tarafı
   // beklemek, bağlantı kurulmadan durmak veya sekmeyi arka plana almak
   // kullanıcının hakkını yakmaz.
@@ -1017,7 +1021,7 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
   });
   return (
     <AccessGate state={access.state} remaining={access.remaining} paused={!conversing}>
-      <Translator onConversingChange={setConversing} />
+      <Translator key={roomId || "lobby"} onConversingChange={setConversing} />
     </AccessGate>
   );
 }
@@ -1547,6 +1551,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       onSubmitDraft={submitDraft}
       onSpeak={(text, languageName) => { unlockSpeechOutput(); speak(text, languageName); }}
       onRetry={(id) => queueRef.current?.retry(id)}
+      onLeave={() => navigate("/uygulama")}
       status={statusError || notice}
       statusIsError={Boolean(statusError)}
       audioSlot={<audio ref={remoteAudioRef} autoPlay playsInline aria-hidden="true" />}

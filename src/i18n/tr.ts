@@ -163,6 +163,7 @@ export const tr = {
   "room.stop": "Durdur",
   "room.listening": "Dinliyor",
   "room.keyboard": "Klavyeyi aç",
+  "room.leave": "Odadan ayrıl",
   "room.composePh": "Yazın, çevrilip gönderilsin…",
   "room.composeAria": "Çevrilecek mesaj",
   "room.muteRemote": "Karşı tarafın sesini kapat",

@@ -84,6 +84,7 @@
 .round.on{color:var(--cyan)}
 .round:disabled{opacity:.35}
 .round.send{background:var(--blue);color:#fff;border-color:transparent}
+.round.leave{color:var(--coral);border-color:color-mix(in srgb,var(--coral) 40%,var(--line))}
 .mic-button{flex-direction:column;gap:2px;width:96px;height:96px;min-height:0;padding:0;border-radius:50%;background:var(--blue);color:#fff;box-shadow:0 14px 34px -14px var(--blue)}
 .mic-button svg{width:26px;height:26px}
 .mic-button span{font-size:11.5px;font-weight:600;letter-spacing:.3px}

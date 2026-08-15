@@ -165,6 +165,7 @@ export const es = {
   "room.stop": "Detener",
   "room.listening": "Escuchando",
   "room.keyboard": "Abrir el teclado",
+  "room.leave": "Salir de la sala",
   "room.composePh": "Escribe: lo traducimos y lo enviamos…",
   "room.composeAria": "Mensaje para traducir",
   "room.muteRemote": "Silenciar a la otra persona",

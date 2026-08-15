@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeftRight, ArrowUp, Check, Copy, HelpCircle, Keyboard, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
+  ArrowLeftRight, ArrowUp, Check, Copy, HelpCircle, Keyboard, LogOut, Maximize2, Mic, MicOff, PhoneCall, PhoneOff,
   RotateCcw, Share2, Type, Users, Volume2, VolumeX, X,
 } from "lucide-react";
 import type { QueueItem } from "../lib/messageQueue";
@@ -51,6 +51,7 @@ export type RoomScreenProps = {
   onSubmitDraft: (event: React.FormEvent) => void;
   onSpeak: (text: string, languageName: string) => void;
   onRetry: (id: string) => void;
+  onLeave: () => void;
   status: string;
   statusIsError: boolean;
   audioSlot: React.ReactNode;
@@ -83,7 +84,7 @@ export default function RoomScreen(props: RoomScreenProps) {
     autoSpeak, onToggleAutoSpeak,
     voiceEnabled, voiceConnected, voiceConnecting, onToggleVoice,
     remoteMuted, onToggleRemoteAudio,
-    draft, onDraftChange, onSubmitDraft, onSpeak, onRetry,
+    draft, onDraftChange, onSubmitDraft, onSpeak, onRetry, onLeave,
     status, statusIsError, audioSlot,
   } = props;
 
@@ -308,6 +309,16 @@ export default function RoomScreen(props: RoomScreenProps) {
       <p className={`room-status ${statusIsError ? "error" : ""}`} role="status" aria-live="polite">{status}</p>
 
       <div className="room-controls">
+        <button
+          type="button"
+          className="round leave"
+          onClick={onLeave}
+          title={t("room.leave")}
+          aria-label={t("room.leave")}
+        >
+          <LogOut />
+        </button>
+
         <button
           type="button"
           className="round"
