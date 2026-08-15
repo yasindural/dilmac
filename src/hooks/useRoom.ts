@@ -65,6 +65,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const outboundRef = useRef<RoomMessage[]>([]);
   const [remoteSpeaking, setRemoteSpeaking] = useState(false);
   const remoteSpeakingTimerRef = useRef<number | null>(null);
+  // Uzun konuşmada tek "speaking:true" paketi alıcıdaki güvenlik zaman aşımına
+  // takılmasın. Konuşma sürdükçe kısa heartbeat gönderilir; false ile anında durur.
+  const speakingHeartbeatTimerRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
@@ -84,6 +87,12 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     voiceReconnectTimerRef.current = null;
   }, []);
 
+  const clearSpeakingHeartbeat = useCallback(() => {
+    if (speakingHeartbeatTimerRef.current === null) return;
+    window.clearInterval(speakingHeartbeatTimerRef.current);
+    speakingHeartbeatTimerRef.current = null;
+  }, []);
+
   const closeMediaConnection = useCallback(() => {
     clearVoiceReconnectTimer();
     voiceCallInFlightRef.current = false;
@@ -98,7 +107,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   }, [clearVoiceReconnectTimer]);
 
   const disableVoice = useCallback(() => {
+    clearSpeakingHeartbeat();
     if (connectionRef.current?.open) {
+      connectionRef.current.send({ kind: "speaking", on: false } satisfies Envelope);
       connectionRef.current.send({ kind: "voice-ready", ready: false } satisfies Envelope);
     }
     closeMediaConnection();
@@ -106,7 +117,7 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     localStreamRef.current = null;
     setVoiceEnabled(false);
     setVoiceError("");
-  }, [closeMediaConnection]);
+  }, [clearSpeakingHeartbeat, closeMediaConnection]);
 
   const close = useCallback(() => {
     roleRef.current = null;
@@ -299,7 +310,8 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
         remoteSpeakingTimerRef.current = null;
         if (envelope.on) {
           setRemoteSpeaking(true);
-          // Sinyal kaybolursa mikrofon sonsuza kadar kapalı kalmasın.
+          // Sinyal kaybolursa mikrofon sonsuza kadar kapalı kalmasın. Gönderen
+          // konuşurken ~1.8 sn heartbeat yolladığı için bu yalnız gerçek kopmada çalışır.
           remoteSpeakingTimerRef.current = window.setTimeout(() => setRemoteSpeaking(false), 6000);
         } else {
           // Konuşma bittikten sonra hoparlörden gelen kuyruk da geçsin diye
@@ -438,10 +450,21 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   }, []);
 
   const sendSpeaking = useCallback((on: boolean) => {
+    if (!on) clearSpeakingHeartbeat();
     if (!connectionRef.current?.open) return false;
     connectionRef.current.send({ kind: "speaking", on } satisfies Envelope);
+    if (on && speakingHeartbeatTimerRef.current === null) {
+      speakingHeartbeatTimerRef.current = window.setInterval(() => {
+        const connection = connectionRef.current;
+        if (!connection?.open) {
+          clearSpeakingHeartbeat();
+          return;
+        }
+        connection.send({ kind: "speaking", on: true } satisfies Envelope);
+      }, 1800);
+    }
     return true;
-  }, []);
+  }, [clearSpeakingHeartbeat]);
 
   return {
     remoteSpeaking,
