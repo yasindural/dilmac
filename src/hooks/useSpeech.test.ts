@@ -1,7 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getSpeechErrorMessage } from "./useSpeech";
-import { useSpeech } from "./useSpeech";
+import { getSpeechErrorMessage, shouldIgnoreTranscript, useSpeech } from "./useSpeech";
 
 class MockRecognition {
   static latest: MockRecognition | null = null;
@@ -36,7 +35,31 @@ describe("getSpeechErrorMessage", () => {
   it("keeps an actionable fallback for unknown errors", () => {
     expect(getSpeechErrorMessage("network")).toBe("Mikrofon hatası: network");
   });
+});
 
+describe("konuşma filtresi", () => {
+  it("kısa ama anlamlı cevapları atmaz", () => {
+    const previous = { text: "", at: 0 };
+    expect(shouldIgnoreTranscript("no", 0.91, previous, 10_000)).toBe(false);
+    expect(shouldIgnoreTranscript("ja", 0.91, previous, 10_000)).toBe(false);
+    expect(shouldIgnoreTranscript("ok", 0.91, previous, 10_000)).toBe(false);
+    expect(shouldIgnoreTranscript("i", 0.91, previous, 10_000)).toBe(false);
+  });
+
+  it("uzatılmış dolgu seslerini süzer", () => {
+    const previous = { text: "", at: 0 };
+    expect(shouldIgnoreTranscript("ııı", 0.9, previous, 10_000)).toBe(true);
+    expect(shouldIgnoreTranscript("mmm", 0.9, previous, 10_000)).toBe(true);
+  });
+
+  it("aynı gerçek cevabın bir saniyeden sonra tekrar söylenmesine izin verir", () => {
+    const previous = { text: "hayır", at: 10_000 };
+    expect(shouldIgnoreTranscript("hayır", 0.9, previous, 10_500)).toBe(true);
+    expect(shouldIgnoreTranscript("hayır", 0.9, previous, 11_050)).toBe(false);
+  });
+});
+
+describe("useSpeech", () => {
   it("submits a stable interim sentence on iPhone even when WebKit never sends a final result", () => {
     vi.useFakeTimers();
     vi.spyOn(window.navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (iPhone) AppleWebKit/605.1.15 CriOS/140 Mobile");

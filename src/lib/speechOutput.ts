@@ -219,11 +219,19 @@ type SpeechQueueItem = { text: string; lang: string; handlers: SpeechOutputHandl
 
 const speechQueue: SpeechQueueItem[] = [];
 let queueRunning = false;
+// Oda akışı ilk gelen otomatik ses için mikrofonu durdurur. O ilk öğenin
+// onEnd/onError callback'i kuyruk hâlâ doluyken çalışırsa App bilinçli olarak
+// mikrofonu açmaz. Bu callback'i kuyruk tamamen boşaldığında bir kez daha
+// çağırarak hızlı art arda çevirilerden sonra mikrofonun kapalı kalmasını önleriz.
+let queueIdleCallback: (() => void) | null = null;
 
 function runSpeechQueue() {
   const item = speechQueue.shift();
   if (!item) {
     queueRunning = false;
+    const callback = queueIdleCallback;
+    queueIdleCallback = null;
+    callback?.();
     return;
   }
   queueRunning = true;
@@ -244,6 +252,7 @@ function runSpeechQueue() {
 /** Sıraya alır; önceki seslendirmeyi kesmez. */
 export function queueSpeech(text: string, lang: string, handlers: SpeechOutputHandlers = {}) {
   if (!text.trim()) return false;
+  if (!queueIdleCallback) queueIdleCallback = handlers.onEnd || handlers.onError || null;
   speechQueue.push({ text, lang, handlers });
   if (!queueRunning) runSpeechQueue();
   return true;
@@ -258,5 +267,6 @@ export function isSpeechQueueBusy() {
 export function clearSpeechQueue() {
   speechQueue.length = 0;
   queueRunning = false;
+  queueIdleCallback = null;
   stopSpeechOutput();
 }

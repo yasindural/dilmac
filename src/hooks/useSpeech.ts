@@ -19,6 +19,8 @@ type SpeechRecognitionLike = {
   onend: (() => void) | null;
 };
 
+const DUPLICATE_FINAL_WINDOW_MS = 900;
+
 export function getSpeechErrorMessage(error: string) {
   if (error === "not-allowed") {
     return "Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.";
@@ -27,6 +29,22 @@ export function getSpeechErrorMessage(error: string) {
     return "Dinleme tarayıcı tarafından durduruldu. Aynı cihazda başka bir TerraSpeak sekmesi dinliyorsa onu durdurup tekrar deneyin.";
   }
   return `Mikrofon hatası: ${error}`;
+}
+
+export function shouldIgnoreTranscript(
+  normalized: string,
+  confidence: number,
+  lastFinal: { text: string; at: number },
+  now = Date.now(),
+) {
+  // Web Speech tek harflik/iki harflik ama gerçek cevaplar üretebilir:
+  // "I", "no", "OK", "ja" gibi ifadeleri sırf kısa diye atma. Yalnızca
+  // tipik uzatılmış dolgu seslerini, gerçekten düşük güvenli sonuçları ve
+  // tarayıcının aynı final eventi hemen iki kez vermesini süz.
+  const isNoise = /^(?:ı{2,}|e{2,}|a{2,}|h+m+|m{2,}|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
+  const isWeak = normalized.length === 0 || (confidence > 0 && confidence < 0.25);
+  const isDuplicate = lastFinal.text === normalized && now - lastFinal.at < DUPLICATE_FINAL_WINDOW_MS;
+  return isNoise || isWeak || isDuplicate;
 }
 
 export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAfterFinal = false) {
@@ -99,13 +117,12 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
       if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
       interimCommitTimerRef.current = null;
       const normalized = transcript.toLocaleLowerCase(lang).replace(/[^\p{L}\p{N}\s]/gu, "").trim();
-      const isNoise = /^(ı+|h+m+|m+|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
-      const isWeak = normalized.length < 3 || (confidence > 0 && confidence < 0.35);
-      const isDuplicate = lastFinalRef.current.text === normalized && Date.now() - lastFinalRef.current.at < 4000;
+      const now = Date.now();
+      const ignored = shouldIgnoreTranscript(normalized, confidence, lastFinalRef.current, now);
       setInterimText("");
       lastInterimRef.current = "";
-      if (isNoise || isWeak || isDuplicate) return;
-      lastFinalRef.current = { text: normalized, at: Date.now() };
+      if (ignored) return;
+      lastFinalRef.current = { text: normalized, at: now };
       networkRetriesRef.current = 0;
       setError("");
       setActivityTick((value) => value + 1);
@@ -201,4 +218,3 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
 
   return { supported, listening, error, toggle, stop, activityTick, interimText };
 }
-

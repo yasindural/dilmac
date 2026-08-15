@@ -60,6 +60,8 @@ export class MessageQueue {
   retry(id: string) {
     const item = this.items.find((candidate) => candidate.id === id && candidate.status === "failed");
     if (!item) return;
+    // Hata sırasında yeni konuşma parçaları kaynak metne eklenmiş olabilir.
+    // Retry her zaman tam source'u yeniden çevirir; böylece eski kısım kaybolmaz.
     item.status = "queued";
     item.error = undefined;
     this.emit();
@@ -77,14 +79,17 @@ export class MessageQueue {
     }
   }
 
-  snapshot() { return this.items.map((item) => ({ ...item })); }
+  snapshot() { return this.items.map((item) => ({ ...item, pendingSegments: [...item.pendingSegments] })); }
 
   private async drain() {
     if (this.processing) return;
     this.processing = true;
     try {
       while (true) {
-        const item = this.items.find((candidate) => candidate.status === "queued" || candidate.pendingSegments.length > 0);
+        // failed öğeyi pendingSegments var diye kendiliğinden tekrar işleme.
+        // Kullanıcı retry dediğinde queued olur ve bütün source yeniden çevrilir.
+        const item = this.items.find((candidate) => candidate.status === "queued"
+          || (candidate.status !== "failed" && candidate.pendingSegments.length > 0));
         if (!item) break;
         const sameLanguage = item.sourceLanguage.trim().toLocaleLowerCase("tr") === item.targetLanguage.trim().toLocaleLowerCase("tr");
         // Gönderilmiş mesaja eklenen parça: yalnızca yeni parça çevrilir,
