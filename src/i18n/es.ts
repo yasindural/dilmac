@@ -345,7 +345,7 @@ export const es = {
   "sub.checkoutClose": "Cerrar los datos de facturación",
   "sub.verifyEyebrow": "Seguridad de la cuenta",
   "sub.verifyTitle": "Verifica primero tu correo",
-  "sub.verifyText": "Antes de iniciar tu suscripción, haz clic en el enlace de verificación que enviamos a {email}. Si no ves el correo, revisa la carpeta de spam.",
+  "sub.verifyText": "Antes de usar tu cuenta, confirma el correo de verificación que enviamos a {email}. Si no lo ves, revisa la carpeta de spam.",
   "sub.verifyResend": "Reenviar correo",
   "sub.verifySent": "Correo de verificación enviado.",
   "sub.verifyCheck": "Ya lo verifiqué, continuar",

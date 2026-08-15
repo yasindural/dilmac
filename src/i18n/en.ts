@@ -345,7 +345,7 @@ export const en = {
   "sub.checkoutClose": "Close billing details",
   "sub.verifyEyebrow": "Account security",
   "sub.verifyTitle": "Verify your email first",
-  "sub.verifyText": "Before starting your subscription, click the verification link we sent to {email}. If you can't see the email, check your spam folder.",
+  "sub.verifyText": "Before you start using your account, confirm the verification email we sent to {email}. If you can't see it, check your spam folder.",
   "sub.verifyResend": "Resend email",
   "sub.verifySent": "Verification email sent.",
   "sub.verifyCheck": "I've verified, continue",

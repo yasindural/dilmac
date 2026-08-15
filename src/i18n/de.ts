@@ -345,7 +345,7 @@ export const de = {
   "sub.checkoutClose": "Zahlungsdaten schließen",
   "sub.verifyEyebrow": "Kontosicherheit",
   "sub.verifyTitle": "Bestätige zuerst deine E-Mail",
-  "sub.verifyText": "Bevor du dein Abo startest, klicke auf den Bestätigungslink, den wir an {email} gesendet haben. Falls du die E-Mail nicht findest, sieh im Spam-Ordner nach.",
+  "sub.verifyText": "Bestätige zuerst die Verifizierungs-E-Mail, die wir an {email} gesendet haben, bevor du dein Konto nutzt. Falls du sie nicht findest, sieh im Spam-Ordner nach.",
   "sub.verifyResend": "E-Mail erneut senden",
   "sub.verifySent": "Bestätigungs-E-Mail gesendet.",
   "sub.verifyCheck": "Bestätigt, weiter",

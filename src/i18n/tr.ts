@@ -343,7 +343,7 @@ export const tr = {
   "sub.checkoutClose": "Ödeme bilgilerini kapat",
   "sub.verifyEyebrow": "Hesap güvenliği",
   "sub.verifyTitle": "Önce e-postanızı doğrulayın",
-  "sub.verifyText": "Aboneliği başlatmadan önce {email} adresine gönderdiğimiz doğrulama bağlantısına tıklayın. E-postayı göremiyorsanız spam klasörünü kontrol edin.",
+  "sub.verifyText": "Hesabınızı kullanmaya başlamadan önce {email} adresine gönderdiğimiz doğrulama e-postasını onaylayın. E-postayı göremiyorsanız spam klasörünü kontrol edin.",
   "sub.verifyResend": "E-postayı yeniden gönder",
   "sub.verifySent": "Doğrulama e-postası gönderildi.",
   "sub.verifyCheck": "Doğruladım, devam et",
