@@ -1,4 +1,6 @@
 const allowedOrigins = new Set([
+  "https://terraspeak.com",
+  "https://www.terraspeak.com",
   "https://yasindural.github.io",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -9,7 +11,7 @@ const json = (body, status = 200, origin = "") => new Response(JSON.stringify(bo
   status,
   headers: {
     "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://yasindural.github.io",
+    "Access-Control-Allow-Origin": allowedOrigins.has(origin) ? origin : "https://terraspeak.com",
     "Vary": "Origin",
     "Cache-Control": "no-store",
   },
@@ -32,7 +34,7 @@ const openRouter = async (env, body, title) => {
     headers: {
       Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://yasindural.github.io/dilmac/",
+      "HTTP-Referer": "https://terraspeak.com/",
       "X-Title": title,
     },
     body: JSON.stringify(body),

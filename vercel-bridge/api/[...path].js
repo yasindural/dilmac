@@ -1,5 +1,7 @@
 const UPSTREAM = "https://dilmac-api.yasdural.workers.dev";
 const ALLOWED_ORIGINS = new Set([
+  "https://terraspeak.com",
+  "https://www.terraspeak.com",
   "https://yasindural.github.io",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
