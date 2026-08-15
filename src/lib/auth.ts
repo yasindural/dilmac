@@ -6,4 +6,8 @@ export const registerEmail=async(email:string,password:string,displayName:string
 // Google hesaplarının adresi zaten Google tarafından doğrulanmıştır.
 export const isPasswordAccount=(user:User)=>user.providerData.some((p)=>p.providerId==='password');
 export const resendVerification=()=>{const current=auth?.currentUser;if(!current)return Promise.reject(new Error('Oturum bulunamadı.'));return sendEmailVerification(current)};
-export const loginEmail=(email:string,password:string)=>{if(!auth)throw new Error('Giriş sistemi henüz yapılandırılmadı.');return signInWithEmailAndPassword(auth,email,password)};
+export const loginEmail=async(email:string,password:string)=>{if(!auth)throw new Error('Giriş sistemi henüz yapılandırılmadı.');const result=await signInWithEmailAndPassword(auth,email,password);
+// Adresi hâlâ doğrulanmamış kullanıcıya her girişte doğrulama bağlantısı gider;
+// Firebase art arda istekleri kendisi sınırlar, hata olursa giriş engellenmez.
+if(!result.user.emailVerified){try{await sendEmailVerification(result.user)}catch{/* kota sınırı olabilir, sessiz geç */}}
+return result};

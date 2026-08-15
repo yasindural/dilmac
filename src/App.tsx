@@ -1008,6 +1008,9 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
   // çıkışta bileşeni söküp yeniden kurmaz ve oda bağlantısı ile mikrofon
   // lobide açık kalır. key, ayrılınca tam temizlik garantisi verir.
   const { roomId } = useParams();
+  // Dakika yalnızca oda SAHİBİNDEN düşer: davet edilen misafir ne süre yakar
+  // ne de süre duvarına takılır. Kayıt şartı (anonymous) misafir için de geçerli.
+  const isGuest = Boolean(roomId) && new URLSearchParams(location.search).get("role") !== "host";
   // Sayaç yalnızca gerçekten konuşulurken işler. Odayı açıp karşı tarafı
   // beklemek, bağlantı kurulmadan durmak veya sekmeyi arka plana almak
   // kullanıcının hakkını yakmaz.
@@ -1016,11 +1019,13 @@ function LiveTranslation({ user, profile, authChecked }: { user: User | null; pr
     uid: user?.uid || null,
     plan: profile?.plan || "free",
     feature: "live",
-    active: visible && conversing,
+    active: visible && conversing && !isGuest,
     ready: authChecked,
   });
+  // Misafir süre duvarını hiç görmez; kayıtlı olduğu sürece sınırsız katılır.
+  const gateState = isGuest && (access.state === "trial" || access.state === "expired") ? "subscribed" : access.state;
   return (
-    <AccessGate state={access.state} remaining={access.remaining} paused={!conversing}>
+    <AccessGate state={gateState} remaining={access.remaining} paused={!conversing}>
       <Translator key={roomId || "lobby"} onConversingChange={setConversing} />
     </AccessGate>
   );
