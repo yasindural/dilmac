@@ -39,7 +39,7 @@ describe("site sözlükleri", () => {
       "tour.s2t", "info.privacy.s1t", // Mikrofon
       "room.sizeNormal", // "Normal" beş dilde de aynı
     ]);
-    const brandish = /^(Dilmaç|Pro|AI|Paddle|WebRTC|Türkçe|English|Deutsch|Français|Español)$/;
+    const brandish = /^(TerraSpeak|Pro|AI|Paddle|WebRTC|Türkçe|English|Deutsch|Français|Español)$/;
     for (const lang of ["en", "de", "fr", "es"] as const) {
       const copies = Object.keys(tr).filter((key) => {
         const source = tr[key as keyof typeof tr];

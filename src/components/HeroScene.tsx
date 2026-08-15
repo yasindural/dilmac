@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useI18n } from "../lib/i18n";
 
 // Hero sahnesi: dev bir mikrofon fareyle hafifçe eğilir, sayfa aşağı
-// kaydıkça küçülüp saydamlaşır ve yerini Dilmaç telefon arayüzüne bırakır;
+// kaydıkça küçülüp saydamlaşır ve yerini TerraSpeak telefon arayüzüne bırakır;
 // en sonda iki konuşmacı yanlara açılır. Tüm hareket yalnızca CSS custom
 // property'leri üzerinden transform/opacity ile yapılır — layout hesabı yok,
 // bu yüzden mobilde de akıcı çalışır.

@@ -20,7 +20,7 @@ const TURKISH_MARKERS = [
 ];
 
 const DEMO_ALLOWED = [
-  "Türkçe", "Dilmaç", "Yarınki toplantı saat kaçta?", "Saat onda başlıyor.",
+  "Türkçe", "TerraSpeak", "Yarınki toplantı saat kaçta?", "Saat onda başlıyor.",
 ];
 
 function renderAt(path: string, lang: SiteLang) {

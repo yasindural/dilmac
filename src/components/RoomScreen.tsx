@@ -156,7 +156,7 @@ export default function RoomScreen(props: RoomScreenProps) {
   const share = async () => {
     if (!inviteLink) return;
     try {
-      if (canShare) await navigator.share({ title: "Dilmaç", text: t("room.inviteText", { room: roomCode }), url: inviteLink });
+      if (canShare) await navigator.share({ title: "TerraSpeak", text: t("room.inviteText", { room: roomCode }), url: inviteLink });
       else await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);

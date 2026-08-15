@@ -37,7 +37,7 @@ import {
   Heart,
   Star,
 } from "lucide-react";
-import { authReady, loginEmail, loginGoogle, logout, observeUser, registerEmail } from "./lib/auth";
+import { authReady, isPasswordAccount, loginEmail, loginGoogle, logout, observeUser, registerEmail, resendVerification } from "./lib/auth";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
@@ -96,7 +96,7 @@ function Brand() {
   return (
     <Link className="brand" to="/" aria-label={ariaBrand}>
       <BrandMark />
-      <strong>Dilmaç</strong>
+      <strong>TerraSpeak</strong>
     </Link>
   );
 }
@@ -270,7 +270,7 @@ function Layout({
           </div>
         </div>
         <div className="foot-bottom">
-          <span>© {new Date().getFullYear()} Dilmaç</span>
+          <span>© {new Date().getFullYear()} TerraSpeak</span>
           <em>{t("foot.tagline")}</em>
         </div>
       </footer>
@@ -368,6 +368,12 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
   const [checkoutLastName, setCheckoutLastName] = useState("");
   const [checkoutGmail, setCheckoutGmail] = useState("");
   const [checkoutError, setCheckoutError] = useState("");
+  // E-posta/şifre hesabı doğrulanmadan ödeme akışına giremez; Google
+  // hesapları bu kapıyı hiç görmez.
+  const [verifyUser, setVerifyUser] = useState<User | null>(null);
+  const [verifyPlan, setVerifyPlan] = useState<PlanId | null>(null);
+  const [verifyNotice, setVerifyNotice] = useState<"" | "sent" | "still" | "error">("");
+  const [verifyBusy, setVerifyBusy] = useState(false);
   const { t, lang } = useI18n();
   const [localizedPrices, setLocalizedPrices] = useState<Partial<Record<PlanId, string>>>({});
   const planCatalog = localizedPlans(t, localizedPrices);
@@ -437,6 +443,31 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
     }
   };
 
+  const resendVerifyEmail = async () => {
+    setVerifyBusy(true);
+    try { await resendVerification(); setVerifyNotice("sent"); }
+    catch { setVerifyNotice("error"); }
+    finally { setVerifyBusy(false); }
+  };
+
+  const confirmVerified = async () => {
+    if (!verifyUser || !verifyPlan) return;
+    setVerifyBusy(true);
+    try {
+      await verifyUser.reload();
+      if (verifyUser.emailVerified) {
+        const plan = verifyPlan;
+        const activeUser = verifyUser;
+        setVerifyUser(null);
+        setVerifyPlan(null);
+        requestCheckoutDetails(plan, activeUser);
+      } else {
+        setVerifyNotice("still");
+      }
+    } catch { setVerifyNotice("still"); }
+    finally { setVerifyBusy(false); }
+  };
+
   const choose = async (plan: PlanId) => {
     setError("");
     setBusy(plan);
@@ -450,6 +481,13 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
       // Ödeme sağlayıcısı bağlıysa ücretli planlar gerçek checkout'a gider;
       // plan, ödeme onaylanınca webhook üzerinden sunucuya yazılır.
       if (plan !== "free" && billingProvider() !== "none") {
+        if (isPasswordAccount(activeUser) && !activeUser.emailVerified) {
+          setVerifyUser(activeUser);
+          setVerifyPlan(plan);
+          setVerifyNotice("");
+          setBusy(null);
+          return;
+        }
         requestCheckoutDetails(plan, activeUser);
         setBusy(null);
         return;
@@ -477,6 +515,35 @@ function SubscriptionPage({ user, profile, onSaveForUser }: { user: User | null;
         <span><Lock />{t("sub.assure3")}</span>
         <span><CheckCircle2 />{t("sub.assure4")}</span>
       </div>
+
+      {verifyUser && verifyPlan && !checkoutPlan && (
+        <div className="checkout-details-backdrop" role="presentation">
+          <section className="checkout-details-card" role="dialog" aria-modal="true" aria-labelledby="verify-email-title">
+            <button
+              className="checkout-details-close"
+              type="button"
+              aria-label={t("sub.checkoutClose")}
+              disabled={verifyBusy}
+              onClick={() => { setVerifyUser(null); setVerifyPlan(null); }}
+            >
+              <X />
+            </button>
+            <div className="checkout-details-brand"><Mail /></div>
+            <span className="checkout-details-eyebrow"><ShieldCheck /> {t("sub.verifyEyebrow")}</span>
+            <h2 id="verify-email-title">{t("sub.verifyTitle")}</h2>
+            <p className="checkout-details-intro">{t("sub.verifyText", { email: verifyUser.email || "" })}</p>
+            {verifyNotice === "sent" && <div className="checkout-details-trust"><span><CheckCircle2 />{t("sub.verifySent")}</span></div>}
+            {verifyNotice === "still" && <div className="checkout-details-error" role="alert"><AlertCircle />{t("sub.verifyStill")}</div>}
+            {verifyNotice === "error" && <div className="checkout-details-error" role="alert"><AlertCircle />{t("sub.verifyError")}</div>}
+            <div className="checkout-details-actions">
+              <button className="ghost" type="button" disabled={verifyBusy} onClick={resendVerifyEmail}>{t("sub.verifyResend")}</button>
+              <button className="primary" type="button" disabled={verifyBusy} onClick={confirmVerified}>
+                {verifyBusy ? t("sub.processing") : t("sub.verifyCheck")}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {checkoutPlan && checkoutUser && (
         <div className="checkout-details-backdrop" role="presentation">
@@ -1565,7 +1632,7 @@ function ContactPage() {
   };
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const subject = `Dilmaç teklif isteği · ${form.company || form.name}`;
+    const subject = `TerraSpeak teklif isteği · ${form.company || form.name}`;
     const body = [
       `${copy.name}: ${form.name}`,
       `${copy.email}: ${form.email}`,

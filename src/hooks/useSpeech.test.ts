@@ -30,7 +30,7 @@ describe("getSpeechErrorMessage", () => {
   });
 
   it("explains same-device recognition interruptions", () => {
-    expect(getSpeechErrorMessage("aborted")).toContain("başka bir Dilmaç sekmesi");
+    expect(getSpeechErrorMessage("aborted")).toContain("başka bir TerraSpeak sekmesi");
   });
 
   it("keeps an actionable fallback for unknown errors", () => {

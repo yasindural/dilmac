@@ -1,5 +1,9 @@
-import {initializeApp,getApps} from 'firebase/app';import {createUserWithEmailAndPassword,getAuth,GoogleAuthProvider,signInWithEmailAndPassword,signInWithPopup,signOut,updateProfile,User} from 'firebase/auth';
+import {initializeApp,getApps} from 'firebase/app';import {createUserWithEmailAndPassword,getAuth,GoogleAuthProvider,sendEmailVerification,signInWithEmailAndPassword,signInWithPopup,signOut,updateProfile,User} from 'firebase/auth';
 const cfg={apiKey:import.meta.env.VITE_FIREBASE_API_KEY,authDomain:import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,projectId:import.meta.env.VITE_FIREBASE_PROJECT_ID};
 export const authReady=Boolean(cfg.apiKey&&cfg.authDomain&&cfg.projectId);let auth:ReturnType<typeof getAuth>|null=null;if(authReady){auth=getAuth(getApps()[0]||initializeApp(cfg))}export const loginGoogle=()=>{if(!auth)throw new Error('Google girişi henüz yapılandırılmadı.');return signInWithPopup(auth,new GoogleAuthProvider())};export const logout=()=>auth?signOut(auth):Promise.resolve();export const observeUser=(cb:(u:User|null)=>void)=>auth?auth.onAuthStateChanged(cb):()=>{};
-export const registerEmail=async(email:string,password:string,displayName:string)=>{if(!auth)throw new Error('Kayıt sistemi henüz yapılandırılmadı.');const result=await createUserWithEmailAndPassword(auth,email,password);await updateProfile(result.user,{displayName});return result};
+export const registerEmail=async(email:string,password:string,displayName:string)=>{if(!auth)throw new Error('Kayıt sistemi henüz yapılandırılmadı.');const result=await createUserWithEmailAndPassword(auth,email,password);await updateProfile(result.user,{displayName});try{await sendEmailVerification(result.user)}catch{/* doğrulama e-postası sonra yeniden istenebilir */}return result};
+// E-posta/şifre hesapları abonelik öncesi adreslerini doğrulamak zorunda;
+// Google hesaplarının adresi zaten Google tarafından doğrulanmıştır.
+export const isPasswordAccount=(user:User)=>user.providerData.some((p)=>p.providerId==='password');
+export const resendVerification=()=>{const current=auth?.currentUser;if(!current)return Promise.reject(new Error('Oturum bulunamadı.'));return sendEmailVerification(current)};
 export const loginEmail=(email:string,password:string)=>{if(!auth)throw new Error('Giriş sistemi henüz yapılandırılmadı.');return signInWithEmailAndPassword(auth,email,password)};

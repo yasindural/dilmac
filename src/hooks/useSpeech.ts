@@ -24,7 +24,7 @@ export function getSpeechErrorMessage(error: string) {
     return "Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.";
   }
   if (error === "aborted") {
-    return "Dinleme tarayıcı tarafından durduruldu. Aynı cihazda başka bir Dilmaç sekmesi dinliyorsa onu durdurup tekrar deneyin.";
+    return "Dinleme tarayıcı tarafından durduruldu. Aynı cihazda başka bir TerraSpeak sekmesi dinliyorsa onu durdurup tekrar deneyin.";
   }
   return `Mikrofon hatası: ${error}`;
 }

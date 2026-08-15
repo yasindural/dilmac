@@ -1,4 +1,4 @@
-// Dilmaç logosu: iki konuşma balonu üst üste — biri dolu (siz), biri
+// TerraSpeak logosu: iki konuşma balonu üst üste — biri dolu (siz), biri
 // çizgili (karşı taraf). Marka gradyanlı yumuşak kare içinde; 24 px'te bile
 // okunur kalsın diye ayrıntı yerine siluet üzerine kurulu.
 export default function BrandMark({ className = "brandmark" }: { className?: string }) {

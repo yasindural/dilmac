@@ -1,4 +1,4 @@
-// Dilmaç'ın konuşma dilleri — tek gerçek kaynak.
+// TerraSpeak'in konuşma dilleri — tek gerçek kaynak.
 //
 // Üç ayrı isim alanı bilinçli olarak ayrıştırıldı:
 //   code : Web Speech API'nin tanıma/seslendirme kodu (BCP-47)
