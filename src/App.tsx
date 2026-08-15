@@ -38,6 +38,7 @@ import {
   Star,
 } from "lucide-react";
 import { authReady, loginEmail, loginGoogle, logout, observeUser, registerEmail, resendVerification } from "./lib/auth";
+import { isCodeVerified, sendVerificationCode, verifyEmailCode } from "./lib/emailVerify";
 import type { User } from "firebase/auth";
 import { translate } from "./lib/translation";
 import { useSpeech } from "./hooks/useSpeech";
@@ -296,15 +297,46 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  // E-posta/şifre hesabı adresini doğrulamadan içeri alınmaz; doğrulama
-  // e-postası kayıt ve girişte otomatik gönderilir (auth.ts).
+  // E-posta/şifre hesabı adresini doğrulamadan içeri alınmaz. Öncelik 6
+  // haneli kod (Resend); kod gönderilemezse Firebase bağlantı yöntemine
+  // düşülür. Kodla doğrulanan hesaplar sunucuda işaretlenir (verified_emails).
   const [verifyPending, setVerifyPending] = useState<User | null>(null);
-  const [verifyNotice, setVerifyNotice] = useState<"" | "sent" | "still" | "error">("");
+  const [verifyMode, setVerifyMode] = useState<"code" | "link">("link");
+  const [verifyNotice, setVerifyNotice] = useState<"" | "sent" | "still" | "error" | "wrong" | "expired" | "cooldown" | "toomany">("");
+  const [codeValue, setCodeValue] = useState("");
+  useEffect(() => {
+    if (!verifyPending) return;
+    let activeRequest = true;
+    void sendVerificationCode(verifyPending.uid, verifyPending.email || "").then((result) => {
+      if (!activeRequest) return;
+      if (result === "sent") { setVerifyMode("code"); setVerifyNotice("sent"); }
+      else if (result === "cooldown") { setVerifyMode("code"); setVerifyNotice("cooldown"); }
+      else setVerifyMode("link");
+    });
+    return () => { activeRequest = false; };
+  }, [verifyPending]);
   const resendVerifyEmail = async () => {
+    if (!verifyPending) return;
     setBusy(true);
-    try { await resendVerification(); setVerifyNotice("sent"); }
-    catch { setVerifyNotice("error"); }
+    try {
+      if (verifyMode === "code") {
+        const result = await sendVerificationCode(verifyPending.uid, verifyPending.email || "");
+        setVerifyNotice(result === "sent" ? "sent" : result === "cooldown" ? "cooldown" : "error");
+        if (result === "link-fallback") setVerifyMode("link");
+      } else {
+        await resendVerification();
+        setVerifyNotice("sent");
+      }
+    } catch { setVerifyNotice("error"); }
     finally { setBusy(false); }
+  };
+  const submitCode = async () => {
+    if (!verifyPending || codeValue.trim().length !== 6) return;
+    setBusy(true);
+    const result = await verifyEmailCode(verifyPending.uid, codeValue.trim());
+    if (result === "ok") { navigate("/uygulama"); return; }
+    setVerifyNotice(result === "expired" ? "expired" : result === "too-many" ? "toomany" : "wrong");
+    setBusy(false);
   };
   const confirmVerified = async () => {
     if (!verifyPending) return;
@@ -337,7 +369,7 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
         return;
       }
       const result = await loginEmail(email.trim(), password);
-      if (!result.user.emailVerified) {
+      if (!result.user.emailVerified && !(await isCodeVerified(result.user.uid))) {
         setVerifyNotice("");
         setVerifyPending(result.user);
         return;
@@ -366,12 +398,42 @@ function AuthPage({ onRegistered }: { onRegistered: (user: User, profile: Member
     <div className="auth-card">
       {verifyPending ? (<>
       <h2>{t("sub.verifyTitle")}</h2>
-      <p>{t("sub.verifyText", { email: verifyPending.email || "" })}</p>
-      {verifyNotice === "sent" && <p>{t("sub.verifySent")}</p>}
-      {verifyNotice === "still" && <div className="auth-error"><AlertCircle />{t("sub.verifyStill")}</div>}
-      {verifyNotice === "error" && <div className="auth-error"><AlertCircle />{t("sub.verifyError")}</div>}
-      <button className="primary" type="button" disabled={busy} onClick={confirmVerified}>{busy ? t("auth.busy") : t("sub.verifyCheck")}<ArrowRight /></button>
-      <button className="ghost" type="button" disabled={busy} onClick={resendVerifyEmail}>{t("sub.verifyResend")}</button>
+      {verifyMode === "code" ? (
+        <>
+          <p>{t("sub.verifyCodeText", { email: verifyPending.email || "" })}</p>
+          <form onSubmit={(event) => { event.preventDefault(); void submitCode(); }}>
+            <label>
+              <span><Mail />{t("sub.verifyCodeLabel")}</span>
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={codeValue}
+                onChange={(event) => setCodeValue(event.target.value.replace(/\D/g, ""))}
+                placeholder={t("sub.verifyCodePh")}
+                autoFocus
+              />
+            </label>
+            {verifyNotice === "sent" && <p>{t("sub.verifyCodeSent")}</p>}
+            {verifyNotice === "cooldown" && <p>{t("sub.verifyCodeCooldown")}</p>}
+            {verifyNotice === "wrong" && <div className="auth-error"><AlertCircle />{t("sub.verifyCodeWrong")}</div>}
+            {verifyNotice === "expired" && <div className="auth-error"><AlertCircle />{t("sub.verifyCodeExpired")}</div>}
+            {verifyNotice === "toomany" && <div className="auth-error"><AlertCircle />{t("sub.verifyCodeTooMany")}</div>}
+            {verifyNotice === "error" && <div className="auth-error"><AlertCircle />{t("sub.verifyError")}</div>}
+            <button className="primary" type="submit" disabled={busy || codeValue.length !== 6}>{busy ? t("auth.busy") : t("sub.verifyCodeBtn")}<ArrowRight /></button>
+          </form>
+          <button className="ghost" type="button" disabled={busy} onClick={resendVerifyEmail}>{t("sub.verifyCodeResend")}</button>
+        </>
+      ) : (
+        <>
+          <p>{t("sub.verifyText", { email: verifyPending.email || "" })}</p>
+          {verifyNotice === "sent" && <p>{t("sub.verifySent")}</p>}
+          {verifyNotice === "still" && <div className="auth-error"><AlertCircle />{t("sub.verifyStill")}</div>}
+          {verifyNotice === "error" && <div className="auth-error"><AlertCircle />{t("sub.verifyError")}</div>}
+          <button className="primary" type="button" disabled={busy} onClick={confirmVerified}>{busy ? t("auth.busy") : t("sub.verifyCheck")}<ArrowRight /></button>
+          <button className="ghost" type="button" disabled={busy} onClick={resendVerifyEmail}>{t("sub.verifyResend")}</button>
+        </>
+      )}
       </>) : (<>
       <h2>{mode === "register" ? t("auth.createTitle") : t("auth.welcomeTitle")}</h2>
       <p>{mode === "register" ? t("auth.createSub") : t("auth.welcomeSub")}</p>

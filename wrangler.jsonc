@@ -19,6 +19,7 @@
   ],
   "vars": {
     "OPENROUTER_MODEL": "google/gemini-3.7-flash",
-    "OPENROUTER_FALLBACK_MODEL": "openai/gpt-4.1-mini"
+    "OPENROUTER_FALLBACK_MODEL": "openai/gpt-4.1-mini",
+    "RESEND_FROM": "TerraSpeak <dogrulama@terraspeak.com>"
   }
 }

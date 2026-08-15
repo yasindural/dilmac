@@ -70,6 +70,11 @@ const planFromEvent = (env, event) => {
   return null;
 };
 
+const sha256Hex = async (value) => {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
 const clean = (value, max) => String(value ?? "").replace(/sk-or-v1-[a-z0-9]+/gi, "[secret]").slice(0, max);
 const recordError = async (env, entry) => {
   const safe = {
@@ -158,6 +163,88 @@ export default {
         return json({ plan: null }, 200, origin);
       }
     }
+    // --- E-posta doğrulama: 6 haneli kod ---
+    // Kod, Resend üzerinden gönderilir. RESEND_API_KEY yoksa istemci 503'ü
+    // görüp Firebase bağlantı yöntemine düşer; site hiçbir zaman kilitlenmez.
+    if (path === "/auth/status") {
+      const uid = String(input.uid || "").trim().slice(0, 128);
+      if (!uid) return json({ error: "invalid_request" }, 400, origin);
+      try {
+        const row = await env.dilmac_logs.prepare("SELECT uid FROM verified_emails WHERE uid = ?1").bind(uid).first();
+        return json({ verified: Boolean(row) }, 200, origin);
+      } catch { return json({ verified: false }, 200, origin); }
+    }
+    if (path === "/auth/send-code") {
+      if (!env.RESEND_API_KEY) return json({ error: "not_configured" }, 503, origin);
+      const uid = String(input.uid || "").trim().slice(0, 128);
+      const email = String(input.email || "").trim().toLowerCase().slice(0, 254);
+      if (!uid || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "invalid_request" }, 400, origin);
+      // Tekrar-gönderim freni: aynı hesaba dakikada en fazla bir kod.
+      try {
+        const existing = await env.dilmac_logs.prepare("SELECT created_at FROM email_codes WHERE uid = ?1").bind(uid).first();
+        if (existing && Date.now() - Date.parse(`${existing.created_at.replace(" ", "T")}Z`) < 60_000) {
+          return json({ error: "cooldown" }, 429, origin);
+        }
+      } catch { /* tablo yoksa migration eksik; aşağıdaki INSERT zaten hata verir */ }
+      const random = new Uint32Array(1);
+      crypto.getRandomValues(random);
+      const code = String(100000 + (random[0] % 900000));
+      const codeHash = await sha256Hex(`${uid}:${code}`);
+      try {
+        await env.dilmac_logs.prepare(
+          "INSERT INTO email_codes (uid, email, code_hash, attempts, expires_at, created_at) VALUES (?1, ?2, ?3, 0, datetime('now','+10 minutes'), datetime('now')) ON CONFLICT(uid) DO UPDATE SET email = ?2, code_hash = ?3, attempts = 0, expires_at = datetime('now','+10 minutes'), created_at = datetime('now')"
+        ).bind(uid, email, codeHash).run();
+      } catch (dbError) {
+        await recordError(env, { area: "auth", code: "code_write_failed", message: clean(dbError?.message, 200), page: path });
+        return json({ error: "storage_failed" }, 500, origin);
+      }
+      const sent = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        signal: AbortSignal.timeout(10_000),
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: env.RESEND_FROM || "TerraSpeak <dogrulama@terraspeak.com>",
+          to: [email],
+          subject: `TerraSpeak doğrulama kodu: ${code}`,
+          text: `TerraSpeak doğrulama kodunuz: ${code}\n\nKod 10 dakika geçerlidir. Bu isteği siz yapmadıysanız bu e-postayı yok sayabilirsiniz.\n\n—\n\nYour TerraSpeak verification code: ${code}\nThe code is valid for 10 minutes. If you didn't request this, you can ignore this email.`,
+        }),
+      }).catch(() => null);
+      if (!sent || !sent.ok) {
+        await recordError(env, { area: "auth", code: `resend_${sent ? sent.status : "network"}`, message: "Doğrulama kodu e-postası gönderilemedi", page: path });
+        return json({ error: "send_failed" }, 502, origin);
+      }
+      return json({ ok: true }, 200, origin);
+    }
+    if (path === "/auth/verify-code") {
+      const uid = String(input.uid || "").trim().slice(0, 128);
+      const code = String(input.code || "").trim();
+      if (!uid || !/^\d{6}$/.test(code)) return json({ error: "invalid_request" }, 400, origin);
+      let row;
+      try {
+        row = await env.dilmac_logs.prepare("SELECT email, code_hash, attempts, expires_at FROM email_codes WHERE uid = ?1").bind(uid).first();
+      } catch { return json({ error: "storage_failed" }, 500, origin); }
+      if (!row) return json({ error: "code_invalid" }, 400, origin);
+      if (Date.parse(`${row.expires_at.replace(" ", "T")}Z`) < Date.now()) {
+        return json({ error: "code_expired" }, 400, origin);
+      }
+      if (row.attempts >= 5) return json({ error: "too_many_attempts" }, 429, origin);
+      const codeHash = await sha256Hex(`${uid}:${code}`);
+      if (codeHash !== row.code_hash) {
+        try { await env.dilmac_logs.prepare("UPDATE email_codes SET attempts = attempts + 1 WHERE uid = ?1").bind(uid).run(); } catch { /* yoksay */ }
+        return json({ error: "code_invalid" }, 400, origin);
+      }
+      try {
+        await env.dilmac_logs.prepare(
+          "INSERT INTO verified_emails (uid, email, verified_at) VALUES (?1, ?2, datetime('now')) ON CONFLICT(uid) DO UPDATE SET email = ?2, verified_at = datetime('now')"
+        ).bind(uid, row.email).run();
+        await env.dilmac_logs.prepare("DELETE FROM email_codes WHERE uid = ?1").bind(uid).run();
+      } catch (dbError) {
+        await recordError(env, { area: "auth", code: "verified_write_failed", message: clean(dbError?.message, 200), page: path });
+        return json({ error: "storage_failed" }, 500, origin);
+      }
+      return json({ ok: true }, 200, origin);
+    }
+
     if (!env.OPENROUTER_API_KEY) {
       await recordError(env, { area: "backend", code: "service_not_configured", message: "OpenRouter secret is missing", page: path });
       return json({ error: "service_not_configured" }, 503, origin);
