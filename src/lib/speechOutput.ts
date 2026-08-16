@@ -117,7 +117,14 @@ export function unlockSpeechOutput() {
     const primer = new SpeechSynthesisUtterance(" ");
     primer.volume = 0;
     primer.rate = 4;
-    primer.onerror = () => { unlocked = false; };
+    // Hemen ardından gelen gerçek bir seslendirme primer'ı iptal eder; bu bir
+    // başarısızlık değildir. Eskiden bu durumda kilit "açılmamış" sayılıyor ve
+    // sonraki dokunuşlar boşa gidiyordu.
+    primer.onerror = (event) => {
+      const error = (event as SpeechSynthesisErrorEvent).error;
+      if (error === "canceled" || error === "interrupted") return;
+      unlocked = false;
+    };
     synth.speak(primer);
   } catch (error) {
     unlocked = false;
@@ -156,37 +163,140 @@ export type SpeechOutputHandlers = {
   onError?: () => void;
 };
 
-export function speakText(text: string, lang: string, handlers: SpeechOutputHandlers = {}): boolean {
+// ---------------------------------------------------------------------------
+// Seslendirme motoru — tek kuyruk, tek aktif ses
+// ---------------------------------------------------------------------------
+// Bütün seslendirme buradan geçer. Eski tasarımda doğrudan speakText çağrısı
+// (balona dokunup "tekrar oku") kuyruğun o anki sesini iptal ediyor, kuyruk
+// bunu "cümle bitti" sanıp bir sonrakini başlatıyor ve iki ses üst üste
+// biniyordu. Ayrıca cancel() sonrası konuşmayı geciktiren zamanlayıcı iptal
+// edilemiyordu; kuyruk temizlendikten sonra "hayalet" cümleler çalıyordu.
+// Nesil sayacı (generation) her kesme/temizlemede artar; eski nesle ait
+// zamanlayıcı ve callback'ler konuşamaz.
+
+type SpeechQueueItem = { text: string; lang: string; handlers: SpeechOutputHandlers };
+
+const speechQueue: SpeechQueueItem[] = [];
+let queueActive = false;
+let generation = 0;
+let pendingSpeakTimer: number | null = null;
+let breathTimer: number | null = null;
+let watchdogTimer: number | null = null;
+let lastBusy = false;
+const busyListeners = new Set<(busy: boolean) => void>();
+
+/**
+ * Seslendirme başlayınca true, kuyruk tamamen boşalınca false bildirir.
+ * Odada iki iş buna bağlı: mikrofonun geri açılması ve karşı tarafın canlı
+ * sesinin kısılması (ducking).
+ */
+export function onSpeechQueueBusyChange(listener: (busy: boolean) => void) {
+  busyListeners.add(listener);
+  return () => { busyListeners.delete(listener); };
+}
+
+/** Kuyruk tamamen boşalınca (ya da temizlenince) bir kez haber verir. */
+export function onSpeechQueueIdle(listener: () => void) {
+  return onSpeechQueueBusyChange((busy) => { if (!busy) listener(); });
+}
+
+function notifyBusyState() {
+  const busy = queueActive || speechQueue.length > 0;
+  if (busy === lastBusy) return;
+  lastBusy = busy;
+  busyListeners.forEach((listener) => listener(busy));
+}
+
+function clearEngineTimers() {
+  if (pendingSpeakTimer !== null) window.clearTimeout(pendingSpeakTimer);
+  if (breathTimer !== null) window.clearTimeout(breathTimer);
+  if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
+  pendingSpeakTimer = null;
+  breathTimer = null;
+  watchdogTimer = null;
+}
+
+// Aktif sesi ve bekleyen zamanlayıcıları keser; kuyruğa dokunmaz.
+function interruptCurrent() {
+  generation += 1;
+  clearEngineTimers();
+  queueActive = false;
+  stopKeepAlive();
+  getSynthesis()?.cancel();
+}
+
+function runSpeechQueue() {
+  if (queueActive) return;
+  const item = speechQueue.shift();
+  if (!item) {
+    notifyBusyState();
+    return;
+  }
+  queueActive = true;
+  notifyBusyState();
+  const myGeneration = generation;
+  let finished = false;
+  const finish = (failed: boolean) => {
+    // onend + onerror ikisi birden gelebilir; yalnızca ilki sayılır.
+    if (finished) return;
+    finished = true;
+    stopKeepAlive();
+    if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
+    watchdogTimer = null;
+    if (failed) item.handlers.onError?.();
+    else item.handlers.onEnd?.();
+    if (myGeneration !== generation) return; // kesildik; kuyruğu kesen yönetiyor
+    queueActive = false;
+    if (!speechQueue.length) {
+      notifyBusyState();
+      return;
+    }
+    // Cümleler arasında kısa bir nefes payı; art arda okunduğunda
+    // tek bir uzun cümle gibi algılanmasını engelliyor.
+    breathTimer = window.setTimeout(() => {
+      breathTimer = null;
+      runSpeechQueue();
+    }, 140);
+  };
+
   const synth = getSynthesis();
-  if (!synth || typeof SpeechSynthesisUtterance === "undefined" || !text.trim()) {
-    handlers.onError?.();
-    return false;
+  if (!synth || typeof SpeechSynthesisUtterance === "undefined" || !item.text.trim()) {
+    finish(true);
+    return;
   }
   refreshVoices();
   stopKeepAlive();
   synth.cancel();
   // Android Chrome'da cancel() hemen ardından gelen speak() çağrısı sesi
   // sessizce yutuyor; kısa bekleme bu yarışı engeller.
-  window.setTimeout(() => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
+  pendingSpeakTimer = window.setTimeout(() => {
+    pendingSpeakTimer = null;
+    if (myGeneration !== generation) return; // bu arada kesildik/temizlendik
+    const utterance = new SpeechSynthesisUtterance(item.text);
+    utterance.lang = item.lang;
     // iOS'ta varsayılan ses seviyesi bazen sistem tarafından kısılıyor;
     // açıkça tam ses ve doğal hız isteyerek sabitliyoruz.
     utterance.volume = 1;
     utterance.rate = 1;
     utterance.pitch = 1;
-    const voice = pickVoice(lang);
+    const voice = pickVoice(item.lang);
     if (voice) utterance.voice = voice;
-    reportVoiceChoice(lang, voice);
-    const finish = (failed: boolean) => {
-      stopKeepAlive();
-      if (failed) handlers.onError?.();
-      else handlers.onEnd?.();
-    };
+    reportVoiceChoice(item.lang, voice);
     utterance.onstart = () => {
       startKeepAlive();
-      handlers.onStart?.();
+      item.handlers.onStart?.();
     };
+    // Bazı Android/iOS sürümleri uzun cümlede ne onend ne onerror gönderir;
+    // olay hiç gelmezse kuyruk ve onunla birlikte mikrofon sonsuza kilitlenir.
+    // Metin uzunluğuna göre cömert bir üst sınır koyup kuyruğu ilerletiyoruz.
+    if (watchdogTimer !== null) window.clearTimeout(watchdogTimer);
+    watchdogTimer = window.setTimeout(() => {
+      watchdogTimer = null;
+      if (myGeneration !== generation || finished) return;
+      logClientError("speech_timeout", "speech_output", `Seslendirme olayı gelmedi (${item.text.length} karakter)`, "warning");
+      synth.cancel();
+      finish(false);
+    }, 6000 + item.text.length * 120);
     utterance.onend = () => finish(false);
     utterance.onerror = (event) => {
       // Yeni bir seslendirme eskisini iptal ettiğinde bu gerçek bir hata değildir.
@@ -204,59 +314,37 @@ export function speakText(text: string, lang: string, handlers: SpeechOutputHand
       finish(true);
     }
   }, isIOSWebKit() ? 140 : 60);
-  return true;
 }
 
-// ---------------------------------------------------------------------------
-// Seslendirme kuyruğu
-// ---------------------------------------------------------------------------
-// speakText her çağrıda önceki konuşmayı iptal eder; bu, kullanıcı bir balona
-// dokunup "şunu tekrar oku" dediğinde doğru davranıştır. Ama karşı taraftan
-// art arda iki cümle gelirse ikincisi birincisini yarıda keser. Otomatik
-// seslendirme için cümleleri sıraya alıp tek tek okuyoruz.
-
-type SpeechQueueItem = { text: string; lang: string; handlers: SpeechOutputHandlers };
-
-const speechQueue: SpeechQueueItem[] = [];
-let queueRunning = false;
-
-function runSpeechQueue() {
-  const item = speechQueue.shift();
-  if (!item) {
-    queueRunning = false;
-    return;
+/** Her şeyi keser ve BU metni hemen okur ("tekrar oku"). Kuyruk boşaltılır. */
+export function speakText(text: string, lang: string, handlers: SpeechOutputHandlers = {}): boolean {
+  if (!isSpeechOutputSupported() || !text.trim()) {
+    handlers.onError?.();
+    return false;
   }
-  queueRunning = true;
-  const advance = (callback?: () => void) => {
-    callback?.();
-    // Cümleler arasında kısa bir nefes payı; art arda okunduğunda
-    // tek bir uzun cümle gibi algılanmasını engelliyor.
-    window.setTimeout(runSpeechQueue, 140);
-  };
-  const started = speakText(item.text, item.lang, {
-    onStart: item.handlers.onStart,
-    onEnd: () => advance(item.handlers.onEnd),
-    onError: () => advance(item.handlers.onError),
-  });
-  if (!started) advance(item.handlers.onError);
+  interruptCurrent();
+  speechQueue.length = 0;
+  speechQueue.push({ text, lang, handlers });
+  runSpeechQueue();
+  return true;
 }
 
 /** Sıraya alır; önceki seslendirmeyi kesmez. */
 export function queueSpeech(text: string, lang: string, handlers: SpeechOutputHandlers = {}) {
   if (!text.trim()) return false;
   speechQueue.push({ text, lang, handlers });
-  if (!queueRunning) runSpeechQueue();
+  runSpeechQueue();
   return true;
 }
 
 /** Kuyrukta bekleyen ya da o an okunan bir cümle var mı? */
 export function isSpeechQueueBusy() {
-  return queueRunning || speechQueue.length > 0;
+  return queueActive || speechQueue.length > 0;
 }
 
 /** Kuyruğu boşaltır ve konuşmayı susturur. */
 export function clearSpeechQueue() {
   speechQueue.length = 0;
-  queueRunning = false;
-  stopSpeechOutput();
+  interruptCurrent();
+  notifyBusyState();
 }

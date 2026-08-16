@@ -80,6 +80,8 @@ import { useRoom } from "./useRoom";
 
 function createStream() {
   const track = {
+    // Gerçek MediaStreamTrack gibi: enabled=false yayını susturur.
+    enabled: true,
     addEventListener: vi.fn(),
     stop: vi.fn(),
   };
@@ -281,6 +283,85 @@ describe("useRoom voice channel", () => {
     act(() => dataConnection.emit("data", { kind: "speaking", on: false }));
     expect(result.current.remoteSpeaking).toBe(true);
     await waitFor(() => expect(result.current.remoteSpeaking).toBe(false), { timeout: 2000 });
+  });
+
+  it("ev sahibi henüz yokken misafir pes etmez, tekrar tekrar dener", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useRoom(vi.fn()));
+      act(() => result.current.join("ABC123", "guest"));
+      const peer = peerMocks.peers.at(-1)!;
+      peer.open = true;
+      act(() => peer.emit("open", "guest-peer"));
+      expect(peer.connect).toHaveBeenCalledTimes(1);
+
+      // PeerJS 'peer-unavailable' üretir ve bağlantıyı hiç açmaz; eskiden
+      // burada tek bir deneme yapılıp kullanıcı sonsuza dek beklerdi.
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        act(() => peer.emit("error", { type: "peer-unavailable" }));
+        act(() => { vi.advanceTimersByTime(7000); });
+      }
+      expect(peer.connect.mock.calls.length).toBeGreaterThan(3);
+      expect(result.current.connecting).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("oda iki kişiliktir: açık bağlantı varken gelen üçüncü istek reddedilir", () => {
+    const onMessage = vi.fn();
+    const { result } = renderHook(() => useRoom(onMessage));
+    act(() => result.current.join("ABC123", "host"));
+    const { dataConnection } = connectHost();
+
+    const intruder = new peerMocks.FakeDataConnection();
+    const peer = peerMocks.peers.at(-1)!;
+    act(() => peer.emit("connection", intruder));
+    expect(intruder.close).toHaveBeenCalled();
+
+    // İlk misafirin mesajları işlenmeye devam eder.
+    act(() => dataConnection.emit("data", {
+      kind: "message",
+      message: { id: "m1", source: "merhaba", translated: "hello", sourceLanguage: "Türkçe", targetLanguage: "İngilizce", sentAt: 1 },
+      protocol: 2,
+    }));
+    expect(onMessage).toHaveBeenCalledTimes(1);
+
+    // Reddedilen bağlantıdan gelen paket sohbete karışmaz.
+    act(() => intruder.emit("data", {
+      kind: "message",
+      message: { id: "m2", source: "araya girdim", translated: "i cut in", sourceLanguage: "Türkçe", targetLanguage: "İngilizce", sentAt: 2 },
+      protocol: 2,
+    }));
+    expect(onMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("seslendirme sırasında giden mikrofon yayını susturulur ve geri açılır", async () => {
+    const { stream, track } = createStream();
+    peerMocks.getUserMedia.mockResolvedValue(stream);
+    const { result } = renderHook(() => useRoom(vi.fn()));
+    act(() => result.current.join("ABC123", "host"));
+    connectHost();
+    await act(async () => { await result.current.enableVoice(); });
+
+    act(() => { result.current.setVoiceTransmitting(false); });
+    expect(track.enabled).toBe(false);
+    act(() => { result.current.setVoiceTransmitting(true); });
+    expect(track.enabled).toBe(true);
+  });
+
+  it("canlı ses kapatılırken karşı tarafa 'konuşmuyorum' bildirilir", async () => {
+    const { stream } = createStream();
+    peerMocks.getUserMedia.mockResolvedValue(stream);
+    const { result } = renderHook(() => useRoom(vi.fn()));
+    act(() => result.current.join("ABC123", "host"));
+    const { dataConnection } = connectHost();
+    await act(async () => { await result.current.enableVoice(); });
+    dataConnection.send.mockClear();
+
+    act(() => result.current.disableVoice());
+    expect(dataConnection.send).toHaveBeenCalledWith({ kind: "speaking", on: false });
+    expect(dataConnection.send).toHaveBeenCalledWith({ kind: "voice-ready", ready: false });
   });
 
   it("boş mesaj paketini konuşmaya eklemez", () => {

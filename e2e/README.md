@@ -9,6 +9,27 @@ sahte mikrofon akışı + sürülebilir konuşma tanıma + yerel PeerJS sunucusu
 3. `npx vite preview --outDir dist-e2e --port 4201`
 4. `node e2e/oda-testi.mjs`
 
-Kapsam: bozuk STT girdilerinin bozulmadan iletimi, yankı bastırma (B1/B1b),
-sıra serbestliği (B2), gerçek eş zamanlı konuşma (B3), toparlanma (B4),
-8 mesajlık sohbette kayıp/çift kontrolü (B5), yankı sızıntısı (B6).
+Kapsam (26 kontrol):
+- **A** misafirin ev sahibinden önce girmesi, ev sahibinin sayfayı yenilemesi
+- **B** bağlantı + iki tarafta dinleme + canlı ses kurulumu
+- **C** hızlı konuşmada parça kaybı ve çift balon
+- **D** kısa ama gerçek kelimelerin (ok/no) iletilmesi
+- **E** art arda seslendirme: sıra, kesilme, çakışma, mikrofonun geri açılması
+- **F** balona dokunup okutmanın kuyrukla çakışmaması, hayalet ses
+- **G** yankı bastırma ve gerçek eş zamanlı konuşmanın korunması
+- **J** seslendirme sırasında canlı sesin kısılması (ducking) ve geri açılması
+- **H** misafirin yeniden bağlanması, kopukluk sırasındaki mesajın ulaşması
+- **K** üçüncü sekmenin odayı ele geçirememesi
+- **I** 320/375 px'te yatay taşma
+
+Sahte seslendirme motoru gerçek `speechSynthesis` gibi sıralı çalışır ve her
+sesin başlangıç/bitiş anını kaydeder; üst üste binme ile yarıda kesilme bu
+zaman çizelgesinden ölçülür.
+
+## Mobil tarama
+
+`node mobil-tarama.mjs` — 7 ekran boyutu × 5 site dili (35 kombinasyon):
+yatay taşma, dokunma hedefi boyutu (≥40px) ve kontrol çubuğunun ekran içinde
+kalması kontrol edilir. Deneme süresi pili gibi kardeş şeritler main içinde yer
+kapladığı için oda yüksekliğinin flex ile hesaplanması şarttır; bu tarama o
+regresyonu yakalar.

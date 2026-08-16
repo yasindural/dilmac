@@ -45,6 +45,7 @@ export type RoomScreenProps = {
   voiceConnecting: boolean;
   onToggleVoice: () => void;
   remoteMuted: boolean;
+  playbackBlocked: boolean;
   onToggleRemoteAudio: () => void;
   draft: string;
   onDraftChange: (value: string) => void;
@@ -83,7 +84,7 @@ export default function RoomScreen(props: RoomScreenProps) {
     listening, interimText, onToggleMic, micSupported,
     autoSpeak, onToggleAutoSpeak,
     voiceEnabled, voiceConnected, voiceConnecting, onToggleVoice,
-    remoteMuted, onToggleRemoteAudio,
+    remoteMuted, playbackBlocked, onToggleRemoteAudio,
     draft, onDraftChange, onSubmitDraft, onSpeak, onRetry, onLeave,
     status, statusIsError, audioSlot,
   } = props;
@@ -340,14 +341,17 @@ export default function RoomScreen(props: RoomScreenProps) {
           <span>{listening ? t("room.stop") : t("room.speak")}</span>
         </button>
 
+        {/* Tarayıcı otomatik oynatmayı engellediyse düğme "açık" görünmemeli:
+            kullanıcı sesi duymadığını bağlantı sorunu sanıyordu. */}
         <button
           type="button"
-          className={`round ${remoteMuted ? "" : "on"}`}
+          className={`round ${playbackBlocked ? "blocked" : remoteMuted ? "" : "on"}`}
           onClick={onToggleRemoteAudio}
           disabled={!voiceConnected}
-          title={remoteMuted ? t("room.unmuteRemote") : t("room.muteRemote")}
+          title={playbackBlocked ? t("room.playbackBlocked") : remoteMuted ? t("room.unmuteRemote") : t("room.muteRemote")}
+          aria-label={playbackBlocked ? t("room.playbackBlocked") : remoteMuted ? t("room.unmuteRemote") : t("room.muteRemote")}
         >
-          {remoteMuted ? <VolumeX /> : <Volume2 />}
+          {playbackBlocked || remoteMuted ? <VolumeX /> : <Volume2 />}
         </button>
       </div>
 
@@ -370,7 +374,7 @@ export default function RoomScreen(props: RoomScreenProps) {
             <div className="sheet-grip" aria-hidden="true" />
             <p className="sheet-text">{openEntry.mine ? openEntry.translated || openEntry.original : openEntry.translated}</p>
             <div className="sheet-actions">
-              <button type="button" onClick={() => { onSpeak(openEntry.mine ? openEntry.translated : openEntry.translated, openEntry.translatedLanguage); setOpenEntry(null); }}>
+              <button type="button" onClick={() => { onSpeak(openEntry.translated || openEntry.original, openEntry.translated ? openEntry.translatedLanguage : openEntry.originalLanguage); setOpenEntry(null); }}>
                 <Volume2 /> {t("room.speakAgain")}
               </button>
               <button type="button" onClick={() => { setFullScreen(openEntry); setOpenEntry(null); }}>
@@ -387,8 +391,8 @@ export default function RoomScreen(props: RoomScreenProps) {
       {fullScreen && (
         <div className="takeover" onClick={() => setFullScreen(null)}>
           <button className="takeover-close" type="button" aria-label={t("room.close")}><X /></button>
-          <p>{fullScreen.mine ? fullScreen.translated : fullScreen.translated}</p>
-          <small>{fullScreen.mine ? fullScreen.original : fullScreen.original}</small>
+          <p>{fullScreen.translated || fullScreen.original}</p>
+          <small>{fullScreen.translated ? fullScreen.original : ""}</small>
         </div>
       )}
 

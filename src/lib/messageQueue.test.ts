@@ -64,6 +64,41 @@ describe("MessageQueue", () => {
     expect(queue.snapshot()).toHaveLength(2);
   });
 
+  it("çevrilemeyen parça, arkasından yeni parça gelse de kaybolmaz", async () => {
+    // Gerçek senaryo: mesaj gönderilmiş, konuşmacı devam ediyor. Eklenen ilk
+    // parçanın çevirisi ağ hatası alıyor; hemen ardından ikinci parça geliyor.
+    // Eskiden ikinci parça çevrilip mesaj "sent" oluyor, ilk parça sessizce
+    // kayboluyordu ve retry düğmesi bile çıkmıyordu.
+    let failNext = false;
+    const sent: { source: string; translated: string }[] = [];
+    const queue = new MessageQueue(
+      async (text) => {
+        if (failNext && text.includes("bozuk")) throw new Error("ağ hatası");
+        return { text: `T:${text}`, demo: false };
+      },
+      (message) => { sent.push({ source: message.source, translated: message.translated }); return true; },
+    );
+    const id = queue.enqueue(draft("ilk cümle"), { mergeWindowMs: 5000 });
+    await waitUntil(() => queue.snapshot()[0]?.status === "sent");
+    failNext = true;
+    queue.enqueue(draft("bozuk parça"), { mergeWindowMs: 5000 });
+    await waitUntil(() => queue.snapshot()[0]?.status === "failed");
+    // Başarısız mesaja birleştirme yapılmaz; yeni cümle kendi balonunda gider.
+    queue.enqueue(draft("sonraki parça"), { mergeWindowMs: 5000 });
+    await waitUntil(() => sent.some((message) => message.source === "sonraki parça"));
+    // Başarısız mesaj kendiliğinden "sent"e dönmemeli: kullanıcı retry demeden
+    // çevrilemeyen parça gönderilmiş sayılırsa cümle kalıcı kaybolur.
+    expect(queue.snapshot()[0].status).toBe("failed");
+    failNext = false;
+    queue.retry(id);
+    await waitUntil(() => queue.snapshot()[0]?.status === "sent");
+    // Retry tam kaynağı yeniden çevirir: çevrilemeyen parça geri gelir.
+    const retried = sent[sent.length - 1];
+    expect(retried.source).toBe("ilk cümle bozuk parça");
+    expect(retried.translated).toContain("bozuk parça");
+    expect(sent.some((message) => message.source === "sonraki parça")).toBe(true);
+  });
+
   it("kaynak ve hedef dil aynıysa çeviri servisine hiç gitmez", async () => {
     const translator = vi.fn();
     const sent: unknown[] = [];

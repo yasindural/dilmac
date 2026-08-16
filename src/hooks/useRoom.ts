@@ -58,6 +58,12 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const voiceReconnectTimerRef = useRef<number | null>(null);
   const bindMediaConnectionRef = useRef<(connection: MediaConnection) => void>(() => undefined);
   const maybeStartGuestCallRef = useRef<() => void>(() => undefined);
+  // join() her çağrıda kendi zamanlayıcılarını kurar; close() önce bunları
+  // söker. Misafir yeniden bağlanma planlayıcısı da bağlantı olaylarından
+  // erişilebilsin diye ref'te tutulur.
+  const sessionCleanupRef = useRef<(() => void) | null>(null);
+  const scheduleGuestRetryRef = useRef<((delay?: number) => void) | null>(null);
+  const hostIdRetriesRef = useRef(0);
   const onMessageRef = useRef(onMessage);
   const onDeliveredRef = useRef(onDelivered);
   const onRemoteLanguageRef = useRef(onRemoteLanguage);
@@ -99,6 +105,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
 
   const disableVoice = useCallback(() => {
     if (connectionRef.current?.open) {
+      // Sıra bildirimini de kapat: yoksa karşı taraf bizi hâlâ konuşuyor
+      // sanıp kendi tanıyıcısını gereksiz yere sağır tutar.
+      connectionRef.current.send({ kind: "speaking", on: false } satisfies Envelope);
       connectionRef.current.send({ kind: "voice-ready", ready: false } satisfies Envelope);
     }
     closeMediaConnection();
@@ -108,7 +117,16 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     setVoiceError("");
   }, [closeMediaConnection]);
 
+  const clearRemoteSpeaking = useCallback(() => {
+    if (remoteSpeakingTimerRef.current !== null) window.clearTimeout(remoteSpeakingTimerRef.current);
+    remoteSpeakingTimerRef.current = null;
+    setRemoteSpeaking(false);
+  }, []);
+
   const close = useCallback(() => {
+    sessionCleanupRef.current?.();
+    sessionCleanupRef.current = null;
+    scheduleGuestRetryRef.current = null;
     roleRef.current = null;
     hostIdRef.current = "";
     remoteVoiceReadyRef.current = false;
@@ -119,9 +137,10 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     connectionRef.current = null;
     peerRef.current = null;
     clearVoiceReconnectTimer();
+    clearRemoteSpeaking();
     setConnected(false);
     setConnecting(false);
-  }, [clearVoiceReconnectTimer, disableVoice]);
+  }, [clearRemoteSpeaking, clearVoiceReconnectTimer, disableVoice]);
 
   useEffect(() => close, [close]);
 
@@ -266,6 +285,15 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   }, [maybeStartGuestCall]);
 
   const bindConnection = useCallback((connection: DataConnection) => {
+    // Oda iki kişiliktir. Açık bir bağlantı varken gelen ikinci istek
+    // reddedilir; yoksa üçüncü bir sekme odayı sessizce ele geçirip ilk
+    // misafirin mesajlarını görünmez kılıyordu.
+    const current = connectionRef.current;
+    if (current && current !== connection && current.open) {
+      connection.close();
+      return;
+    }
+    if (current && current !== connection) current.close();
     connectionRef.current = connection;
     connection.on("open", () => {
       if (connectionRef.current !== connection) return;
@@ -278,6 +306,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       maybeStartGuestCall();
     });
     connection.on("data", (data) => {
+      // Yerini yeni bir bağlantıya bırakmış eski kanaldan gelen paketler
+      // güncel sohbete karışmasın.
+      if (connectionRef.current !== connection) return;
       const envelope = data as Envelope;
       if (envelope.kind === "ack") {
         outboundRef.current = outboundRef.current.filter((message) => message.id !== envelope.id);
@@ -291,6 +322,9 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
           maybeStartGuestCall();
         } else {
           closeMediaConnection();
+          // Karşı taraf sesi kapattıysa yankı riski kalmadı; mikrofonumuzu
+          // sağır bırakan "konuşuyor" işareti de düşsün.
+          clearRemoteSpeaking();
         }
         return;
       }
@@ -329,14 +363,28 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       }
     });
     connection.on("close", () => {
-      if (connectionRef.current === connection) setConnected(false);
+      if (connectionRef.current !== connection) return;
+      setConnected(false);
+      clearRemoteSpeaking();
+      // Misafir kendini toparlar; ev sahibi misafirin geri gelmesini bekler.
+      if (roleRef.current === "guest" && scheduleGuestRetryRef.current) {
+        setConnecting(true);
+        scheduleGuestRetryRef.current();
+      }
     });
     connection.on("error", () => {
       if (connectionRef.current !== connection) return;
-      setError("Karşı tarafla bağlantı kesildi. Bağlantıyı yeniden açın.");
       setConnected(false);
+      clearRemoteSpeaking();
+      if (roleRef.current === "guest" && scheduleGuestRetryRef.current) {
+        setConnecting(true);
+        setError("");
+        scheduleGuestRetryRef.current();
+        return;
+      }
+      setError("Karşı tarafla bağlantı kesildi. Bağlantıyı yeniden açın.");
     });
-  }, [closeMediaConnection, maybeStartGuestCall]);
+  }, [clearRemoteSpeaking, closeMediaConnection, maybeStartGuestCall]);
 
   const handleIncomingMediaConnection = useCallback((mediaConnection: MediaConnection) => {
     if (roleRef.current !== "host") {
@@ -383,39 +431,134 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       ? new Peer(hostId, peerOptions)
       : new Peer(peerOptions);
     peerRef.current = peer;
-    let reconnectAttempts = 0;
+
+    // Bu join oturumuna özel durum: close() çağrılınca disposed olur ve
+    // bekleyen bütün zamanlayıcılar sökülür (yeni join eskisinin denemelerini
+    // devralmaz — dünkü kopukluk sorunlarının bir kaynağı buydu).
+    let disposed = false;
+    let guestAttempts = 0;
+    let signalRetries = 0;
+    let retryTimer: number | null = null;
+    let signalTimer: number | null = null;
+    let connectTimeoutTimer: number | null = null;
+    sessionCleanupRef.current = () => {
+      disposed = true;
+      if (retryTimer !== null) window.clearTimeout(retryTimer);
+      if (signalTimer !== null) window.clearTimeout(signalTimer);
+      if (connectTimeoutTimer !== null) window.clearTimeout(connectTimeoutTimer);
+      retryTimer = null;
+      signalTimer = null;
+      connectTimeoutTimer = null;
+    };
+
+    const scheduleGuestRetry = (delay?: number) => {
+      if (disposed || peer.destroyed || roleRef.current !== "guest" || connectionRef.current?.open) return;
+      if (retryTimer !== null) return; // zaten planlanmış bir deneme var
+      setConnecting(true);
+      const wait = delay ?? Math.min(900 + guestAttempts * 700, 6000);
+      retryTimer = window.setTimeout(() => {
+        retryTimer = null;
+        connectGuest();
+      }, wait);
+    };
+    scheduleGuestRetryRef.current = scheduleGuestRetry;
+
     const connectGuest = () => {
-      if (peer.destroyed || reconnectAttempts >= 5) return;
+      if (disposed || peer.destroyed || !peer.open || connectionRef.current?.open) return;
+      guestAttempts += 1;
+      setConnecting(true);
+      const stale = connectionRef.current;
       const connection = peer.connect(hostId, { reliable: true });
+      // connectionRef artık yeni bağlantıyı gösterir; eskinin close/error
+      // olayları bindConnection'daki kimlik kontrolüne takılıp yok sayılır.
       bindConnection(connection);
-      connection.on("open", () => { reconnectAttempts = 0; });
-      connection.on("close", () => {
-        reconnectAttempts += 1;
-        setConnecting(true);
-        window.setTimeout(connectGuest, Math.min(1000 * 2 ** reconnectAttempts, 8000));
+      if (stale && stale !== connection && !stale.open) stale.close();
+      if (connectTimeoutTimer !== null) window.clearTimeout(connectTimeoutTimer);
+      connectTimeoutTimer = window.setTimeout(() => {
+        connectTimeoutTimer = null;
+        if (disposed || connection.open || connectionRef.current !== connection) return;
+        // Sinyal gitti ama el sıkışma tamamlanmadı: bırak, yeniden dene.
+        connection.close();
+        scheduleGuestRetry();
+      }, 7000);
+      connection.on("open", () => {
+        guestAttempts = 0;
+        if (connectTimeoutTimer !== null) window.clearTimeout(connectTimeoutTimer);
+        connectTimeoutTimer = null;
       });
     };
+
     peer.on("open", () => {
-      if (role === "guest") connectGuest();
+      hostIdRetriesRef.current = 0;
+      signalRetries = 0;
+      // Sinyal sunucusuna yeniden bağlanmak da 'open' üretir; P2P kanalı
+      // hâlâ açıksa ikinci bir DataConnection kurup odayı bölmeyelim.
+      if (role === "guest" && !connectionRef.current?.open) connectGuest();
     });
     peer.on("disconnected", () => {
+      if (disposed) return;
       setConnecting(true);
-      if (!peer.destroyed) peer.reconnect();
+      // Cihaz çevrim dışıyken gecikmesiz reconnect sıkı döngü kuruyordu.
+      signalRetries += 1;
+      if (signalTimer !== null) return;
+      signalTimer = window.setTimeout(() => {
+        signalTimer = null;
+        if (disposed || peer.destroyed || peer.open) return;
+        peer.reconnect();
+      }, Math.min(400 * signalRetries, 5000));
     });
     peer.on("connection", bindConnection);
     peer.on("call", handleIncomingMediaConnection);
     peer.on("error", (peerError) => {
+      if (disposed) return;
+      const guestWaitingForHost = roleRef.current === "guest" && !connectionRef.current?.open;
+      if (peerError.type === "peer-unavailable" && guestWaitingForHost) {
+        // Ev sahibi henüz çevrim içi değil (ya da sayfasını yeniliyor):
+        // sessizce yeniden dene; kullanıcıya ancak denemeler uzarsa bilgi ver.
+        setConnected(false);
+        setConnecting(true);
+        setError(guestAttempts >= 8 ? "Odayı oluşturan kişi henüz çevrim içi değil. Bağlantı denemeleri sürüyor…" : "");
+        scheduleGuestRetry(1100);
+        return;
+      }
+      if (peerError.type === "webrtc" && guestWaitingForHost) {
+        setConnected(false);
+        setConnecting(true);
+        scheduleGuestRetry(1300);
+        return;
+      }
+      if (peerError.type === "unavailable-id" && roleRef.current === "host") {
+        // Sayfa yenilendiğinde eski oturum sinyal sunucusunda birkaç saniye
+        // daha kayıtlı kalabilir; kimlik serbest kalınca oda yeniden kurulur.
+        hostIdRetriesRef.current += 1;
+        if (hostIdRetriesRef.current <= 12) {
+          setConnecting(true);
+          retryTimer = window.setTimeout(() => {
+            retryTimer = null;
+            if (!disposed) join(room, role);
+          }, 1600);
+          return;
+        }
+        setConnecting(false);
+        setConnected(false);
+        setError("Oda şu anda başka bir sekmede açık görünüyor. Diğer sekmeyi kapatıp tekrar deneyin.");
+        return;
+      }
       if (peerError.type === "webrtc"
         || (peerError.type === "peer-unavailable" && Boolean(connectionRef.current?.open))) {
         setVoiceConnecting(false);
         setVoiceError("Canlı ses bağlantısı kurulamadı. İki tarafın da ses bağlantısını açtığından emin olun.");
         return;
       }
+      if (peerError.type === "network") {
+        // Sinyal sunucusuna anlık erişilemedi; 'disconnected' akışı
+        // peer.reconnect() ile zaten toparlamayı dener.
+        setConnecting(true);
+        return;
+      }
       setConnecting(false);
       setConnected(false);
-      setError(peerError.type === "peer-unavailable"
-        ? "Odayı oluşturan kişi henüz çevrim içi değil. Birkaç saniye sonra tekrar deneyin."
-        : "Oda bağlantısı kurulamadı. İnternet bağlantınızı kontrol edin.");
+      setError("Oda bağlantısı kurulamadı. İnternet bağlantınızı kontrol edin.");
     });
   }, [bindConnection, close, handleIncomingMediaConnection]);
 
@@ -443,9 +586,19 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     return true;
   }, []);
 
+  // Çeviri seslendirilirken kendi mikrofonumuzun canlı yayınını susturuyoruz;
+  // yoksa karşı taraf kendi cümlesinin çevirisini hoparlörümüzden geri duyar.
+  const setVoiceTransmitting = useCallback((on: boolean) => {
+    const stream = localStreamRef.current;
+    if (!stream) return false;
+    for (const track of stream.getAudioTracks()) track.enabled = on;
+    return true;
+  }, []);
+
   return {
     remoteSpeaking,
     sendSpeaking,
+    setVoiceTransmitting,
     connected,
     connecting,
     error,

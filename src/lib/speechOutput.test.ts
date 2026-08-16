@@ -74,7 +74,7 @@ describe("sesli çıktı", () => {
     const onStart = vi.fn();
     const ok = speakText("Hello there", "en-US", { onStart });
     expect(ok).toBe(true);
-    expect(synth.cancel).toHaveBeenCalledTimes(1);
+    expect(synth.cancel).toHaveBeenCalled();
     expect(synth.speak).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(100);
     expect(synth.speak).toHaveBeenCalledTimes(1);
@@ -154,5 +154,60 @@ describe("sesli çıktı", () => {
     spoken[1].onend?.();
     await vi.advanceTimersByTimeAsync(300);
     expect(isSpeechQueueBusy()).toBe(false);
+  });
+
+  it("kuyruk temizlenince bekleyen zamanlayici hayalet ses calamaz", async () => {
+    vi.useFakeTimers();
+    const { queueSpeech, clearSpeechQueue } = await import("./speechOutput");
+    queueSpeech("Hayalet olacak cumle", "tr-TR");
+    // konusma 60ms gecikmeli baslar; gecikme dolmadan temizle
+    await vi.advanceTimersByTimeAsync(20);
+    clearSpeechQueue();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(synth.speak).not.toHaveBeenCalled();
+  });
+
+  it("'tekrar oku' kuyrugu keser, tek ses kalir ve kuyruk kaosa girmez", async () => {
+    vi.useFakeTimers();
+    const { queueSpeech, speakText, isSpeechQueueBusy } = await import("./speechOutput");
+    queueSpeech("Otomatik birinci", "tr-TR");
+    queueSpeech("Otomatik ikinci", "tr-TR");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(spoken[0].text).toBe("Otomatik birinci");
+    // kullanici balona dokundu: aktif ses kesilir, dokunulan metin okunur
+    speakText("Dokunulan cumle", "tr-TR");
+    spoken[0].onerror?.({ error: "interrupted" });
+    await vi.advanceTimersByTimeAsync(200);
+    const texts = spoken.map((utterance) => utterance.text);
+    expect(texts).toContain("Dokunulan cumle");
+    // kesilen otomatik cumlenin "bitti" olayi kuyrugu ikinci kez calistiramaz
+    expect(texts).not.toContain("Otomatik ikinci");
+    spoken[spoken.length - 1].onend?.();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(isSpeechQueueBusy()).toBe(false);
+  });
+
+  it("kuyruk bosalinca idle abonelerine bir kez haber verir", async () => {
+    vi.useFakeTimers();
+    const { queueSpeech, onSpeechQueueIdle } = await import("./speechOutput");
+    const onIdle = vi.fn();
+    onSpeechQueueIdle(onIdle);
+    queueSpeech("Tek cumle", "tr-TR");
+    await vi.advanceTimersByTimeAsync(100);
+    expect(onIdle).not.toHaveBeenCalled();
+    spoken[0].onend?.();
+    await vi.advanceTimersByTimeAsync(300);
+    expect(onIdle).toHaveBeenCalledTimes(1);
+  });
+
+  it("temizleme de idle bildirir (mikrofon devri kilitlenmez)", async () => {
+    vi.useFakeTimers();
+    const { queueSpeech, clearSpeechQueue, onSpeechQueueIdle } = await import("./speechOutput");
+    const onIdle = vi.fn();
+    onSpeechQueueIdle(onIdle);
+    queueSpeech("Yarim kalacak", "tr-TR");
+    await vi.advanceTimersByTimeAsync(100);
+    clearSpeechQueue();
+    expect(onIdle).toHaveBeenCalledTimes(1);
   });
 });

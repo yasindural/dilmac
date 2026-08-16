@@ -52,7 +52,7 @@ import AccessGate from "./components/AccessGate";
 import { useAccess } from "./lib/access";
 import { fetchServerPlan } from "./lib/serverPlan";
 import { logClientError } from "./lib/errorLogger";
-import { clearSpeechQueue, isSpeechQueueBusy, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
+import { clearSpeechQueue, isSpeechQueueBusy, onSpeechQueueBusyChange, queueSpeech, speakText, unlockSpeechOutput } from "./lib/speechOutput";
 import { siteLanguages, useI18n, type SiteLang } from "./lib/i18n";
 import HomeExpansion from "./components/HomeExpansion";
 import AiPractice from "./components/AiPractice";
@@ -1139,12 +1139,19 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     // düşükse bu kullanıcının GERÇEK eş zamanlı sözüdür ve silinmez;
     // karşı taraf susunca kendiliğinden gönderilir.
     const pending = suppressedRef.current;
-    if (pending && Date.now() - pending.at < 8000) {
-      const tokenize = (value: string) => value.toLocaleLowerCase("tr").replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).filter((word) => word.length > 2);
-      const mineWords = tokenize(pending.text);
-      const theirs = new Set([...tokenize(message.source), ...tokenize(message.translated)]);
-      const overlap = mineWords.length ? mineWords.filter((word) => theirs.has(word)).length / mineWords.length : 1;
-      if (overlap >= 0.5) suppressedRef.current = null;
+    if (pending) {
+      // Bekletilen metin, karşı taraf konuşurken ve bizim cümlemiz ondan SONRA
+      // başladığı için bekletilmişti (aksi halde bastırılmaz, doğrudan gider).
+      // Karşı tarafın cümlesi elimize ulaştıysa bu metin neredeyse kesinlikle
+      // onun hoparlör yankısıdır ve silinir.
+      //
+      // Kelime kesişimine güvenilemez: yankıyı KENDİ dilimizde çözmeye çalışan
+      // tanıyıcı, karşı tarafın yabancı dildeki sesinden anlamsız kelimeler
+      // üretir; bunlar ne kaynak metinle ne çeviriyle eşleşir, dolayısıyla eski
+      // "overlap >= 0.5" kuralı yankıyı gerçek söz sanıp karşıya geri
+      // gönderiyordu — sohbeti saçmalatan döngünün kaynağı buydu.
+      logClientError("echo_dropped", "speech", `Bekletilen ${pending.text.length} karakterlik yankı, karşı mesaj gelince silindi`, "warning");
+      suppressedRef.current = null;
     }
     setRemoteMessages((current) => {
       const index = current.findIndex((item) => item.id === message.id);
@@ -1156,33 +1163,95 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     setNotice(tRef.current("notice.newTranslation"));
     if (!autoSpeakRef.current) return;
     // Güncellenen mesajda yalnızca yeni eklenen parça seslendirilir; tamamını
-    // tekrar okumak aynı cümleyi iki kez duyurur.
-    const speechText = isUpdate ? (message.appended || "").trim() : message.translated;
+    // tekrar okumak aynı cümleyi iki kez duyurur. appended yoksa (karşı taraf
+    // başarısız çeviriyi yeniden denemiş olabilir) eski çeviriyle farkı alırız;
+    // ortak başlangıç yoksa yeni metnin tamamı okunur — sessiz kalmaktan iyidir.
+    let speechText = message.translated;
+    if (isUpdate) {
+      const appended = (message.appended || "").trim();
+      if (appended) speechText = appended;
+      else if (previousTranslated && message.translated.startsWith(previousTranslated)) {
+        speechText = message.translated.slice(previousTranslated.length).trim();
+      }
+    }
     if (!speechText) return;
     const code = speechCodeFor(message.targetLanguage);
     // Seslendirme sırasında kendi mikrofonumuz açık kalırsa hoparlörden çıkan ses
     // tekrar yazıya dökülüp karşı tarafa geri gönderilir (yankı döngüsü).
-    // Bu yüzden dinlemeyi duraklatıp seslendirme bitince geri açıyoruz.
-    const wasListening = Boolean(speechRef.current?.listening);
-    if (wasListening) speechRef.current?.stop();
-    const resume = () => {
-      if (!wasListening) return;
-      window.setTimeout(() => {
-        if (isSpeechQueueBusy()) return;
-        if (!speechRef.current?.listening) speechRef.current?.toggle();
-      }, 350);
-    };
+    // Dinleme burada duraklatılır; kuyruk TAMAMEN boşalınca aşağıdaki tek idle
+    // aboneliği geri açar. Eskiden her mesajın kendi onEnd'i mikrofonu açmaya
+    // çalışıyordu; art arda mesajlarda hiçbir callback "kuyruk boş" anını
+    // yakalayamıyor ve mikrofon kapalı kalıyordu.
+    if (speechRef.current?.listening) {
+      micPausedForTtsRef.current = true;
+      speechRef.current.stop();
+    }
     // iOS mikrofon oturumunu anında bırakmaz. Dinleme kapandıktan hemen sonra
     // konuşmaya başlarsak sistem sesi sessizce yutuyor; telefonda "çeviri
     // geliyor ama ses yok" şikayetinin sebebi buydu. Mikrofon açıkken
     // seslendirmeyi oturum kapanana kadar geciktiriyoruz.
     const isAppleWebKit = /iP(?:hone|ad|od)/i.test(navigator.userAgent) && /AppleWebKit/i.test(navigator.userAgent);
-    const handoverDelay = wasListening ? (isAppleWebKit ? 550 : 200) : 0;
+    const handoverDelay = micPausedForTtsRef.current ? (isAppleWebKit ? 550 : 200) : 0;
     if (handoverDelay === 0) {
-      queueSpeech(speechText, code, { onEnd: resume, onError: resume });
+      queueSpeech(speechText, code);
       return;
     }
-    window.setTimeout(() => queueSpeech(speechText, code, { onEnd: resume, onError: resume }), handoverDelay);
+    // Zamanlayıcı kimliği saklanır: odadan çıkılırsa lobide konuşmasın.
+    const handover = window.setTimeout(() => {
+      handoverTimersRef.current.delete(handover);
+      queueSpeech(speechText, code);
+    }, handoverDelay);
+    handoverTimersRef.current.add(handover);
+  }, []);
+  const handoverTimersRef = useRef(new Set<number>());
+  // Seslendirme sırasında ses ortamının tek yöneticisi.
+  // 1) Karşı tarafın CANLI sesi kısılır (ducking): çeviri, karşı taraf yeni
+  //    cümlesine başladıktan saniyeler sonra geldiği için ikisi hoparlörde
+  //    üst üste biniyordu — "sesler karışıyor" şikayetinin ana sebebi.
+  // 2) Kendi mikrofon yayınımız susturulur: karşı taraf kendi cümlesinin
+  //    çevirisini bizim hoparlörümüzden geri duymasın.
+  // 3) Kuyruk tamamen boşalınca dinleme geri açılır. Eskiden her mesajın
+  //    kendi onEnd'i mikrofonu açmaya çalışıyor, art arda mesajlarda hiçbiri
+  //    "kuyruk boş" anını yakalayamıyor ve mikrofon kapalı kalıyordu.
+  const micPausedForTtsRef = useRef(false);
+  const audioDuckedRef = useRef(false);
+  const setVoiceTransmittingRef = useRef<(on: boolean) => boolean>(() => false);
+  useEffect(() => {
+    let resumeTimer: number | null = null;
+    const unsubscribe = onSpeechQueueBusyChange((busy) => {
+      if (resumeTimer !== null) window.clearTimeout(resumeTimer);
+      resumeTimer = null;
+      const audio = remoteAudioRef.current;
+      if (busy) {
+        if (audio && !audioDuckedRef.current) {
+          audioDuckedRef.current = true;
+          audio.volume = 0.12;
+        }
+        setVoiceTransmittingRef.current(false);
+        return;
+      }
+      if (audio && audioDuckedRef.current) {
+        audioDuckedRef.current = false;
+        audio.volume = 1;
+      }
+      setVoiceTransmittingRef.current(true);
+      if (!micPausedForTtsRef.current) return;
+      resumeTimer = window.setTimeout(() => {
+        resumeTimer = null;
+        if (!micPausedForTtsRef.current || isSpeechQueueBusy()) return;
+        micPausedForTtsRef.current = false;
+        if (!speechRef.current?.listening) speechRef.current?.toggle();
+      }, 350);
+    });
+    const handovers = handoverTimersRef.current;
+    return () => {
+      unsubscribe();
+      if (resumeTimer !== null) window.clearTimeout(resumeTimer);
+      // Odadan çıkarken bekleyen seslendirme lobide devam etmesin.
+      for (const timer of handovers) window.clearTimeout(timer);
+      handovers.clear();
+      clearSpeechQueue();
+    };
   }, []);
   const receiveRemoteLanguage = useCallback((language: RoomLanguage) => {
     setRemoteLanguage(language);
@@ -1193,12 +1262,14 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   const markDelivered = useCallback((id: string) => queueRef.current?.markDelivered(id), []);
   const roomConnection = useRoom(receiveMessage, markDelivered, receiveRemoteLanguage);
   sendRef.current = roomConnection.send;
+  setVoiceTransmittingRef.current = roomConnection.setVoiceTransmitting;
   const sendLanguage = roomConnection.sendLanguage;
   useEffect(() => {
     const audio = remoteAudioRef.current;
     if (!audio) return;
     const stream = roomConnection.remoteStream;
     audio.srcObject = stream;
+    audio.volume = audioDuckedRef.current ? 0.12 : 1;
     setPlaybackBlocked(false);
     if (stream) {
       void audio.play().catch(() => setPlaybackBlocked(true));
@@ -1220,6 +1291,9 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       setNotice(tRef.current("notice.voiceReady"));
     }
   }, [roomConnection.voiceConnected]);
+  useEffect(() => {
+    if (playbackBlocked) setNotice(tRef.current("notice.playbackBlocked"));
+  }, [playbackBlocked]);
   useEffect(() => queueRef.current!.subscribe(setLocalMessages), []);
   useEffect(() => {
     const language = languageByCode(source);
@@ -1282,16 +1356,20 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   // ÖNCE başladıysa bu bizim gerçek sözümüzdür ve asla bekletilmez.
   const remoteSpeakingSinceRef = useRef(0);
   const utteranceStartRef = useRef(0);
-  const enqueue = useCallback((text: string) => {
+  const enqueue = useCallback((text: string, startedAt = 0) => {
     if (voiceEnabledRef.current && remoteSpeakingRef.current) {
       // 250 ms pay: iki taraf hemen hemen aynı anda başladıysa sıralama ağ
       // gecikmesinin rastlantısıdır; gerçek yankının ön izlemesi karşı sesin
       // ulaşması + tanıma gecikmesi yüzünden en az yarım saniye geç başlar.
-      const mineStartedFirst = utteranceStartRef.current > 0
+      const startReference = startedAt || utteranceStartRef.current;
+      const mineStartedFirst = startReference > 0
         && remoteSpeakingSinceRef.current > 0
-        && utteranceStartRef.current < remoteSpeakingSinceRef.current + 250;
+        && startReference < remoteSpeakingSinceRef.current + 250;
       if (!mineStartedFirst) {
-        suppressedRef.current = { text, at: Date.now() };
+        // Bekletilen metnin ÜZERİNE yazma: karşı taraf konuşurken kullanıcı
+        // iki ayrı cümle söylerse ikisi de saklanır, susunca birlikte gider.
+        const held = suppressedRef.current;
+        suppressedRef.current = { text: held ? `${held.text} ${text}`.trim() : text, at: Date.now() };
         logClientError("echo_suppressed", "speech", `Karşı taraf konuşurken gelen ${text.length} karakterlik tanıma bekletildi`, "warning");
         setNotice(tRef.current("notice.peerBusy"));
         return;
@@ -1340,15 +1418,23 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   const [pendingSpeech, setPendingSpeech] = useState("");
   const pendingSpeechRef = useRef("");
   const pendingSpeechTimerRef = useRef<number | null>(null);
+  // Tamponun İLK parçasının başladığı an. Flush 1,1 sn sonra çalıştığında
+  // interim çoktan temizlenmiş ve utteranceStartRef sıfırlanmış oluyor; yankı
+  // kararı bu saklanan zamana bakar, yoksa gerçek eş zamanlı konuşma hep
+  // "yankı" sanılıp bekletilirdi.
+  const pendingStartRef = useRef(0);
   const flushPendingSpeech = useCallback(() => {
     if (pendingSpeechTimerRef.current !== null) window.clearTimeout(pendingSpeechTimerRef.current);
     pendingSpeechTimerRef.current = null;
     const text = pendingSpeechRef.current.trim();
+    const startedAt = pendingStartRef.current;
     pendingSpeechRef.current = "";
+    pendingStartRef.current = 0;
     setPendingSpeech("");
-    if (text) enqueueLatestRef.current(text);
+    if (text) enqueueLatestRef.current(text, startedAt);
   }, []);
   const collectSpeech = useCallback((text: string) => {
+    if (!pendingSpeechRef.current) pendingStartRef.current = utteranceStartRef.current || Date.now();
     pendingSpeechRef.current = `${pendingSpeechRef.current} ${text}`.trim();
     setPendingSpeech(pendingSpeechRef.current);
     if (pendingSpeechTimerRef.current !== null) window.clearTimeout(pendingSpeechTimerRef.current);
@@ -1356,6 +1442,11 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     if (pendingSpeechRef.current.length >= SPEECH_BUFFER_MAX_CHARS) { flushPendingSpeech(); return; }
     pendingSpeechTimerRef.current = window.setTimeout(flushPendingSpeech, SPEECH_BUFFER_MS);
   }, [flushPendingSpeech]);
+  // Odadan çıkışta (remount) bekleyen tampon/flush zamanlayıcıları sızmasın.
+  useEffect(() => () => {
+    if (pendingSpeechTimerRef.current !== null) window.clearTimeout(pendingSpeechTimerRef.current);
+    if (flushTimerRef.current !== null) window.clearTimeout(flushTimerRef.current);
+  }, []);
   const speech = useSpeech(source, collectSpeech);
   // Mikrofon kapanınca bekleyen metin hemen gönderilir.
   useEffect(() => {
@@ -1381,13 +1472,22 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
   // kendi mikrofonundan yakalayıp çevirmeye çalışmasın.
   const sendSpeaking = roomConnection.sendSpeaking;
   const speakingSignalRef = useRef(false);
+  const speakingActive = roomConnection.voiceEnabled
+    && speech.listening
+    && (speech.interimText.trim().length > 0 || pendingSpeech.length > 0);
   useEffect(() => {
     if (!roomConnection.voiceEnabled) return;
-    const speaking = speech.listening && (speech.interimText.trim().length > 0 || pendingSpeech.length > 0);
-    if (speaking === speakingSignalRef.current) return;
-    speakingSignalRef.current = speaking;
-    sendSpeaking(speaking);
-  }, [speech.listening, speech.interimText, pendingSpeech, roomConnection.voiceEnabled, sendSpeaking]);
+    if (speakingActive === speakingSignalRef.current) return;
+    speakingSignalRef.current = speakingActive;
+    sendSpeaking(speakingActive);
+  }, [speakingActive, roomConnection.voiceEnabled, sendSpeaking]);
+  // Karşı taraftaki 6 sn'lik emniyet zamanlayıcısı uzun cümlede sinyali
+  // düşürüp yankı sızdırmasın: konuşma sürerken sinyal 4 sn'de bir tazelenir.
+  useEffect(() => {
+    if (!speakingActive) return;
+    const heartbeat = window.setInterval(() => sendSpeaking(true), 4000);
+    return () => window.clearInterval(heartbeat);
+  }, [speakingActive, sendSpeaking]);
   useEffect(() => {
     if (!speech.listening && speakingSignalRef.current) {
       speakingSignalRef.current = false;
@@ -1455,7 +1555,9 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
     unlockSpeechOutput();
     const text = draft.trim();
     if (!text) return;
-    enqueue(text);
+    // Yazılı mesaj hoparlör yankısı olamaz; yankı bastırmasına uğramadan gider.
+    enqueueRawRef.current(text);
+    setNotice(tRef.current("notice.queuedMsg"));
     setDraft("");
   };
   const toggleVoice = async () => {
@@ -1584,6 +1686,7 @@ function Translator({ onConversingChange }: { onConversingChange?: (value: boole
       voiceConnecting={roomConnection.voiceConnecting}
       onToggleVoice={toggleVoice}
       remoteMuted={remoteMuted}
+      playbackBlocked={playbackBlocked}
       onToggleRemoteAudio={toggleRemotePlayback}
       draft={draft}
       onDraftChange={setDraft}

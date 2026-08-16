@@ -29,6 +29,25 @@ export function getSpeechErrorMessage(error: string) {
   return `Mikrofon hatası: ${error}`;
 }
 
+const DUPLICATE_FINAL_WINDOW_MS = 900;
+
+export function shouldIgnoreTranscript(
+  normalized: string,
+  confidence: number,
+  lastFinal: { text: string; at: number },
+  now = Date.now(),
+) {
+  // Web Speech tek-iki harflik ama gerçek cevaplar üretebilir: "I", "no",
+  // "OK", "ja" gibi ifadeleri sırf kısa diye atma. Yalnızca tipik uzatılmış
+  // dolgu seslerini, gerçekten düşük güvenli sonuçları ve tarayıcının aynı
+  // final olayını hemen iki kez vermesini süz. (Android Chrome confidence'ı
+  // çoğu zaman 0 döndürür; 0 "bilinmiyor" demektir, ceza uygulanmaz.)
+  const isNoise = /^(?:ı{2,}|e{2,}|a{2,}|h+m+|m{2,}|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
+  const isWeak = normalized.length === 0 || (confidence > 0 && confidence < 0.25);
+  const isDuplicate = lastFinal.text === normalized && now - lastFinal.at < DUPLICATE_FINAL_WINDOW_MS;
+  return isNoise || isWeak || isDuplicate;
+}
+
 export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAfterFinal = false) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
@@ -51,15 +70,23 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
     if (recognitionRef.current) recognitionRef.current.lang = lang;
   }, [lang]);
 
+  // commitTranscript, toggle() içinde tanıyıcıya bağlı olarak kurulur; stop()
+  // gibi dışarıdaki yollar da yarım kalan ön izlemeyi buradan teslim eder.
+  const commitRef = useRef<((text: string, confidence?: number) => void) | null>(null);
   const stop = useCallback(() => {
     wantsToListenRef.current = false;
     if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
     interimCommitTimerRef.current = null;
+    // Ekranda duran ama henüz final olmamış cümleyi çöpe atma: mikrofon
+    // seslendirme için duraklatıldığında ya da sekme arkaya alındığında
+    // kullanıcının son sözü sessizce kayboluyordu.
+    const unfinished = lastInterimRef.current;
     lastInterimRef.current = "";
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setInterimText("");
     setListening(false);
+    if (unfinished.trim()) commitRef.current?.(unfinished);
   }, []);
 
   useEffect(() => {
@@ -99,13 +126,12 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
       if (interimCommitTimerRef.current !== null) window.clearTimeout(interimCommitTimerRef.current);
       interimCommitTimerRef.current = null;
       const normalized = transcript.toLocaleLowerCase(lang).replace(/[^\p{L}\p{N}\s]/gu, "").trim();
-      const isNoise = /^(ı+|h+m+|m+|a+h+|e+h+|uh+|um+)$/iu.test(normalized);
-      const isWeak = normalized.length < 3 || (confidence > 0 && confidence < 0.35);
-      const isDuplicate = lastFinalRef.current.text === normalized && Date.now() - lastFinalRef.current.at < 4000;
+      const now = Date.now();
+      const ignored = shouldIgnoreTranscript(normalized, confidence, lastFinalRef.current, now);
       setInterimText("");
       lastInterimRef.current = "";
-      if (isNoise || isWeak || isDuplicate) return;
-      lastFinalRef.current = { text: normalized, at: Date.now() };
+      if (ignored) return;
+      lastFinalRef.current = { text: normalized, at: now };
       networkRetriesRef.current = 0;
       setError("");
       setActivityTick((value) => value + 1);
@@ -116,6 +142,7 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
       }
       onFinalRef.current(transcript);
     };
+    commitRef.current = commitTranscript;
     recognition.onresult = (event) => {
       let preview = "";
       for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
@@ -163,9 +190,10 @@ export function useSpeech(lang: string, onFinal: (text: string) => void, pauseAf
     };
     recognition.onend = () => {
       if (wantsToListenRef.current && document.visibilityState === "visible") {
-        // iPhone Chrome/Safari bazen onresult(isFinal=true) göndermeden biter.
-        // Kullanıcının ekranda gördüğü son ön izlemeyi bu noktada kaybetme.
-        if (isIOSWebKit && lastInterimRef.current) commitTranscript(lastInterimRef.current);
+        // Tarayıcı bazen onresult(isFinal=true) göndermeden oturumu bitirir
+        // (iOS'ta sık, Android'de ağ hatası sonrası). Kullanıcının ekranda
+        // gördüğü son ön izlemeyi her platformda kurtarıyoruz.
+        if (lastInterimRef.current) commitTranscript(lastInterimRef.current);
         window.setTimeout(() => {
           if (!wantsToListenRef.current) return;
           try {
