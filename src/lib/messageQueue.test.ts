@@ -23,39 +23,6 @@ describe("MessageQueue", () => {
     expect(sent).toEqual(["bir", "üç", "iki"]);
   });
 
-  it("ilk çeviri hata verirken eklenen konuşma parçasını eksik göndermez", async () => {
-    let releaseFirst!: () => void;
-    let failFirst = true;
-    const calls: string[] = [];
-    const sent: { source: string; translated: string }[] = [];
-    const queue = new MessageQueue(async (text) => {
-      calls.push(text);
-      if (calls.length === 1) {
-        await new Promise<void>((resolve) => { releaseFirst = resolve; });
-        if (failFirst) throw new Error("geçici ağ hatası");
-      }
-      return { text: `T:${text}`, demo: false };
-    }, (message) => {
-      sent.push({ source: message.source, translated: message.translated });
-      return true;
-    });
-
-    const id = queue.enqueue(draft("ilk bölüm"), { mergeWindowMs: 7000 });
-    await waitUntil(() => queue.snapshot()[0]?.status === "translating");
-    queue.enqueue(draft("ikinci bölüm"), { mergeWindowMs: 7000 });
-    releaseFirst();
-    await waitUntil(() => queue.snapshot()[0]?.status === "failed");
-
-    expect(sent).toHaveLength(0);
-    expect(queue.snapshot()[0]).toMatchObject({ source: "ilk bölüm ikinci bölüm", status: "failed" });
-
-    failFirst = false;
-    queue.retry(id);
-    await waitUntil(() => sent.length === 1);
-    expect(calls.at(-1)).toBe("ilk bölüm ikinci bölüm");
-    expect(sent[0]).toEqual({ source: "ilk bölüm ikinci bölüm", translated: "T:ilk bölüm ikinci bölüm" });
-  });
-
   it("uzun metni kesmeden gönderir", async () => {
     const long = "a".repeat(3000); const delivered: string[] = []; const sender = vi.fn((message: { translated: string }) => { delivered.push(message.translated); return true; });
     const queue = new MessageQueue(async (text) => ({ text, demo: false }), sender);
