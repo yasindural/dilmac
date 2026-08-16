@@ -231,3 +231,47 @@ body.room-locked .room{height:auto;flex:1;min-height:0}
   .langbar .lp-value svg{display:none}
   .langbar-swap{width:26px}
 }
+
+/* Mobil oda: kritik satirlari kendi kutularinda tut ve panel tasmasini onle. */
+@media (max-width:640px){
+  .room-bar,
+  .langbar,
+  .room-status,
+  .room-controls,
+  .room-composer{
+    flex:none;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+  }
+  .room-bar-actions,
+  .room-bar-actions .icon{min-width:0}
+  .room-bar-actions .icon{overflow:hidden}
+  .room-bar-actions .icon svg{flex:none}
+  .room-bar-actions .icon small{
+    display:block;
+    width:100%;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .room-controls{
+    width:100%;
+    max-width:360px;
+    margin-inline:auto;
+    gap:clamp(8px,2.8vw,16px);
+  }
+  .room-controls>*{flex:none}
+  .room-composer input{max-width:100%}
+  .sheet{
+    max-height:calc(100svh - max(12px,env(safe-area-inset-top)));
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+}
+@media (max-width:520px){
+  .room-controls{gap:clamp(8px,2.6vw,12px)}
+  .room-feed{scroll-padding-bottom:12px}
+}
