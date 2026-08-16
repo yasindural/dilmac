@@ -3,7 +3,7 @@ name: Room quality checks
 on:
   push:
     branches:
-      - agent/room-flow-quality
+      - agent/room-*
   workflow_dispatch:
 
 permissions:

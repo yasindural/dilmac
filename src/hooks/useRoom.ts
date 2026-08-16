@@ -21,10 +21,6 @@ type Envelope =
   | { kind: "ack"; id: string }
   | { kind: "voice-ready"; ready: boolean }
   | { kind: "language"; language: RoomLanguage; protocol?: 2 }
-  // Sıra bildirimi: karşı taraf o an konuşuyor mu? Canlı ses açıkken iki
-  // cihaz birbirini hoparlörden duyabildiği için, konuşan tarafın sesi
-  // diğerinin mikrofonuna girip yanlış çeviri üretiyordu. Bu sinyalle
-  // dinleyen taraf kendi tanıyıcısının çıktısını yok sayar.
   | { kind: "speaking"; on: boolean };
 
 function isRoomMessage(value: unknown): value is RoomMessage {
@@ -56,6 +52,10 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const remoteVoiceReadyRef = useRef(false);
   const voiceCallInFlightRef = useRef(false);
   const voiceReconnectTimerRef = useRef<number | null>(null);
+  const guestReconnectTimerRef = useRef<number | null>(null);
+  const guestConnectTimeoutRef = useRef<number | null>(null);
+  const guestReconnectAttemptRef = useRef(0);
+  const scheduleGuestReconnectRef = useRef<(delay?: number) => void>(() => undefined);
   const bindMediaConnectionRef = useRef<(connection: MediaConnection) => void>(() => undefined);
   const maybeStartGuestCallRef = useRef<() => void>(() => undefined);
   const onMessageRef = useRef(onMessage);
@@ -65,8 +65,6 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
   const outboundRef = useRef<RoomMessage[]>([]);
   const [remoteSpeaking, setRemoteSpeaking] = useState(false);
   const remoteSpeakingTimerRef = useRef<number | null>(null);
-  // Uzun konuşmada tek "speaking:true" paketi alıcıdaki güvenlik zaman aşımına
-  // takılmasın. Konuşma sürdükçe kısa heartbeat gönderilir; false ile anında durur.
   const speakingHeartbeatTimerRef = useRef<number | null>(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -85,6 +83,13 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     if (voiceReconnectTimerRef.current === null) return;
     window.clearTimeout(voiceReconnectTimerRef.current);
     voiceReconnectTimerRef.current = null;
+  }, []);
+
+  const clearGuestConnectionTimers = useCallback(() => {
+    if (guestReconnectTimerRef.current !== null) window.clearTimeout(guestReconnectTimerRef.current);
+    if (guestConnectTimeoutRef.current !== null) window.clearTimeout(guestConnectTimeoutRef.current);
+    guestReconnectTimerRef.current = null;
+    guestConnectTimeoutRef.current = null;
   }, []);
 
   const clearSpeakingHeartbeat = useCallback(() => {
@@ -123,8 +128,10 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     roleRef.current = null;
     hostIdRef.current = "";
     remoteVoiceReadyRef.current = false;
+    guestReconnectAttemptRef.current = 0;
     setRemoteVoiceReady(false);
     disableVoice();
+    clearGuestConnectionTimers();
     connectionRef.current?.close();
     peerRef.current?.destroy();
     connectionRef.current = null;
@@ -132,7 +139,7 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     clearVoiceReconnectTimer();
     setConnected(false);
     setConnecting(false);
-  }, [clearVoiceReconnectTimer, disableVoice]);
+  }, [clearGuestConnectionTimers, clearVoiceReconnectTimer, disableVoice]);
 
   useEffect(() => close, [close]);
 
@@ -280,6 +287,11 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     connectionRef.current = connection;
     connection.on("open", () => {
       if (connectionRef.current !== connection) return;
+      if (guestConnectTimeoutRef.current !== null) window.clearTimeout(guestConnectTimeoutRef.current);
+      guestConnectTimeoutRef.current = null;
+      if (guestReconnectTimerRef.current !== null) window.clearTimeout(guestReconnectTimerRef.current);
+      guestReconnectTimerRef.current = null;
+      guestReconnectAttemptRef.current = 0;
       setConnected(true);
       setConnecting(false);
       setError("");
@@ -298,11 +310,8 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       if (envelope.kind === "voice-ready") {
         remoteVoiceReadyRef.current = envelope.ready;
         setRemoteVoiceReady(envelope.ready);
-        if (envelope.ready) {
-          maybeStartGuestCall();
-        } else {
-          closeMediaConnection();
-        }
+        if (envelope.ready) maybeStartGuestCall();
+        else closeMediaConnection();
         return;
       }
       if (envelope.kind === "speaking") {
@@ -310,12 +319,8 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
         remoteSpeakingTimerRef.current = null;
         if (envelope.on) {
           setRemoteSpeaking(true);
-          // Sinyal kaybolursa mikrofon sonsuza kadar kapalı kalmasın. Gönderen
-          // konuşurken ~1.8 sn heartbeat yolladığı için bu yalnız gerçek kopmada çalışır.
           remoteSpeakingTimerRef.current = window.setTimeout(() => setRemoteSpeaking(false), 6000);
         } else {
-          // Konuşma bittikten sonra hoparlörden gelen kuyruk da geçsin diye
-          // kısa bir kuyruk payı bırakıyoruz.
           remoteSpeakingTimerRef.current = window.setTimeout(() => setRemoteSpeaking(false), 700);
         }
         return;
@@ -333,20 +338,29 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
         if (connection.open) connection.send({ kind: "ack", id: envelope.message.id } satisfies Envelope);
         return;
       }
-      // İlk sürümde mesajlar zarf kullanılmadan gönderiliyordu. Açık kalmış eski
-      // sekmelerle görüşme devam edebilsin; yalnızca eksiksiz paketleri kabul et.
       if (isRoomMessage(data)) {
         onMessageRef.current(data);
         if (connection.open) connection.send({ kind: "ack", id: data.id } satisfies Envelope);
       }
     });
     connection.on("close", () => {
-      if (connectionRef.current === connection) setConnected(false);
+      if (connectionRef.current !== connection) return;
+      setConnected(false);
+      if (roleRef.current === "guest") {
+        setConnecting(true);
+        scheduleGuestReconnectRef.current();
+      }
     });
     connection.on("error", () => {
       if (connectionRef.current !== connection) return;
-      setError("Karşı tarafla bağlantı kesildi. Bağlantıyı yeniden açın.");
       setConnected(false);
+      if (roleRef.current === "guest") {
+        setConnecting(true);
+        setError("");
+        scheduleGuestReconnectRef.current();
+        return;
+      }
+      setError("Karşı tarafla bağlantı kesildi. Bağlantıyı yeniden açın.");
     });
   }, [closeMediaConnection, maybeStartGuestCall]);
 
@@ -380,9 +394,6 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
     roleRef.current = role;
     const hostId = `dilmac-${room.toLowerCase()}-host`;
     hostIdRef.current = hostId;
-    // Test altyapısı: E2E koşumları gerçek PeerJS bulutuna çıkamaz; localStorage
-    // üzerinden yerel bir sinyal sunucusu tanımlanabilir. Üretimde bu anahtar
-    // hiç yazılmadığı için davranış birebir aynı kalır.
     const peerOptions: ConstructorParameters<typeof Peer>[1] = { debug: 0 };
     try {
       const override = localStorage.getItem("dilmac-peer-server");
@@ -395,28 +406,67 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       ? new Peer(hostId, peerOptions)
       : new Peer(peerOptions);
     peerRef.current = peer;
-    let reconnectAttempts = 0;
+
+    const scheduleGuestReconnect = (delay?: number) => {
+      if (roleRef.current !== "guest" || peer.destroyed || connectionRef.current?.open) return;
+      if (guestReconnectTimerRef.current !== null) window.clearTimeout(guestReconnectTimerRef.current);
+      const attempt = guestReconnectAttemptRef.current;
+      const waitMs = delay ?? Math.min(700 + attempt * 700, 5000);
+      guestReconnectTimerRef.current = window.setTimeout(() => {
+        guestReconnectTimerRef.current = null;
+        connectGuest();
+      }, waitMs);
+    };
+    scheduleGuestReconnectRef.current = scheduleGuestReconnect;
+
     const connectGuest = () => {
-      if (peer.destroyed || reconnectAttempts >= 5) return;
+      if (roleRef.current !== "guest" || peer.destroyed || !peer.open || connectionRef.current?.open) return;
+      if (guestReconnectTimerRef.current !== null) window.clearTimeout(guestReconnectTimerRef.current);
+      guestReconnectTimerRef.current = null;
+      if (guestConnectTimeoutRef.current !== null) window.clearTimeout(guestConnectTimeoutRef.current);
+      guestConnectTimeoutRef.current = null;
+      guestReconnectAttemptRef.current += 1;
+      setConnecting(true);
+      setError("");
+
+      const stale = connectionRef.current;
+      if (stale && !stale.open) stale.close();
       const connection = peer.connect(hostId, { reliable: true });
       bindConnection(connection);
-      connection.on("open", () => { reconnectAttempts = 0; });
-      connection.on("close", () => {
-        reconnectAttempts += 1;
-        setConnecting(true);
-        window.setTimeout(connectGuest, Math.min(1000 * 2 ** reconnectAttempts, 8000));
-      });
+      guestConnectTimeoutRef.current = window.setTimeout(() => {
+        guestConnectTimeoutRef.current = null;
+        if (connectionRef.current !== connection || connection.open) return;
+        connection.close();
+        scheduleGuestReconnect();
+      }, 6500);
     };
+
     peer.on("open", () => {
       if (role === "guest") connectGuest();
     });
     peer.on("disconnected", () => {
+      setConnected(false);
       setConnecting(true);
       if (!peer.destroyed) peer.reconnect();
     });
     peer.on("connection", bindConnection);
     peer.on("call", handleIncomingMediaConnection);
     peer.on("error", (peerError) => {
+      const guestWaitingForHost = roleRef.current === "guest" && !connectionRef.current?.open;
+      if (peerError.type === "peer-unavailable" && guestWaitingForHost) {
+        setConnected(false);
+        setConnecting(true);
+        setError("");
+        scheduleGuestReconnect(900);
+        return;
+      }
+      if (peerError.type === "webrtc" && guestWaitingForHost) {
+        setConnected(false);
+        setConnecting(true);
+        setError("");
+        scheduleGuestReconnect(1200);
+        return;
+      }
       if (peerError.type === "webrtc"
         || (peerError.type === "peer-unavailable" && Boolean(connectionRef.current?.open))) {
         setVoiceConnecting(false);
@@ -425,15 +475,13 @@ export function useRoom(onMessage: (message: RoomMessage) => void, onDelivered?:
       }
       setConnecting(false);
       setConnected(false);
-      setError(peerError.type === "peer-unavailable"
-        ? "Odayı oluşturan kişi henüz çevrim içi değil. Birkaç saniye sonra tekrar deneyin."
+      setError(peerError.type === "unavailable-id"
+        ? "Bu oda başka bir sekmede açık görünüyor. Eski oda sekmesini kapatıp yeniden deneyin."
         : "Oda bağlantısı kurulamadı. İnternet bağlantınızı kontrol edin.");
     });
   }, [bindConnection, close, handleIncomingMediaConnection]);
 
   const send = useCallback((message: RoomMessage) => {
-    // Aynı kimlikle gelen güncellenmiş mesaj bekleme listesindeki eski
-    // kopyanın yerine geçer; yeniden bağlanınca güncel hali gönderilir.
     const existingIndex = outboundRef.current.findIndex((candidate) => candidate.id === message.id);
     if (existingIndex >= 0) outboundRef.current[existingIndex] = message;
     else outboundRef.current.push(message);
